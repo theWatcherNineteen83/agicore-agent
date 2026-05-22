@@ -31,8 +31,8 @@ public class StubPlanner implements Planner {
 
     private static final Logger LOG = Logger.getLogger(StubPlanner.class.getName());
 
-    private static final int MIN_ATTEMPTS = 2;
-    private static final double MIN_SUCCESS_RATE = 0.5;
+    private static final int MIN_ATTEMPTS = 3;
+    private static final double MIN_SUCCESS_RATE = 0.6;
 
     private final Map<String, Integer> planningSuccess = new ConcurrentHashMap<>();
     private final Map<String, Integer> planningAttempts = new ConcurrentHashMap<>();
@@ -116,7 +116,7 @@ public class StubPlanner implements Planner {
     private String extractKeyword(String desc) {
         String[] words = desc.split("\\s+");
         for (String w : words) {
-            if (!w.matches("^(a|an|the|to|for|in|on|at|of|and|or|run|send|check|get|do)$"))
+            if (!w.matches("^(a|an|the|to|for|in|on|at|of|and|or|run|send|check|get|do|with|using|by)$"))
                 return w;
         }
         return words.length > 0 ? words[0] : "unknown";

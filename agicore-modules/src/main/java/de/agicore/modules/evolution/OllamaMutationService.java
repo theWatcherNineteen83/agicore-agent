@@ -30,7 +30,7 @@ public class OllamaMutationService implements EvolutionManager.MutationService {
     private static final Logger LOG = Logger.getLogger(OllamaMutationService.class.getName());
 
     private static final String OLLAMA_URL = "http://192.168.22.204:11434/api/generate";
-    private static final String MODEL = "qwen3.6:27b-q4_K_M"; // good code generation, fits 7900 XTX
+    private static final String MODEL = "mistral-small3.1:24b"; // excellent code generation, no thinking mode
     private static final Duration TIMEOUT = Duration.ofSeconds(120);
 
     private final HttpClient http = HttpClient.newBuilder()
@@ -38,6 +38,7 @@ public class OllamaMutationService implements EvolutionManager.MutationService {
             .build();
 
     private int mutationCount = 0;
+    private String lastRawResponse = null;
 
     /**
      * Generate a mutated variant of a Java source file.
@@ -64,8 +65,7 @@ public class OllamaMutationService implements EvolutionManager.MutationService {
                       "options": {
                         "temperature": 0.7,
                         "top_p": 0.9,
-                        "num_predict": 4096,
-                        "stop": ["```"]
+                        "num_predict": 4096
                       }
                     }
                     """, MODEL, escapeJson(prompt));
@@ -78,6 +78,7 @@ public class OllamaMutationService implements EvolutionManager.MutationService {
                     .build();
 
             HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
+            lastRawResponse = response.body();
 
             if (response.statusCode() != 200) {
                 LOG.warning("Ollama returned " + response.statusCode() + ": " + response.body());
@@ -108,44 +109,77 @@ public class OllamaMutationService implements EvolutionManager.MutationService {
     private String buildMutationPrompt(String moduleName, String source,
                                         String className, String packageName) {
         return String.format("""
-                You are a Java code optimizer. Your task is to improve a Planner implementation.
+                Output ONLY the complete modified Java class starting with package declaration.
+                No explanations. No analysis. No markdown. JUST THE CODE.
 
-                CURRENT CODE:
                 ```java
                 %s
                 ```
 
-                MUTATION RULES (MUST FOLLOW ALL):
-                1. Do NOT change any method signatures.
-                2. Do NOT add new import statements or dependencies.
-                3. Keep the package declaration EXACTLY: %s
-                4. Keep the class name EXACTLY: %s
-                5. Change at most 15%% of the code.
-                6. Focus ONLY on improving: keyword extraction logic, action selection heuristics,
-                   or learned-mapping thresholds.
-                7. Do NOT add logging, comments unrelated to logic, or dead code.
-
-                Return ONLY the complete modified Java class, starting with the package declaration.
-                Do not include explanations. Do not wrap in markdown.
-                """, source, packageName, className);
+                Modify up to 15%% of the code.
+                Focus ONLY on: keyword extraction, action selection, thresholds.
+                Do NOT change method signatures, imports, package, or class name.
+                Return ONLY the modified Java code.
+                """, source);
     }
 
-    /** Extract the "response" field from Ollama's JSON output. */
+    /** Extract generated text from Ollama JSON, handling thinking models. */
     private String extractResponse(String json) {
-        // Simple extraction: find "response":"..." 
-        int start = json.indexOf("\"response\":\"");
-        if (start < 0) return json;
-        start += 12;
-        int end = json.indexOf("\",\"done\"", start);
-        if (end < 0) end = json.indexOf("\"}", start);
-        if (end < 0) return json.substring(start);
+        // Try "response" field first
+        String text = extractJsonField(json, "response");
+        if (text != null && !text.isBlank()) return unescape(text);
 
-        String text = json.substring(start, end);
-        // Unescape JSON escapes
-        return text.replace("\\n", "\n")
-                .replace("\\t", "\t")
-                .replace("\\\"", "\"")
-                .replace("\\\\", "\\");
+        // Fallback: "thinking" field (qwen, deepseek-r1, etc.)
+        String thinking = extractJsonField(json, "thinking");
+        if (thinking != null && !thinking.isBlank()) {
+            // Try to find Java code within thinking text
+            String code = extractJavaSource(thinking, null);
+            if (code != null) return code;
+            // If no code found, return the thinking text for debugging
+            return unescape(thinking);
+        }
+
+        return json; // raw fallback
+    }
+
+    /** Extract a named field value from a JSON string, decoding all escapes. */
+    private String extractJsonField(String json, String fieldName) {
+        String searchKey = "\"" + fieldName + "\":\"";
+        int start = json.indexOf(searchKey);
+        if (start < 0) return null;
+        start += searchKey.length();
+        StringBuilder val = new StringBuilder();
+        for (int i = start; i < json.length(); i++) {
+            char c = json.charAt(i);
+            if (c == '\\' && i + 1 < json.length()) {
+                char next = json.charAt(i + 1);
+                switch (next) {
+                    case 'n' -> { val.append('\n'); i++; }
+                    case 't' -> { val.append('\t'); i++; }
+                    case 'r' -> { val.append('\r'); i++; }
+                    case '"' -> { val.append('"'); i++; }
+                    case '\\' -> { val.append('\\'); i++; }
+                    case 'u' -> {
+                        if (i + 5 < json.length()) {
+                            String hex = json.substring(i + 2, i + 6);
+                            val.append((char) Integer.parseInt(hex, 16));
+                            i += 5;
+                        } else { val.append(c); }
+                    }
+                    default -> val.append(c);
+                }
+            } else if (c == '"') {
+                break; // end of string value
+            } else {
+                val.append(c);
+            }
+        }
+        return val.toString();
+    }
+
+    private String unescape(String s) {
+        // Already handled in extractJsonField above
+        return s;
     }
 
     /** Extract the Java class source from the LLM output, handling markdown fences. */
@@ -212,4 +246,5 @@ public class OllamaMutationService implements EvolutionManager.MutationService {
     }
 
     public int mutationCount() { return mutationCount; }
+    public String lastRawResponse() { return lastRawResponse; }
 }
