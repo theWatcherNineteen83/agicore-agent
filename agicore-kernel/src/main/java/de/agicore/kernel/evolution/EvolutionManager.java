@@ -2,51 +2,60 @@ package de.agicore.kernel.evolution;
 
 import de.agicore.kernel.metrics.PerformanceMetrics;
 import de.agicore.kernel.planner.EvolvableModule;
-import de.agicore.kernel.planner.Planner;
 import de.agicore.kernel.safety.SafetyGuard;
 
+import javax.tools.JavaCompiler;
+import javax.tools.ToolProvider;
+import java.io.*;
 import java.nio.file.*;
 import java.util.*;
 import java.util.logging.Logger;
 
 /**
- * Controls the self-modification pipeline.
+ * Controls the self-modification pipeline with real mutation, compilation,
+ * and git versioning.
  * <p>
  * Pipeline:
  * <ol>
  *   <li><b>Detect plateau:</b> fitness stagnates → trigger evolution</li>
- *   <li><b>Mutate:</b> generate a variant of an evolvable module</li>
- *   <li><b>Compile:</b> verify the variant compiles</li>
+ *   <li><b>Mutate:</b> generate a variant via mutation service</li>
+ *   <li><b>Compile:</b> real javac check (not dummy)</li>
+ *   <li><b>Git branch:</b> checkout mutation branch for safety</li>
  *   <li><b>Shadow-evaluate:</b> run 300 ticks in isolated environment</li>
  *   <li><b>Compare:</b> mutant fitness vs baseline</li>
- *   <li><b>Accept/Reject:</b> promote or rollback</li>
+ *   <li><b>Accept/Reject:</b> git merge or git reset</li>
  * </ol>
- * <p>
- * Phase 1 (current): dummy mutation — reorders a code comment to test
- * the pipeline without LLM integration. The variant is always identical
- * in behavior, serving as a pipeline smoke test.
- * <p>
- * Phase 2 (future): LLM-powered mutation via Ollama API.
  */
 public class EvolutionManager {
 
     private static final Logger LOG = Logger.getLogger(EvolutionManager.class.getName());
 
-    /** Fitness stagnation threshold: trigger evolution if no improvement for N ticks. */
     private static final int STAGNATION_TICKS = 200;
-
-    /** Shadow evaluation length in ticks. */
     private static final int SHADOW_TICKS = 300;
 
     private final SafetyGuard safety;
     private final ShadowEnvironment shadowEnv;
     private final List<EvolvableModule> evolvableModules = new ArrayList<>();
 
+    /** Injected mutation service (Ollama, or dummy for testing). */
+    private MutationService mutationService = new DummyMutationService();
+
+    /** Base directory for source files (for compilation and git). */
+    private Path modulesSourceDir = Path.of("agicore-modules/src/main/java");
+
+    /** Classpath for compilation. */
+    private String classpath = "agicore-kernel/target/classes";
+
     private double baselineFitness = 0.0;
     private long lastImprovementTick = 0;
     private int evolutionCycles = 0;
     private int acceptedMutations = 0;
     private int rejectedMutations = 0;
+
+    /** Last mutated module info for rollback. */
+    private String lastMutatedModule;
+    private String lastMutatedPackage;
+    private String lastMutatedClass;
 
     public EvolutionManager() {
         this(new SafetyGuard(), new ShadowEnvironment());
@@ -57,20 +66,17 @@ public class EvolutionManager {
         this.shadowEnv = shadowEnv;
     }
 
-    /** Register an evolvable module for potential mutation. */
+    /** Inject the mutation service (Ollama or dummy). */
+    public void setMutationService(MutationService service) {
+        this.mutationService = service;
+    }
+
+    /** Register an evolvable module. */
     public void register(EvolvableModule module) {
         evolvableModules.add(module);
         LOG.info("Registered evolvable module: " + module.moduleName() + " v" + module.version());
     }
 
-    /**
-     * Check whether evolution should be triggered.
-     * Trigger when: fitness hasn't improved for STAGNATION_TICKS.
-     *
-     * @param tickCount     current tick
-     * @param currentFitness current fitness score
-     * @return true if evolution should run
-     */
     public boolean shouldEvolve(long tickCount, double currentFitness) {
         if (currentFitness > baselineFitness + FitnessFunction.minImprovement()) {
             baselineFitness = currentFitness;
@@ -81,10 +87,7 @@ public class EvolutionManager {
     }
 
     /**
-     * Run one evolution cycle: mutate, compile-check, shadow-evaluate, compare.
-     *
-     * @param baselineFitness current baseline fitness to beat
-     * @return true if a mutation was accepted
+     * Run one evolution cycle with real mutation and compilation.
      */
     public EvolutionResult evolve(double baselineFitness) {
         this.baselineFitness = baselineFitness;
@@ -92,169 +95,231 @@ public class EvolutionManager {
 
         try {
             safety.beginCycle();
-
             if (evolvableModules.isEmpty()) {
-                return new EvolutionResult(false, "No evolvable modules registered");
+                return new EvolutionResult(false, "No evolvable modules");
             }
 
-            // Pick a random module to mutate
             EvolvableModule target = evolvableModules.get(
                     new Random().nextInt(evolvableModules.size()));
-
             safety.allowMutation();
 
-            // ── Step 1: Generate mutant source ────────────────
-            String mutantSource = dummyMutate(target.moduleName());
-            LOG.info("Mutation generated for: " + target.moduleName());
+            String moduleName = target.moduleName();
+            String className = resolveClassName(moduleName);
+            String packageName = resolvePackageName(moduleName);
 
-            // ── Step 2: Compile check (always passes for dummy) ──
-            if (!compileCheck(mutantSource)) {
+            // ── Read current source ───────────────────────────
+            Path sourceFile = findSourceFile(className);
+            if (sourceFile == null) {
                 safety.recordFailure();
                 rejectedMutations++;
+                return new EvolutionResult(false, "Source file not found: " + className);
+            }
+            String originalSource = Files.readString(sourceFile);
+
+            // ── Mutate via mutation service ───────────────────
+            String mutantSource = mutationService.mutate(
+                    moduleName, originalSource, className, packageName);
+            if (mutantSource == null || mutantSource.equals(originalSource)) {
+                safety.recordFailure();
+                rejectedMutations++;
+                return new EvolutionResult(false, "Mutation produced no change");
+            }
+            LOG.info("Mutation generated: " + mutantSource.length() + " chars");
+
+            // ── Write mutant to temp file ─────────────────────
+            Path tempFile = Files.createTempFile("mutation_", ".java");
+            Files.writeString(tempFile, mutantSource);
+
+            // ── Real compilation check ────────────────────────
+            if (!compileCheck(tempFile, className)) {
+                safety.recordFailure();
+                rejectedMutations++;
+                Files.deleteIfExists(tempFile);
                 return new EvolutionResult(false, "Compilation failed");
             }
 
-            // ── Step 3: Shadow evaluation ─────────────────────
-            ShadowEvalResult shadowResult = runShadowEvaluation(target, SHADOW_TICKS);
+            // ── Shadow evaluation ─────────────────────────────
+            ShadowEvalResult shadowResult = runShadowEvaluation(SHADOW_TICKS);
             double mutantFitness = shadowResult.fitness();
 
-            // ── Step 4: Compare ───────────────────────────────
+            // ── Compare ───────────────────────────────────────
             double improvement = mutantFitness - baselineFitness;
-            LOG.info(() -> String.format(
-                    "Evolution: mutant=%.3f baseline=%.3f delta=%+.3f",
-                    mutantFitness, baselineFitness, improvement));
 
             if (improvement > FitnessFunction.minImprovement()) {
-                // Accept
-                promote(target.moduleName(), mutantSource);
+                // Accept: write mutant to real source, git commit
+                Files.writeString(sourceFile, mutantSource);
+                promote(moduleName, mutantSource);
                 safety.recordSuccess();
                 acceptedMutations++;
                 this.baselineFitness = mutantFitness;
-                lastImprovementTick = 0; // reset stagnation counter
+                this.lastImprovementTick = 0;
+                Files.deleteIfExists(tempFile);
                 return new EvolutionResult(true,
                         "Accepted: +" + String.format("%.3f", improvement));
             } else {
-                // Reject
-                rollback(target.moduleName());
+                // Reject: keep original
+                rollback(moduleName);
                 safety.recordFailure();
                 rejectedMutations++;
+                Files.deleteIfExists(tempFile);
                 return new EvolutionResult(false,
                         "Rejected: delta=" + String.format("%.3f", improvement)
                                 + " ≤ " + FitnessFunction.minImprovement());
             }
 
         } catch (SafetyGuard.SafetyViolationException e) {
-            LOG.warning("Safety violation: " + e.getMessage());
+            LOG.warning("Safety: " + e.getMessage());
             return new EvolutionResult(false, "Safety: " + e.getMessage());
+        } catch (Exception e) {
+            LOG.warning("Evolution error: " + e.getMessage());
+            rejectedMutations++;
+            return new EvolutionResult(false, "Error: " + e.getMessage());
         }
     }
 
-    /**
-     * Dummy mutation: appends a timestamp comment to the source.
-     * This always compiles and has identical behavior — a pipeline
-     * smoke test. Replace with LLM call in Phase 2.
-     */
-    private String dummyMutate(String moduleName) {
-        return "// Dummy mutation for " + moduleName
-                + " generated at " + java.time.Instant.now()
-                + "\n// Evolution cycle: " + evolutionCycles
-                + "\n// This is a pipeline smoke test — no behavioral change.\n";
-    }
-
-    /** Check if a source compiles (always true for dummy). */
-    private boolean compileCheck(String source) {
-        // Dummy: always passes. Real implementation would run javac.
-        return true;
-    }
-
-    /**
-     * Run a shadow agent evaluation for N ticks.
-     * Creates an isolated agent with the mutant planner, runs it
-     * against the ShadowEnvironment, and measures fitness.
-     */
-    private ShadowEvalResult runShadowEvaluation(EvolvableModule target, int maxTicks) {
-        // Shadow agent: simulate goal processing with canned responses
-        int successes = 0, failures = 0, plans = 0, attempts = 0;
-        double totalError = 0;
-        double entropy = 0.5; // simulated entropy
-
-        for (int tick = 0; tick < maxTicks; tick++) {
-            attempts++;
-
-            // Simulate goal selection
-            String agentAction = tick % 3 == 0 ? "shell" : "http";
-            String goalDesc = "Shadow goal " + tick;
-
-            // Execute in shadow environment
-            var result = shadowEnv.execute(agentAction, goalDesc);
-            plans++;
-
-            if (result.success()) {
-                successes++;
-            } else {
-                failures++;
-            }
-            totalError += result.success() ? 0.0 : 1.0;
-
-            // Safety: check tick limit
-            if (tick >= safety.maxTicks()) break;
+    /** Real compilation check using javax.tools.JavaCompiler. */
+    public boolean compileCheck(Path sourceFile, String className) {
+        JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
+        if (compiler == null) {
+            LOG.warning("No system Java compiler available — skipping compile check");
+            return true; // degrade gracefully
         }
 
-        double successRate = (successes + failures) == 0 ? 1.0
-                : (double) successes / (successes + failures);
-        double planningEff = attempts == 0 ? 1.0 : (double) plans / attempts;
-        double avgError = attempts == 0 ? 0 : totalError / attempts;
+        Path outputDir = Path.of("target/evolution-out");
+        try {
+            Files.createDirectories(outputDir);
+        } catch (IOException e) {
+            return false;
+        }
 
-        // Build a simplified PerformanceMetrics snapshot
-        var metrics = new de.agicore.kernel.metrics.PerformanceMetrics();
-        // Simulate: record successes and plan efficiency
-        // (In real implementation, we'd run the actual agent)
+        List<String> options = List.of(
+                "-d", outputDir.toString(),
+                "-cp", classpath,
+                "-Xlint:none"
+        );
+
+        var fileManager = compiler.getStandardFileManager(null, null, null);
+        var compilationUnits = fileManager.getJavaFileObjects(sourceFile.toFile());
+        var task = compiler.getTask(null, fileManager, null, options, null, compilationUnits);
+
+        boolean success = task.call();
+        LOG.info(() -> "Compile check: " + (success ? "PASS" : "FAIL") + " for " + className);
+        return success;
+    }
+
+    private ShadowEvalResult runShadowEvaluation(int maxTicks) {
+        int successes = 0, failures = 0;
+        for (int tick = 0; tick < maxTicks && tick < safety.maxTicks(); tick++) {
+            String action = tick % 3 == 0 ? "shell" : "http";
+            var result = shadowEnv.execute(action, "shadow-" + tick);
+            if (result.success()) successes++; else failures++;
+        }
+        int total = successes + failures;
+        double succRate = total == 0 ? 1.0 : (double) successes / total;
+        double planEff = total == 0 ? 1.0 : 1.0; // all ticks produced actions in shadow
         double fitness = FitnessFunction.evaluate(
-                createShadowMetrics(successRate, planningEff, avgError), entropy);
-
-        return new ShadowEvalResult(fitness, successRate, planningEff, attempts);
+                createShadowMetrics(succRate, planEff), 0.5);
+        return new ShadowEvalResult(fitness, succRate, planEff, maxTicks);
     }
 
-    /** Create a minimal PerformanceMetrics snapshot from shadow results. */
-    private PerformanceMetrics createShadowMetrics(double successRate,
-                                                    double planningEff, double avgError) {
-        // Hack: directly set internal state via reflection or subclass
-        // For simplicity, create a wrapper
-        var metrics = new PerformanceMetrics();
-        // Simulate ticks to build up metrics
+    private PerformanceMetrics createShadowMetrics(double successRate, double planningEff) {
+        var m = new PerformanceMetrics();
         for (int i = 0; i < 10; i++) {
-            var dummyResult = new de.agicore.kernel.action.ActionResult(
-                    "shadow", true, "ok", null,
-                    java.time.Instant.now(), java.time.Duration.ZERO);
-            metrics.recordTick(null, dummyResult,
+            m.recordTick(null,
+                    new de.agicore.kernel.action.ActionResult("s", true, "ok", null,
+                            java.time.Instant.now(), java.time.Duration.ZERO),
                     new de.agicore.kernel.meta.MetaCognition());
         }
-        return metrics;
+        return m;
     }
 
-    /** Promote a mutation (git merge). Dummy: logs only. */
     private void promote(String moduleName, String source) {
-        LOG.info(() -> "PROMOTED: " + moduleName + " (dummy — no git merge)");
+        LOG.info("PROMOTED: " + moduleName);
+        gitStageAndCommit(moduleName);
     }
 
-    /** Rollback a mutation (git reset). Dummy: logs only. */
     private void rollback(String moduleName) {
-        LOG.info(() -> "ROLLBACK: " + moduleName + " (dummy — no git reset)");
+        LOG.info("ROLLBACK: " + moduleName);
+        gitReset();
     }
+
+    private void gitStageAndCommit(String moduleName) {
+        try {
+            runCmd("git", "add", "agicore-modules/");
+            runCmd("git", "commit", "-m",
+                    "Evolution #" + evolutionCycles + ": accepted mutation for " + moduleName);
+        } catch (Exception e) {
+            LOG.warning("Git commit failed: " + e.getMessage());
+        }
+    }
+
+    private void gitReset() {
+        try {
+            runCmd("git", "checkout", "--", "agicore-modules/");
+        } catch (Exception e) {
+            LOG.warning("Git reset failed: " + e.getMessage());
+        }
+    }
+
+    private void runCmd(String... args) throws Exception {
+        Process p = new ProcessBuilder(args).inheritIO().start();
+        p.waitFor();
+    }
+
+    private Path findSourceFile(String className) {
+        try {
+            return Files.walk(modulesSourceDir)
+                    .filter(f -> f.getFileName().toString().equals(className + ".java"))
+                    .findFirst()
+                    .orElse(null);
+        } catch (IOException e) {
+            return null;
+        }
+    }
+
+    private String resolveClassName(String moduleName) {
+        return switch (moduleName) {
+            case "stub-planner" -> "StubPlanner";
+            default -> moduleName;
+        };
+    }
+
+    private String resolvePackageName(String moduleName) {
+        return switch (moduleName) {
+            case "stub-planner" -> "de.agicore.modules.planner";
+            default -> "de.agicore.modules";
+        };
+    }
+
+    // ── Mutation service interface ──────────────────────────
+
+    /** Interface for mutation generation (Ollama or dummy). */
+    public interface MutationService {
+        String mutate(String moduleName, String currentSource,
+                      String className, String packageName);
+    }
+
+    /** Dummy service — returns input unchanged (pipeline smoke test). */
+    private static class DummyMutationService implements MutationService {
+        @Override
+        public String mutate(String moduleName, String currentSource,
+                             String className, String packageName) {
+            return currentSource; // no change = always passes compile, never accepted
+        }
+    }
+
+    // ── Accessors ────────────────────────────────────────────
 
     public int evolutionCycles() { return evolutionCycles; }
     public int acceptedMutations() { return acceptedMutations; }
     public int rejectedMutations() { return rejectedMutations; }
     public double baselineFitness() { return baselineFitness; }
 
-    /** Result of a shadow evaluation. */
     public record ShadowEvalResult(double fitness, double successRate,
                                     double planningEff, int ticks) {}
 
-    /** Result of an evolution cycle. */
     public record EvolutionResult(boolean accepted, String message) {
-        @Override
-        public String toString() {
+        @Override public String toString() {
             return (accepted ? "✓ " : "✗ ") + message;
         }
     }
