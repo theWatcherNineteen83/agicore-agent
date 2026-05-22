@@ -1,11 +1,14 @@
 package de.agicore.kernel.memory;
 
+import de.agicore.kernel.embedding.VectorIndex;
+
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.logging.Logger;
 
 /**
@@ -44,14 +47,20 @@ public class LongTermMemory {
     private final double decayRate;
     private final double evictionThreshold;
     private final List<Experience> store = new ArrayList<>();
+    private final VectorIndex vectorIndex;
 
     public LongTermMemory() {
-        this(DEFAULT_DECAY_RATE, DEFAULT_EVICTION_THRESHOLD);
+        this(DEFAULT_DECAY_RATE, DEFAULT_EVICTION_THRESHOLD, null);
     }
 
     public LongTermMemory(double decayRate, double evictionThreshold) {
+        this(decayRate, evictionThreshold, null);
+    }
+
+    public LongTermMemory(double decayRate, double evictionThreshold, VectorIndex vectorIndex) {
         this.decayRate = decayRate;
         this.evictionThreshold = evictionThreshold;
+        this.vectorIndex = vectorIndex;
     }
 
     /**
@@ -59,6 +68,9 @@ public class LongTermMemory {
      */
     public synchronized void store(Experience exp) {
         store.add(exp);
+        if (vectorIndex != null && exp.vector().length > 0) {
+            vectorIndex.insert(exp.id().toString(), exp.vector());
+        }
         LOG.fine(() -> "LTM stored: " + exp);
     }
 
@@ -86,6 +98,23 @@ public class LongTermMemory {
             return List.of();
         }
         Instant now = Instant.now();
+
+        // Use vector index for fast approximate search
+        if (vectorIndex != null && vectorIndex.size() > 0) {
+            List<String> keys = vectorIndex.search(queryVec, k * 3); // overfetch for filtering
+            java.util.Map<String, Experience> expMap = new java.util.HashMap<>();
+            for (Experience exp : store) {
+                expMap.put(exp.id().toString(), exp);
+            }
+            return keys.stream()
+                    .map(expMap::get)
+                    .filter(Objects::nonNull)
+                    .filter(exp -> effectiveSalience(exp, now) > evictionThreshold)
+                    .limit(k)
+                    .toList();
+        }
+
+        // Fallback: linear scan
         return store.stream()
                 .map(exp -> new ScoredExperience(exp, effectiveSalience(exp, now),
                         cosineSimilarity(queryVec, exp.vector())))
