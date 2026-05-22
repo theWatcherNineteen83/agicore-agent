@@ -126,8 +126,10 @@ public class EvolutionManager {
             }
             LOG.info("Mutation generated: " + mutantSource.length() + " chars");
 
-            // ── Write mutant to temp file ─────────────────────
-            Path tempFile = Files.createTempFile("mutation_", ".java");
+            // ── Write mutant to temp file with correct class name ──
+            Path outputDir = Path.of("target/evolution-out");
+            Files.createDirectories(outputDir);
+            Path tempFile = outputDir.resolve(className + ".java");
             Files.writeString(tempFile, mutantSource);
 
             // ── Real compilation check ────────────────────────

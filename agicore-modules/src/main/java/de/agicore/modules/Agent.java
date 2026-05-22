@@ -14,6 +14,7 @@ import de.agicore.kernel.meta.MetaCognition;
 import de.agicore.kernel.meta.MetaRepresentation;
 import de.agicore.kernel.metrics.PerformanceMetrics;
 import de.agicore.kernel.optimize.HyperparameterMutator;
+import de.agicore.kernel.planner.PlanValidator;
 import de.agicore.kernel.planner.Planner;
 import de.agicore.kernel.self.SelfModel;
 import de.agicore.kernel.workspace.AttentionBuffer;
@@ -98,11 +99,12 @@ public class Agent {
             var consolidator = new MemoryConsolidator(stm, ltm);
             selfModel.bind(meta, metrics);
             var metaRepr = new MetaRepresentation(selfModel, workspace);
+            var planValidator = new PlanValidator(executor);
             // Register evolvable modules
             if (planner instanceof de.agicore.kernel.planner.EvolvableModule em) {
                 evolutionManager.register(em);
             }
-            var loop = new AgentCoreLoop(goalManager, planner, executor,
+            var loop = new AgentCoreLoop(goalManager, planner, planValidator, executor,
                     consolidator, meta, metrics, hyperMutator,
                     workspace, selfModel, worldModel, metaRepr, evolutionManager);
             return new Agent(loop);

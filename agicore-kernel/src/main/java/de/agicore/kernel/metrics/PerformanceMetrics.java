@@ -130,6 +130,36 @@ public class PerformanceMetrics {
         return List.copyOf(history.subList(from, history.size()));
     }
 
+    // ── Huyen Kap. 6: Error Propagation Tracking ──────────
+
+    /**
+     * Estimated step-level success probability.
+     * Huyen: "95% per step → 60% after 10 steps."
+     * We compute: stepLevelSuccess = goalSuccessRate ^ (1 / avgStepsPerGoal)
+     * This estimates how reliable each individual action is.
+     */
+    public double stepLevelSuccessRate(double avgStepsPerGoal) {
+        if (avgStepsPerGoal <= 0 || goalSuccessRate() <= 0) return goalSuccessRate();
+        return Math.pow(goalSuccessRate(), 1.0 / Math.max(1.0, avgStepsPerGoal));
+    }
+
+    /**
+     * Predicted success rate for a plan of N steps.
+     * Formula: stepLevelSuccess^N (Huyen's error propagation model).
+     */
+    public double predictedPlanSuccess(int steps, double avgStepsPerGoal) {
+        double stepRate = stepLevelSuccessRate(avgStepsPerGoal);
+        return Math.pow(stepRate, steps);
+    }
+
+    /**
+     * Whether the plan length would degrade success below the given threshold.
+     * If so, the plan should be shortened or validated more carefully.
+     */
+    public boolean planTooRisky(int steps, double avgStepsPerGoal, double minSuccess) {
+        return predictedPlanSuccess(steps, avgStepsPerGoal) < minSuccess;
+    }
+
     public long totalTicks() { return totalTicks; }
     public long successfulGoalsCount() { return successfulGoals; }
     public long failedGoalsCount() { return failedGoals; }

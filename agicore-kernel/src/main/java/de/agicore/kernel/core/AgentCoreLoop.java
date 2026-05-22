@@ -13,6 +13,7 @@ import de.agicore.kernel.meta.MetaCognition;
 import de.agicore.kernel.meta.MetaRepresentation;
 import de.agicore.kernel.metrics.PerformanceMetrics;
 import de.agicore.kernel.optimize.HyperparameterMutator;
+import de.agicore.kernel.planner.PlanValidator;
 import de.agicore.kernel.planner.Planner;
 import de.agicore.kernel.self.SelfModel;
 import de.agicore.kernel.workspace.ContentItem;
@@ -49,6 +50,7 @@ public class AgentCoreLoop {
 
     private final GoalManager goals;
     private final Planner planner;
+    private final PlanValidator planValidator;
     private final ActionExecutor executor;
     private final ShortTermMemory stm;
     private final MemoryConsolidator consolidator;
@@ -71,7 +73,8 @@ public class AgentCoreLoop {
     private CognitiveCycle currentPhase = CognitiveCycle.PERCEIVE;
     private HyperparameterMutator.Configuration activeConfig;
 
-    public AgentCoreLoop(GoalManager goals, Planner planner, ActionExecutor executor,
+    public AgentCoreLoop(GoalManager goals, Planner planner, PlanValidator planValidator,
+                         ActionExecutor executor,
                          MemoryConsolidator consolidator, MetaCognition meta,
                          PerformanceMetrics metrics, HyperparameterMutator hyperMutator,
                          GlobalWorkspace workspace, SelfModel selfModel,
@@ -79,6 +82,7 @@ public class AgentCoreLoop {
                          EvolutionManager evolutionManager) {
         this.goals = goals;
         this.planner = planner;
+        this.planValidator = planValidator;
         this.executor = executor;
         this.stm = consolidator.stm();
         this.consolidator = consolidator;
@@ -154,13 +158,25 @@ public class AgentCoreLoop {
         List<String> plan = planner.plan(goal, recentHistory, broadcast, meta);
         if (plan.isEmpty()) {
             LOG.warning(() -> "No plan for goal: " + currentGoal.description() + " — unachievable");
-            goals.recordOutcome(goal, false);
+            goals.recordOutcome(currentGoal, false);
             goals.complete(currentGoal.id());
-            metrics.recordTick(goal, null, meta);
+            metrics.recordTick(currentGoal, null, meta);
             worldModel.observe("goal:" + currentGoal.description() + " has no plan", false);
             metaRepr.recordStrategy("keyword-match", false);
             return null;
         }
+
+        // Huyen Kap. 6: Plan validieren vor Ausführung
+        PlanValidator.ValidationResult validation = planValidator.validate(plan);
+        if (!validation.valid()) {
+            LOG.warning("Plan rejected by validator: " + validation.reason());
+            goals.recordOutcome(currentGoal, false);
+            goals.complete(currentGoal.id());
+            metrics.recordTick(currentGoal, null, meta);
+            return null;
+        }
+        LOG.fine(() -> "Plan validated: " + validation.reason());
+
         String actionName = plan.getFirst();
 
         // ── EXECUTE ──────────────────────────────────────────────
