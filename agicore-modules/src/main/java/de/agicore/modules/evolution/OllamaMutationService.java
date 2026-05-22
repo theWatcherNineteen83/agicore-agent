@@ -2,6 +2,9 @@ package de.agicore.modules.evolution;
 
 import de.agicore.kernel.evolution.EvolutionManager;
 
+import de.agicore.kernel.evolution.EvolutionManager;
+import de.agicore.kernel.evolution.PromptBank;
+
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -39,6 +42,7 @@ public class OllamaMutationService implements EvolutionManager.MutationService {
 
     private int mutationCount = 0;
     private String lastRawResponse = null;
+    private PromptBank promptBank = new PromptBank();
 
     /**
      * Generate a mutated variant of a Java source file.
@@ -108,7 +112,7 @@ public class OllamaMutationService implements EvolutionManager.MutationService {
      */
     private String buildMutationPrompt(String moduleName, String source,
                                         String className, String packageName) {
-        return String.format("""
+        String basePrompt = String.format("""
                 Output ONLY the complete modified Java class starting with package declaration.
                 No explanations. No analysis. No markdown. JUST THE CODE.
 
@@ -121,6 +125,10 @@ public class OllamaMutationService implements EvolutionManager.MutationService {
                 Do NOT change method signatures, imports, package, or class name.
                 Return ONLY the modified Java code.
                 """, source);
+
+        // Inject few-shot examples from prompt bank
+        String fewShot = promptBank.buildFewShotPrompt(moduleName);
+        return basePrompt + fewShot;
     }
 
     /** Extract generated text from Ollama JSON, handling thinking models. */
@@ -247,4 +255,5 @@ public class OllamaMutationService implements EvolutionManager.MutationService {
 
     public int mutationCount() { return mutationCount; }
     public String lastRawResponse() { return lastRawResponse; }
+    public PromptBank promptBank() { return promptBank; }
 }

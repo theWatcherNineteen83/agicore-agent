@@ -43,8 +43,10 @@ public final class EvolutionDemo {
                 .workspaceCapacity(5)
                 .build();
 
-        // 3. Create Ollama mutation service
+        // 3. Create Ollama mutation service with shared prompt bank
         var ollama = new OllamaMutationService();
+        // Share prompt bank between ollama and evolution manager
+        ollama.promptBank(); // initialized
         agent.core().evolutionManager().setMutationService(ollama);
 
         // Register StubPlanner as evolvable module

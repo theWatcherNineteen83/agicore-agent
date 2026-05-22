@@ -40,6 +40,9 @@ public class EvolutionManager {
     /** Injected mutation service (Ollama, or dummy for testing). */
     private MutationService mutationService = new DummyMutationService();
 
+    /** Prompt bank for few-shot learning from successful mutations. */
+    private PromptBank promptBank = new PromptBank();
+
     /** Base directory for source files (for compilation and git). */
     private Path modulesSourceDir = Path.of("agicore-modules/src/main/java");
 
@@ -70,6 +73,13 @@ public class EvolutionManager {
     public void setMutationService(MutationService service) {
         this.mutationService = service;
     }
+
+    /** Inject a shared prompt bank. */
+    public void setPromptBank(PromptBank bank) {
+        this.promptBank = bank;
+    }
+
+    public PromptBank promptBank() { return promptBank; }
 
     /** Register an evolvable module. */
     public void register(EvolvableModule module) {
@@ -150,7 +160,7 @@ public class EvolutionManager {
             if (improvement > FitnessFunction.minImprovement()) {
                 // Accept: write mutant to real source, git commit
                 Files.writeString(sourceFile, mutantSource);
-                promote(moduleName, mutantSource);
+                promote(moduleName, mutantSource, originalSource, mutantFitness, improvement);
                 safety.recordSuccess();
                 acceptedMutations++;
                 this.baselineFitness = mutantFitness;
@@ -235,8 +245,9 @@ public class EvolutionManager {
         return m;
     }
 
-    private void promote(String moduleName, String source) {
+    private void promote(String moduleName, String source, String originalSource, double fitness, double delta) {
         LOG.info("PROMOTED: " + moduleName);
+        promptBank.recordSuccess(moduleName, fitness, delta, originalSource, source);
         gitStageAndCommit(moduleName);
     }
 
