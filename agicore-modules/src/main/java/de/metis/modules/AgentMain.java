@@ -544,6 +544,7 @@ public final class AgentMain {
         String planningModel = null;
         String mutationModel = null;
         String embeddingModel = null;
+        String bootstrapModel = null;
 
         for (int i = 0; i < args.length; i++) {
             switch (args[i]) {
@@ -556,6 +557,7 @@ public final class AgentMain {
                 case "--planning-model" -> planningModel = args[++i];
                 case "--mutation-model" -> mutationModel = args[++i];
                 case "--embedding-model" -> embeddingModel = args[++i];
+                case "--bootstrap-model" -> bootstrapModel = args[++i];
                 case "--help", "-h" -> {
                     System.out.println("""
                             Metis AGI — Self-Evolving Agent System
@@ -569,6 +571,7 @@ public final class AgentMain {
                               --planning-model M    Override auto-selected planning model
                               --mutation-model M    Override auto-selected mutation model
                               --embedding-model M   Override auto-selected embedding model
+                              --bootstrap-model M   Bootstrap world knowledge from a small model
                             """);
                     return;
                 }
@@ -639,6 +642,17 @@ public final class AgentMain {
         agent.worldModel().update("http actions work for health checks", 0.9, "bootstrap", true);
         agent.worldModel().update("filesystem-list explores directory contents", 0.8, "bootstrap", true);
         agent.worldModel().update("filesystem-read retrieves file contents", 0.75, "bootstrap", true);
+
+        // External knowledge bootstrap from a small model
+        if (bootstrapModel != null) {
+            LOG.info("Bootstrapping knowledge from model: " + bootstrapModel);
+            var kb = new KnowledgeBootstrap("http://192.168.22.204:11434", bootstrapModel);
+            var beliefs = kb.bootstrap();
+            for (var b : beliefs) {
+                agent.worldModel().update(b.statement(), b.confidence(), b.source(), true);
+            }
+            LOG.info("Injected " + beliefs.size() + " bootstrapped beliefs into WorldModel");
+        }
 
         // Initial goals
         agent.addGoal("Check system status via shell", "shell", 85, 0.9, 1);
