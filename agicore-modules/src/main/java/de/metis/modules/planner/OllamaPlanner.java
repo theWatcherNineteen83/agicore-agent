@@ -589,6 +589,17 @@ public class OllamaPlanner implements Planner {
         return rates;
     }
 
+    // ── Accessors ───────────────────────────────────────────────
+
+    /** Expose raw planning attempts for persistence. */
+    public Map<String, Integer> rawPlanningAttempts() {
+        return Map.copyOf(planningAttempts);
+    }
+    /** Expose raw planning successes for persistence. */
+    public Map<String, Integer> rawPlanningSuccesses() {
+        return Map.copyOf(planningSuccess);
+    }
+
     public int llmCalls() { return llmCalls; }
     public int llmFailures() { return llmFailures; }
     public int fallbackUses() { return fallbackUses; }

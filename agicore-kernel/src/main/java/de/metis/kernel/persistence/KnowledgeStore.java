@@ -1,0 +1,285 @@
+package de.metis.kernel.persistence;
+
+import de.metis.kernel.memory.Experience;
+import de.metis.kernel.world.Belief;
+
+import java.nio.file.*;
+import java.sql.*;
+import java.time.Instant;
+import java.util.*;
+import java.util.logging.Logger;
+
+/**
+ * SQLite-basierte Wissensdatenbank für Metis.
+ * <p>
+ * Persistiert:
+ * <ul>
+ *   <li>WorldModel-Beliefs (statement, confidence, source, evidence)</li>
+ *   <li>Erfahrungen/Experiences (goal, action, success, prediction error)</li>
+ *   <li>Planner-Mappings (goal-keyword + action → success rate)</li>
+ *   <li>Evolution-History (accepted/rejected mutations mit Timestamp)</li>
+ * </ul>
+ * <p>
+ * Eine Datei: {@code metis-knowledge.db} im Arbeitsverzeichnis.
+ * Überlebt Neustarts, keine externe DB nötig.
+ */
+public class KnowledgeStore implements AutoCloseable {
+
+    private static final Logger LOG = Logger.getLogger(KnowledgeStore.class.getName());
+
+    private final Connection conn;
+
+    public KnowledgeStore(Path dbPath) throws SQLException {
+        boolean exists = Files.exists(dbPath);
+        this.conn = DriverManager.getConnection("jdbc:sqlite:" + dbPath.toAbsolutePath());
+        initSchema();
+        LOG.info("KnowledgeStore: " + dbPath + (exists ? " (existing)" : " (new)"));
+    }
+
+    public KnowledgeStore() throws SQLException {
+        this(Path.of("metis-knowledge.db"));
+    }
+
+    // ── Schema ──────────────────────────────────────────────────────
+
+    private void initSchema() throws SQLException {
+        try (Statement stmt = conn.createStatement()) {
+            stmt.execute("""
+                    CREATE TABLE IF NOT EXISTS beliefs (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        statement TEXT NOT NULL UNIQUE,
+                        confidence REAL NOT NULL DEFAULT 0.5,
+                        source TEXT NOT NULL DEFAULT 'unknown',
+                        evidence INTEGER NOT NULL DEFAULT 1,
+                        created_at TEXT NOT NULL,
+                        updated_at TEXT NOT NULL
+                    )
+                    """);
+            stmt.execute("""
+                    CREATE TABLE IF NOT EXISTS experiences (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        goal_description TEXT NOT NULL,
+                        action_name TEXT NOT NULL,
+                        success INTEGER NOT NULL DEFAULT 0,
+                        prediction_error REAL NOT NULL DEFAULT 0.5,
+                        salience REAL NOT NULL DEFAULT 0.5,
+                        body TEXT,
+                        timestamp TEXT NOT NULL
+                    )
+                    """);
+            stmt.execute("""
+                    CREATE TABLE IF NOT EXISTS planner_mappings (
+                        goal_keyword TEXT NOT NULL,
+                        action_name TEXT NOT NULL,
+                        attempts INTEGER NOT NULL DEFAULT 0,
+                        successes INTEGER NOT NULL DEFAULT 0,
+                        PRIMARY KEY (goal_keyword, action_name)
+                    )
+                    """);
+            stmt.execute("""
+                    CREATE TABLE IF NOT EXISTS evolution_history (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        module_name TEXT NOT NULL,
+                        accepted INTEGER NOT NULL DEFAULT 0,
+                        fitness REAL,
+                        message TEXT,
+                        timestamp TEXT NOT NULL
+                    )
+                    """);
+            stmt.execute("CREATE INDEX IF NOT EXISTS idx_beliefs_conf ON beliefs(confidence DESC)");
+            stmt.execute("CREATE INDEX IF NOT EXISTS idx_experiences_time ON experiences(timestamp DESC)");
+            stmt.execute("CREATE INDEX IF NOT EXISTS idx_experiences_action ON experiences(action_name)");
+        }
+    }
+
+    // ── Beliefs ─────────────────────────────────────────────────────
+
+    public void saveBelief(Belief belief) {
+        String now = Instant.now().toString();
+        try (PreparedStatement ps = conn.prepareStatement("""
+                INSERT INTO beliefs (statement, confidence, source, evidence, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(statement) DO UPDATE SET
+                    confidence = excluded.confidence,
+                    source = excluded.source,
+                    evidence = excluded.evidence,
+                    updated_at = excluded.updated_at
+                """)) {
+            ps.setString(1, belief.statement());
+            ps.setDouble(2, belief.confidence());
+            ps.setString(3, belief.source());
+            ps.setInt(4, belief.evidence());
+            ps.setString(5, now);
+            ps.setString(6, now);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            LOG.fine("Failed to save belief: " + e.getMessage());
+        }
+    }
+
+    public List<Belief> loadBeliefs() {
+        List<Belief> beliefs = new ArrayList<>();
+        try (Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(
+                     "SELECT statement, confidence, source, evidence FROM beliefs ORDER BY confidence DESC")) {
+            while (rs.next()) {
+                beliefs.add(new Belief(
+                        rs.getString("statement"),
+                        rs.getDouble("confidence"),
+                        rs.getString("source")));
+            }
+        } catch (SQLException e) {
+            LOG.warning("Failed to load beliefs: " + e.getMessage());
+        }
+        return beliefs;
+    }
+
+    public void deleteWeakBeliefs(double threshold) {
+        try (PreparedStatement ps = conn.prepareStatement(
+                "DELETE FROM beliefs WHERE confidence < ?")) {
+            ps.setDouble(1, threshold);
+            int deleted = ps.executeUpdate();
+            if (deleted > 0) LOG.fine("Cleaned " + deleted + " weak beliefs (<" + threshold + ")");
+        } catch (SQLException e) {
+            LOG.fine("Failed to clean weak beliefs: " + e.getMessage());
+        }
+    }
+
+    // ── Experiences ─────────────────────────────────────────────────
+
+    public void saveExperience(Experience exp) {
+        try (PreparedStatement ps = conn.prepareStatement("""
+                INSERT INTO experiences (goal_description, action_name, success,
+                    prediction_error, salience, body, timestamp)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """)) {
+            ps.setString(1, exp.goalDescription());
+            ps.setString(2, exp.actionName());
+            ps.setInt(3, exp.success() ? 1 : 0);
+            ps.setDouble(4, exp.predictionError());
+            ps.setDouble(5, exp.salience());
+            ps.setString(6, exp.body() != null ? exp.body().substring(0, Math.min(exp.body().length(), 2000)) : "");
+            ps.setString(7, exp.timestamp().toString());
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            LOG.fine("Failed to save experience: " + e.getMessage());
+        }
+    }
+
+    /** Load recent experiences, newest first. */
+    public List<Experience> loadRecentExperiences(int limit) {
+        List<Experience> experiences = new ArrayList<>();
+        try (Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(
+                     "SELECT * FROM experiences ORDER BY timestamp DESC LIMIT " + limit)) {
+            while (rs.next()) {
+                experiences.add(new Experience(
+                        rs.getString("goal_description"),
+                        rs.getString("action_name"),
+                        rs.getInt("success") == 1,
+                        rs.getString("body"),
+                        rs.getDouble("prediction_error"),
+                        new double[0]));
+            }
+        } catch (SQLException e) {
+            LOG.fine("Failed to load experiences: " + e.getMessage());
+        }
+        return experiences;
+    }
+
+    // ── Planner-Mappings ───────────────────────────────────────────
+
+    public void savePlannerMapping(String goalKeyword, String actionName,
+                                    int attempts, int successes) {
+        try (PreparedStatement ps = conn.prepareStatement("""
+                INSERT INTO planner_mappings (goal_keyword, action_name, attempts, successes)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT(goal_keyword, action_name) DO UPDATE SET
+                    attempts = excluded.attempts,
+                    successes = excluded.successes
+                """)) {
+            ps.setString(1, goalKeyword);
+            ps.setString(2, actionName);
+            ps.setInt(3, attempts);
+            ps.setInt(4, successes);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            LOG.fine("Failed to save planner mapping: " + e.getMessage());
+        }
+    }
+
+    public Map<String, Map<String, int[]>> loadPlannerMappings() {
+        Map<String, Map<String, int[]>> mappings = new LinkedHashMap<>();
+        try (Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(
+                     "SELECT goal_keyword, action_name, attempts, successes FROM planner_mappings")) {
+            while (rs.next()) {
+                String keyword = rs.getString("goal_keyword");
+                String action = rs.getString("action_name");
+                int att = rs.getInt("attempts");
+                int succ = rs.getInt("successes");
+                mappings.computeIfAbsent(keyword, k -> new LinkedHashMap<>())
+                        .put(action, new int[]{att, succ});
+            }
+        } catch (SQLException e) {
+            LOG.fine("Failed to load planner mappings: " + e.getMessage());
+        }
+        return mappings;
+    }
+
+    // ── Evolution-History ──────────────────────────────────────────
+
+    public void recordEvolution(String moduleName, boolean accepted,
+                                 double fitness, String message) {
+        try (PreparedStatement ps = conn.prepareStatement("""
+                INSERT INTO evolution_history (module_name, accepted, fitness, message, timestamp)
+                VALUES (?, ?, ?, ?, ?)
+                """)) {
+            ps.setString(1, moduleName);
+            ps.setInt(2, accepted ? 1 : 0);
+            ps.setDouble(3, fitness);
+            ps.setString(4, message != null ? message.substring(0, Math.min(message.length(), 500)) : "");
+            ps.setString(5, Instant.now().toString());
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            LOG.fine("Failed to record evolution: " + e.getMessage());
+        }
+    }
+
+    // ── Stats ───────────────────────────────────────────────────────
+
+    public int beliefCount() {
+        try (Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM beliefs")) {
+            return rs.getInt(1);
+        } catch (SQLException e) { return 0; }
+    }
+
+    public int experienceCount() {
+        try (Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM experiences")) {
+            return rs.getInt(1);
+        } catch (SQLException e) { return 0; }
+    }
+
+    public int mappingCount() {
+        try (Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM planner_mappings")) {
+            return rs.getInt(1);
+        } catch (SQLException e) { return 0; }
+    }
+
+    public int evolutionHistoryCount() {
+        try (Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM evolution_history")) {
+            return rs.getInt(1);
+        } catch (SQLException e) { return 0; }
+    }
+
+    @Override
+    public void close() throws SQLException {
+        conn.close();
+    }
+
+    public Connection connection() { return conn; }
+}

@@ -6,6 +6,7 @@ import de.metis.kernel.action.NativeWebScraperAction;
 import de.metis.kernel.action.LinuxExploreAction;
 import de.metis.kernel.action.ApiExplorerAction;
 import de.metis.kernel.action.JavaSandboxAction;
+import de.metis.kernel.persistence.KnowledgeStore;
 import de.metis.kernel.evolution.EvolutionManager;
 import de.metis.kernel.metrics.PerformanceMetrics;
 import de.metis.kernel.planner.Planner;
@@ -53,7 +54,8 @@ public final class AgentMain {
     private final Path persistPath;
     private final boolean enableEvolution;
     private final int idleGoalInterval;     // ticks between auto-generated goals
-    private final long emergenceReportInterval; // ticks between emergence reports
+    private final long emergenceReportInterval;
+    private KnowledgeStore knowledgeStore = null; // ticks between emergence reports
 
     // ── Runtime state ─────────────────────────────────────────
     private final AtomicBoolean running = new AtomicBoolean(true);
@@ -76,6 +78,7 @@ public final class AgentMain {
         this.enableEvolution = builder.enableEvolution;
         this.idleGoalInterval = builder.idleGoalInterval;
         this.emergenceReportInterval = builder.emergenceReportInterval;
+        this.knowledgeStore = builder.knowledgeStore;
         this.agent = builder.agent;
 
         this.scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
@@ -151,6 +154,11 @@ public final class AgentMain {
                 if (persistPath != null && totalTicks - lastPersist >= 100) {
                     persistState();
                     lastPersist = totalTicks;
+                }
+
+                // ── Knowledge sync (SQLite) ──────────────────
+                if (knowledgeStore != null && totalTicks % 5 == 0) {
+                    syncKnowledgeToStore();
                 }
 
                 // ── Status report ─────────────────────────────
@@ -299,6 +307,32 @@ public final class AgentMain {
     }
 
     // ── Persistence ───────────────────────────────────────────
+
+    private void syncKnowledgeToStore() {
+        if (knowledgeStore == null) return;
+        try {
+            // Sync planner mappings
+            var planner = agent.planner();
+            if (planner instanceof OllamaPlanner op) {
+                var attempts = op.rawPlanningAttempts();
+                var successes = op.rawPlanningSuccesses();
+                for (String key : attempts.keySet()) {
+                    String[] parts = key.split(":", 2);
+                    if (parts.length == 2) {
+                        knowledgeStore.savePlannerMapping(parts[0], parts[1],
+                                attempts.get(key),
+                                successes.getOrDefault(key, 0));
+                    }
+                }
+            }
+            // Sync recent experiences
+            for (var exp : agent.stm().recent(10)) {
+                knowledgeStore.saveExperience(exp);
+            }
+        } catch (Exception e) {
+            LOG.fine("Knowledge sync skipped: " + e.getMessage());
+        }
+    }
 
     private void persistState() throws IOException {
         if (persistPath == null) return;
@@ -515,6 +549,7 @@ public final class AgentMain {
         private boolean enableEvolution = false; // off by default for safety
         private int idleGoalInterval = 15;
         private long emergenceReportInterval = 100;
+        KnowledgeStore knowledgeStore = null;
 
         Builder(Agent agent) { this.agent = agent; }
 
@@ -532,6 +567,9 @@ public final class AgentMain {
 
         /** Ticks between emergence reports. */
         public Builder emergenceReportInterval(long ticks) { this.emergenceReportInterval = ticks; return this; }
+
+        /** Inject knowledge store for SQLite persistence. */
+        public Builder knowledgeStore(KnowledgeStore ks) { this.knowledgeStore = ks; return this; }
 
         public AgentMain build() { return new AgentMain(this); }
     }
@@ -693,6 +731,17 @@ public final class AgentMain {
         agent.addGoal("Check system status via shell", "shell", 85, 0.9, 1);
         agent.addGoal("HTTP health check request", "http", 70, 0.8, 2);
 
+        // ── SQLite Knowledge Store (überlebt Neustarts) ──────────
+        Path dbPath = persist != null
+                ? persist.resolveSibling("metis-knowledge.db")
+                : Path.of("metis-knowledge.db");
+        KnowledgeStore knowledgeStore = new KnowledgeStore(dbPath);
+        agent.worldModel().setKnowledgeStore(knowledgeStore);
+        agent.worldModel().loadFromStore();
+        LOG.info("KnowledgeStore: " + knowledgeStore.beliefCount() + " beliefs, "
+                + knowledgeStore.experienceCount() + " experiences, "
+                + knowledgeStore.mappingCount() + " mappings from DB");
+
         // ── Start HTTP API (OpenWebUI integration) ────────────
         MetisHttpServer httpServer = null;
         if (apiPort > 0) {
@@ -707,6 +756,7 @@ public final class AgentMain {
         var runtime = AgentMain.builder(agent)
                 .tickInterval(interval)
                 .persistTo(persist)
+                .knowledgeStore(knowledgeStore)
                 .idleGoalInterval(10)
                 .emergenceReportInterval(50)
                 .build();
@@ -715,6 +765,7 @@ public final class AgentMain {
             runtime = AgentMain.builder(agent)
                     .tickInterval(interval)
                     .persistTo(persist)
+                    .knowledgeStore(knowledgeStore)
                     .withEvolution()
                     .idleGoalInterval(10)
                     .emergenceReportInterval(50)

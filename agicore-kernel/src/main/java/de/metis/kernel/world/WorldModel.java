@@ -1,6 +1,7 @@
 package de.metis.kernel.world;
 
 import de.metis.kernel.workspace.ContentItem;
+import de.metis.kernel.persistence.KnowledgeStore;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -28,6 +29,22 @@ public class WorldModel {
     private static final Logger LOG = Logger.getLogger(WorldModel.class.getName());
 
     private final Map<String, Belief> beliefs = new ConcurrentHashMap<>();
+    private KnowledgeStore knowledgeStore = null; // optional persistence
+
+    /** Enable SQLite persistence for beliefs. */
+    public void setKnowledgeStore(KnowledgeStore store) {
+        this.knowledgeStore = store;
+    }
+
+    /** Load beliefs from persistence (called after setKnowledgeStore). */
+    public void loadFromStore() {
+        if (knowledgeStore == null) return;
+        List<Belief> stored = knowledgeStore.loadBeliefs();
+        for (Belief b : stored) {
+            beliefs.put(b.statement(), b);
+        }
+        LOG.info("Loaded " + stored.size() + " beliefs from KnowledgeStore");
+    }
     // Key = statement (simple dedup — future: embedding-based)
 
     /**
@@ -41,6 +58,7 @@ public class WorldModel {
             if (agrees) {
                 Belief strengthened = existing.reinforce();
                 beliefs.put(statement, strengthened);
+                if (knowledgeStore != null) knowledgeStore.saveBelief(strengthened);
                 LOG.fine(() -> "Reinforced: " + strengthened);
                 return strengthened;
             } else {
@@ -50,6 +68,7 @@ public class WorldModel {
                     LOG.fine(() -> "Removed weak belief: " + statement);
                 } else {
                     beliefs.put(statement, weakened);
+                    if (knowledgeStore != null) knowledgeStore.saveBelief(weakened);
                     LOG.fine(() -> "Weakened: " + weakened);
                 }
                 return weakened;
@@ -58,6 +77,7 @@ public class WorldModel {
 
         Belief belief = new Belief(statement, confidence, source);
         beliefs.put(statement, belief);
+        if (knowledgeStore != null) knowledgeStore.saveBelief(belief);
         LOG.fine(() -> "New belief: " + belief);
         return belief;
     }
