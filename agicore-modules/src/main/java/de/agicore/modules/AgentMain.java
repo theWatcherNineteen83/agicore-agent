@@ -538,22 +538,34 @@ public final class AgentMain {
         long interval = 3000;
         Path persist = null;
         boolean evolution = false;
+        boolean kernelEvolution = false;
         int maxTicks = 0; // 0 = unlimited
+        String planningModel = null;
+        String mutationModel = null;
+        String embeddingModel = null;
 
         for (int i = 0; i < args.length; i++) {
             switch (args[i]) {
                 case "--interval" -> interval = Long.parseLong(args[++i]);
                 case "--persist" -> persist = Path.of(args[++i]);
                 case "--evolution" -> evolution = true;
+                case "--kernel-evolution" -> { evolution = true; kernelEvolution = true; }
                 case "--max-ticks" -> maxTicks = Integer.parseInt(args[++i]);
+                case "--planning-model" -> planningModel = args[++i];
+                case "--mutation-model" -> mutationModel = args[++i];
+                case "--embedding-model" -> embeddingModel = args[++i];
                 case "--help", "-h" -> {
                     System.out.println("""
-                            AGI Core — Autonomous Agent Runtime (Step E)
+                            AGI Core — Autonomous Agent Runtime
                             Options:
-                              --interval N     Tick interval in ms (default: 3000)
-                              --persist PATH   State persistence file
-                              --evolution      Enable self-evolution
-                              --max-ticks N    Stop after N ticks (default: unlimited)
+                              --interval N          Tick interval in ms (default: 3000)
+                              --persist PATH        State persistence file
+                              --evolution           Enable self-evolution (modules only)
+                              --kernel-evolution    Enable kernel evolution (feature branches)
+                              --max-ticks N         Stop after N ticks (default: unlimited)
+                              --planning-model M    Override auto-selected planning model
+                              --mutation-model M    Override auto-selected mutation model
+                              --embedding-model M   Override auto-selected embedding model
                             """);
                     return;
                 }
@@ -566,6 +578,18 @@ public final class AgentMain {
 
         // Discover models and build agent with auto-selection
         var modelRegistry = new ModelRegistry("http://192.168.22.204:11434").discover();
+
+        // Apply manual model overrides from CLI
+        if (planningModel != null) modelRegistry.overridePlanningModel(planningModel);
+        if (mutationModel != null) modelRegistry.overrideMutationModel(mutationModel);
+        if (embeddingModel != null) modelRegistry.overrideEmbeddingModel(embeddingModel);
+
+        if (planningModel != null || mutationModel != null || embeddingModel != null) {
+            LOG.info("Model overrides applied:");
+            if (planningModel != null) LOG.info("  Planning:  " + planningModel);
+            if (mutationModel != null) LOG.info("  Mutation:  " + mutationModel);
+            if (embeddingModel != null) LOG.info("  Embedding: " + embeddingModel);
+        }
 
         Agent agent = Agent.builder()
                 .registerShellCommand(List.of("uname", "-a"))
@@ -589,7 +613,22 @@ public final class AgentMain {
         if (evolution) {
             var ollama = new OllamaMutationService(modelRegistry);
             agent.core().evolutionManager().setMutationService(ollama);
-            LOG.info("Evolution enabled — OllamaMutationService (auto-selected: " + ollama.currentModel() + ")");
+            String scope = kernelEvolution ? "Kernel + Modules" : "Modules only";
+            LOG.info("Evolution enabled — " + scope + " (mutator: " + ollama.currentModel() + ")");
+
+            // Kernel evolution: register kernel source dir and enable feature branches
+            if (kernelEvolution) {
+                agent.core().evolutionManager().enableKernelEvolution(
+                        java.nio.file.Path.of("agicore-kernel/src/main/java"));
+                // Register safety-critical kernel classes as evolvable
+                agent.core().evolutionManager().registerKernelModule(
+                        "de.agicore.kernel.planner.PlanValidator",
+                        "de/agicore/kernel/planner/PlanValidator.java");
+                agent.core().evolutionManager().registerKernelModule(
+                        "de.agicore.kernel.goal.GoalManager",
+                        "de/agicore/kernel/goal/GoalManager.java");
+                LOG.info("Kernel evolution enabled — 2 safety-critical modules registered");
+            }
         }
 
         // Bootstrap world model

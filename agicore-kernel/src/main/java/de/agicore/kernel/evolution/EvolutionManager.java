@@ -60,6 +60,15 @@ public class EvolutionManager {
     private String lastMutatedPackage;
     private String lastMutatedClass;
 
+    /** Kernel evolution: feature branch workflow (optional). */
+    private Path kernelSourceDir = null;
+    private final List<KernelModuleInfo> kernelModules = new ArrayList<>();
+    private boolean kernelEvolutionEnabled = false;
+    private String currentFeatureBranch = null;  // active kernel evolution branch
+
+    /** Max change for kernel mutations (stricter than module 15%). */
+    private static final double KERNEL_MAX_CHANGE_PERCENT = 5.0;
+
     public EvolutionManager() {
         this(new SafetyGuard(), new ShadowEnvironment());
     }
@@ -87,6 +96,31 @@ public class EvolutionManager {
         LOG.info("Registered evolvable module: " + module.moduleName() + " v" + module.version());
     }
 
+    /**
+     * Enable kernel evolution with feature branch workflow.
+     * Kernel mutations get their own git branch; accepted mutations are merged.
+     * Rejected mutations result in branch deletion.
+     *
+     * @param kernelSrcDir path to kernel source root (e.g. "agicore-kernel/src/main/java")
+     */
+    public void enableKernelEvolution(Path kernelSrcDir) {
+        this.kernelSourceDir = kernelSrcDir.toAbsolutePath();
+        this.kernelEvolutionEnabled = true;
+        LOG.info("Kernel evolution enabled — feature branch workflow active");
+    }
+
+    /**
+     * Register a kernel class as mutation target.
+     * Kernel classes are safety-critical: max 5% change, extra shadow evaluation.
+     *
+     * @param fqcn          fully qualified class name (e.g. "de.agicore.kernel.planner.PlanValidator")
+     * @param relativePath  path relative to kernel source dir (e.g. "de/agicore/kernel/planner/PlanValidator.java")
+     */
+    public void registerKernelModule(String fqcn, String relativePath) {
+        kernelModules.add(new KernelModuleInfo(fqcn, relativePath));
+        LOG.info("Registered kernel module: " + fqcn);
+    }
+
     public boolean shouldEvolve(long tickCount, double currentFitness) {
         if (currentFitness > baselineFitness + FitnessFunction.minImprovement()) {
             baselineFitness = currentFitness;
@@ -98,6 +132,7 @@ public class EvolutionManager {
 
     /**
      * Run one evolution cycle with real mutation and compilation.
+     * Handles both kernel modules (feature branch workflow) and regular modules.
      */
     public EvolutionResult evolve(double baselineFitness) {
         this.baselineFitness = baselineFitness;
@@ -105,78 +140,27 @@ public class EvolutionManager {
 
         try {
             safety.beginCycle();
-            if (evolvableModules.isEmpty()) {
+
+            // Collect all possible targets
+            List<MutationTarget> targets = new ArrayList<>();
+            for (EvolvableModule m : evolvableModules) {
+                targets.add(new MutationTarget(m, false));
+            }
+            for (KernelModuleInfo km : kernelModules) {
+                targets.add(new MutationTarget(km, true));
+            }
+
+            if (targets.isEmpty()) {
                 return new EvolutionResult(false, "No evolvable modules");
             }
 
-            EvolvableModule target = evolvableModules.get(
-                    new Random().nextInt(evolvableModules.size()));
+            MutationTarget target = targets.get(new Random().nextInt(targets.size()));
             safety.allowMutation();
 
-            String moduleName = target.moduleName();
-            String className = resolveClassName(moduleName);
-            String packageName = resolvePackageName(moduleName);
-
-            // ── Read current source ───────────────────────────
-            Path sourceFile = findSourceFile(className);
-            if (sourceFile == null) {
-                safety.recordFailure();
-                rejectedMutations++;
-                return new EvolutionResult(false, "Source file not found: " + className);
-            }
-            String originalSource = Files.readString(sourceFile);
-
-            // ── Mutate via mutation service ───────────────────
-            String mutantSource = mutationService.mutate(
-                    moduleName, originalSource, className, packageName);
-            if (mutantSource == null || mutantSource.equals(originalSource)) {
-                safety.recordFailure();
-                rejectedMutations++;
-                return new EvolutionResult(false, "Mutation produced no change");
-            }
-            LOG.info("Mutation generated: " + mutantSource.length() + " chars");
-
-            // ── Write mutant to temp file with correct class name ──
-            Path outputDir = Path.of("target/evolution-out");
-            Files.createDirectories(outputDir);
-            Path tempFile = outputDir.resolve(className + ".java");
-            Files.writeString(tempFile, mutantSource);
-
-            // ── Real compilation check ────────────────────────
-            if (!compileCheck(tempFile, className)) {
-                safety.recordFailure();
-                rejectedMutations++;
-                Files.deleteIfExists(tempFile);
-                return new EvolutionResult(false, "Compilation failed");
-            }
-
-            // ── Shadow evaluation ─────────────────────────────
-            ShadowEvalResult shadowResult = runShadowEvaluation(SHADOW_TICKS);
-            double mutantFitness = shadowResult.fitness();
-
-            // ── Compare ───────────────────────────────────────
-            double improvement = mutantFitness - baselineFitness;
-
-            if (improvement > FitnessFunction.minImprovement()) {
-                // Accept: write mutant to real source, git commit
-                Files.writeString(sourceFile, mutantSource);
-                promote(moduleName, mutantSource, originalSource, mutantFitness, improvement);
-                safety.recordSuccess();
-                acceptedMutations++;
-                this.baselineFitness = mutantFitness;
-                this.lastImprovementTick = 0;
-                Files.deleteIfExists(tempFile);
-                return new EvolutionResult(true,
-                        "Accepted: +" + String.format("%.3f", improvement));
+            if (target.isKernel) {
+                return evolveKernelModule(target.kernelInfo(), baselineFitness);
             } else {
-                // Reject: keep original
-                rollback(moduleName);
-                safety.recordFailure();
-                rejectedMutations++;
-                Files.deleteIfExists(tempFile);
-                return new EvolutionResult(false,
-                        "Rejected: delta=" + String.format("%.3f", improvement)
-                                + " ≤ " + FitnessFunction.minImprovement());
+                return evolveRegularModule(target.module(), baselineFitness);
             }
 
         } catch (SafetyGuard.SafetyViolationException e) {
@@ -187,6 +171,202 @@ public class EvolutionManager {
             rejectedMutations++;
             return new EvolutionResult(false, "Error: " + e.getMessage());
         }
+    }
+
+    /** Regular module evolution (existing behavior). */
+    private EvolutionResult evolveRegularModule(EvolvableModule target, double baselineFitness) throws Exception {
+        String moduleName = target.moduleName();
+        String className = resolveClassName(moduleName);
+        String packageName = resolvePackageName(moduleName);
+
+        Path sourceFile = findSourceFile(className);
+        if (sourceFile == null) {
+            safety.recordFailure();
+            rejectedMutations++;
+            return new EvolutionResult(false, "Source file not found: " + className);
+        }
+        String originalSource = Files.readString(sourceFile);
+
+        String mutantSource = mutationService.mutate(moduleName, originalSource, className, packageName);
+        if (mutantSource == null || mutantSource.equals(originalSource)) {
+            safety.recordFailure();
+            rejectedMutations++;
+            return new EvolutionResult(false, "Mutation produced no change");
+        }
+
+        return evaluateAndApply(sourceFile, moduleName, mutantSource, originalSource, baselineFitness, false);
+    }
+
+    /** Kernel module evolution with feature branch workflow. */
+    private EvolutionResult evolveKernelModule(KernelModuleInfo km, double baselineFitness) throws Exception {
+        if (kernelSourceDir == null) {
+            return new EvolutionResult(false, "Kernel evolution not configured");
+        }
+
+        Path sourceFile = kernelSourceDir.resolve(km.relativePath);
+        if (!Files.exists(sourceFile)) {
+            safety.recordFailure();
+            rejectedMutations++;
+            return new EvolutionResult(false, "Kernel source not found: " + sourceFile);
+        }
+
+        String originalSource = Files.readString(sourceFile);
+        String className = km.simpleClassName();
+        String packageName = km.packageName();
+
+        // ── Create feature branch ─────────────────────────
+        String branchName = "evolution/kernel-" + UUID.randomUUID().toString().substring(0, 8);
+        currentFeatureBranch = branchName;
+        runCmd("git", "checkout", "-b", branchName);
+        LOG.info("Kernel evolution: created feature branch " + branchName);
+
+        try {
+            String mutantSource = mutationService.mutate(
+                    "kernel-" + km.simpleClassName(), originalSource, km.simpleClassName(), packageName);
+            if (mutantSource == null || mutantSource.equals(originalSource)) {
+                abortFeatureBranch(branchName);
+                safety.recordFailure();
+                rejectedMutations++;
+                return new EvolutionResult(false, "Kernel mutation produced no change");
+            }
+
+            // ── Kernel safety: max 5% change ──────────────
+            double changePercent = computeChangePercent(originalSource, mutantSource);
+            if (changePercent > KERNEL_MAX_CHANGE_PERCENT) {
+                abortFeatureBranch(branchName);
+                safety.recordFailure();
+                rejectedMutations++;
+                return new EvolutionResult(false,
+                        "Kernel safety: " + String.format("%.1f%%", changePercent)
+                                + " change exceeds " + KERNEL_MAX_CHANGE_PERCENT + "% limit");
+            }
+
+            // ── Write mutant to kernel source ────────────
+            Files.writeString(sourceFile, mutantSource);
+
+            // ── Compile check (full kernel module) ───────
+            if (!compileCheck(sourceFile, km.simpleClassName())) {
+                abortFeatureBranch(branchName);
+                Files.writeString(sourceFile, originalSource); // restore
+                safety.recordFailure();
+                rejectedMutations++;
+                return new EvolutionResult(false, "Kernel compilation failed");
+            }
+
+            // ── Extended shadow evaluation ───────────────
+            ShadowEvalResult shadowResult = runShadowEvaluation(SHADOW_TICKS * 2);
+            double mutantFitness = shadowResult.fitness();
+
+            // ── Compare ───────────────────────────────────
+            double improvement = mutantFitness - baselineFitness;
+
+            if (improvement > FitnessFunction.minImprovement()) {
+                // Accept: commit on branch, merge to master
+                runCmd("git", "add", "agicore-kernel/");
+                runCmd("git", "commit", "-m",
+                        "Kernel evolution #" + evolutionCycles + ": mutate " + km.simpleClassName()
+                                + " (" + String.format("%.1f%%", changePercent) + " changed)");
+                runCmd("git", "checkout", "master");
+                runCmd("git", "merge", "--no-ff", branchName, "-m",
+                        "Merge kernel evolution #" + evolutionCycles + ": " + km.simpleClassName());
+                runCmd("git", "branch", "-d", branchName);
+
+                promptBank.recordSuccess("kernel-" + km.simpleClassName(), mutantFitness, improvement,
+                        originalSource, mutantSource);
+                safety.recordSuccess();
+                acceptedMutations++;
+                this.baselineFitness = mutantFitness;
+                this.lastImprovementTick = 0;
+                currentFeatureBranch = null;
+                return new EvolutionResult(true,
+                        "Kernel accepted: " + km.simpleClassName() + " +"
+                                + String.format("%.3f", improvement));
+            } else {
+                // Reject: delete branch, restore master
+                abortFeatureBranch(branchName);
+                safety.recordFailure();
+                rejectedMutations++;
+                currentFeatureBranch = null;
+                return new EvolutionResult(false,
+                        "Kernel rejected: delta=" + String.format("%.3f", improvement)
+                                + " ≤ " + FitnessFunction.minImprovement());
+            }
+
+        } catch (Exception e) {
+            // Emergency: abort feature branch, restore master
+            abortFeatureBranch(branchName);
+            currentFeatureBranch = null;
+            throw e;
+        }
+    }
+
+    /** Shared evaluation logic for regular module mutations. */
+    private EvolutionResult evaluateAndApply(Path sourceFile, String moduleName,
+                                              String mutantSource, String originalSource,
+                                              double baselineFitness, boolean isKernel) throws Exception {
+        String className = sourceFile.getFileName().toString().replace(".java", "");
+
+        // Write mutant to temp file
+        Path outputDir = Path.of("target/evolution-out");
+        Files.createDirectories(outputDir);
+        Path tempFile = outputDir.resolve(className + ".java");
+        Files.writeString(tempFile, mutantSource);
+
+        // Compile check
+        if (!compileCheck(tempFile, className)) {
+            safety.recordFailure();
+            rejectedMutations++;
+            Files.deleteIfExists(tempFile);
+            return new EvolutionResult(false, "Compilation failed");
+        }
+
+        ShadowEvalResult shadowResult = runShadowEvaluation(SHADOW_TICKS);
+        double mutantFitness = shadowResult.fitness();
+        double improvement = mutantFitness - baselineFitness;
+
+        if (improvement > FitnessFunction.minImprovement()) {
+            Files.writeString(sourceFile, mutantSource);
+            promote(moduleName, mutantSource, originalSource, mutantFitness, improvement);
+            safety.recordSuccess();
+            acceptedMutations++;
+            this.baselineFitness = mutantFitness;
+            this.lastImprovementTick = 0;
+            Files.deleteIfExists(tempFile);
+            return new EvolutionResult(true, "Accepted: +" + String.format("%.3f", improvement));
+        } else {
+            rollback(moduleName);
+            safety.recordFailure();
+            rejectedMutations++;
+            Files.deleteIfExists(tempFile);
+            return new EvolutionResult(false,
+                    "Rejected: delta=" + String.format("%.3f", improvement)
+                            + " ≤ " + FitnessFunction.minImprovement());
+        }
+    }
+
+    /** Abort feature branch: return to master and delete the branch. */
+    private void abortFeatureBranch(String branchName) {
+        try {
+            runCmd("git", "checkout", "master");
+            runCmd("git", "branch", "-D", branchName);
+            LOG.info("Kernel evolution: aborted branch " + branchName);
+        } catch (Exception e) {
+            LOG.warning("Failed to abort feature branch " + branchName + ": " + e.getMessage());
+        }
+    }
+
+    /** Compute percentage of lines changed between two source files. */
+    private double computeChangePercent(String original, String mutant) {
+        var origLines = original.lines().toList();
+        var mutLines = mutant.lines().toList();
+        long diff = 0;
+        int maxLen = Math.max(origLines.size(), mutLines.size());
+        for (int i = 0; i < maxLen; i++) {
+            String o = i < origLines.size() ? origLines.get(i) : "";
+            String m = i < mutLines.size() ? mutLines.get(i) : "";
+            if (!o.equals(m)) diff++;
+        }
+        return 100.0 * diff / Math.max(1, origLines.size());
     }
 
     /** Real compilation check using javax.tools.JavaCompiler. */
@@ -334,6 +514,30 @@ public class EvolutionManager {
     public record EvolutionResult(boolean accepted, String message) {
         @Override public String toString() {
             return (accepted ? "✓ " : "✗ ") + message;
+        }
+    }
+
+    // ── Internal types ────────────────────────────────────────
+
+    private record MutationTarget(EvolvableModule module, boolean isKernel,
+                                   KernelModuleInfo kernelInfo) {
+        MutationTarget(EvolvableModule module, boolean isKernel) {
+            this(module, isKernel, null);
+        }
+        MutationTarget(KernelModuleInfo kernelInfo, boolean isKernel) {
+            this(null, isKernel, kernelInfo);
+        }
+    }
+
+    /** Info for a kernel class registered for mutation. */
+    public record KernelModuleInfo(String fqcn, String relativePath) {
+        public String simpleClassName() {
+            int lastDot = fqcn.lastIndexOf('.');
+            return lastDot >= 0 ? fqcn.substring(lastDot + 1) : fqcn;
+        }
+        public String packageName() {
+            int lastDot = fqcn.lastIndexOf('.');
+            return lastDot >= 0 ? fqcn.substring(0, lastDot) : fqcn;
         }
     }
 }
