@@ -12,6 +12,7 @@ import de.metis.kernel.metrics.PerformanceMetrics;
 import de.metis.kernel.planner.Planner;
 import de.metis.modules.evolution.ModelRegistry;
 import de.metis.modules.evolution.OllamaMutationService;
+import de.metis.modules.evolution.OllamaEmbeddingService;
 import de.metis.modules.planner.OllamaPlanner;
 
 import java.io.*;
@@ -738,6 +739,11 @@ public final class AgentMain {
         KnowledgeStore knowledgeStore = new KnowledgeStore(dbPath);
         agent.worldModel().setKnowledgeStore(knowledgeStore);
         agent.worldModel().loadFromStore();
+
+        // Wire embedding provider for semantic belief search
+        var embedSvc = new OllamaEmbeddingService();
+        agent.worldModel().setEmbeddingProvider(embedSvc::embed);
+
         LOG.info("KnowledgeStore: " + knowledgeStore.beliefCount() + " beliefs, "
                 + knowledgeStore.experienceCount() + " experiences, "
                 + knowledgeStore.mappingCount() + " mappings from DB");

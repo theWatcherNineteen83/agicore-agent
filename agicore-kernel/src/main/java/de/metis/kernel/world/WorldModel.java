@@ -2,6 +2,9 @@ package de.metis.kernel.world;
 
 import de.metis.kernel.workspace.ContentItem;
 import de.metis.kernel.persistence.KnowledgeStore;
+import de.metis.kernel.embedding.EmbeddingProvider;
+import de.metis.kernel.embedding.VectorIndex;
+import de.metis.kernel.embedding.InMemoryVectorIndex;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -29,11 +32,32 @@ public class WorldModel {
     private static final Logger LOG = Logger.getLogger(WorldModel.class.getName());
 
     private final Map<String, Belief> beliefs = new ConcurrentHashMap<>();
-    private KnowledgeStore knowledgeStore = null; // optional persistence
+    private KnowledgeStore knowledgeStore = null;
+    private EmbeddingProvider embeddingProvider = null;
+    private VectorIndex beliefIndex = new InMemoryVectorIndex(); // semantic search
 
     /** Enable SQLite persistence for beliefs. */
     public void setKnowledgeStore(KnowledgeStore store) {
         this.knowledgeStore = store;
+    }
+
+    /** Enable semantic (embedding-based) belief retrieval. */
+    public void setEmbeddingProvider(EmbeddingProvider provider) {
+        this.embeddingProvider = provider;
+    }
+
+    /** Index a belief's embedding for semantic search. */
+    private void indexBelief(Belief belief) {
+        if (embeddingProvider != null) {
+            try {
+                double[] vec = embeddingProvider.embed(belief.statement());
+                if (vec != null && vec.length > 0) {
+                    beliefIndex.insert(belief.statement(), vec);
+                }
+            } catch (Exception e) {
+                LOG.fine("Embedding failed for belief, using substring fallback: " + e.getMessage());
+            }
+        }
     }
 
     /** Load beliefs from persistence (called after setKnowledgeStore). */
@@ -78,6 +102,7 @@ public class WorldModel {
         Belief belief = new Belief(statement, confidence, source);
         beliefs.put(statement, belief);
         if (knowledgeStore != null) knowledgeStore.saveBelief(belief);
+        indexBelief(belief);
         LOG.fine(() -> "New belief: " + belief);
         return belief;
     }
@@ -92,9 +117,32 @@ public class WorldModel {
 
     /**
      * Query beliefs relevant to a goal or context string.
-     * Simple substring match (Phase 3); Phase 4+ would use embeddings.
+     * Uses embedding-based semantic search if available, falls back to substring match.
      */
     public List<Belief> query(String context, int maxResults) {
+        // ── Semantic search (embedding-based) ──────────────────
+        if (embeddingProvider != null) {
+            try {
+                double[] queryVec = embeddingProvider.embed(context);
+                if (queryVec != null && queryVec.length > 0) {
+                    List<String> keys = beliefIndex.search(queryVec, maxResults * 2);
+                    List<Belief> results = new ArrayList<>();
+                    for (String key : keys) {
+                        Belief b = beliefs.get(key);
+                        if (b != null) results.add(b);
+                        if (results.size() >= maxResults) break;
+                    }
+                    if (!results.isEmpty()) {
+                        LOG.fine(() -> "Semantic query: '" + context + "' → " + results.size() + " beliefs");
+                        return results;
+                    }
+                }
+            } catch (Exception e) {
+                LOG.fine("Semantic search failed, falling back to substring: " + e.getMessage());
+            }
+        }
+
+        // ── Fallback: substring match ─────────────────────────
         String lower = context.toLowerCase();
         return beliefs.values().stream()
                 .filter(b -> b.statement().toLowerCase().contains(lower))
