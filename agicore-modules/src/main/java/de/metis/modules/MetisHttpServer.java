@@ -50,6 +50,7 @@ public class MetisHttpServer {
         server.createContext("/api/evolution/pause", this::handleEvolutionPause);
         server.createContext("/api/evolution/resume", this::handleEvolutionResume);
         server.createContext("/api/evolution/status", this::handleEvolutionStatus);
+        server.createContext("/api/learned", this::handleLearned);
     }
 
     public void start() {
@@ -329,6 +330,82 @@ public class MetisHttpServer {
     }
 
     public boolean isEvolutionPaused() { return evolutionPaused.get(); }
+
+    // ── /api/learned — Lernfortschritt ──────────────────────────
+
+    private void handleLearned(HttpExchange exchange) throws IOException {
+        var planner = agent.planner();
+        var wm = agent.worldModel();
+        var stm = agent.stm();
+
+        StringBuilder json = new StringBuilder();
+        json.append("{\n");
+        json.append("  \"ticks\": ").append(agent.metrics().totalTicks()).append(",\n");
+        json.append("  \"successRate\": ").append(agent.metrics().goalSuccessRate()).append(",\n");
+        json.append("  \"confidence\": ").append(agent.meta().confidence()).append(",\n");
+        json.append("  \"beliefCount\": ").append(wm.beliefCount()).append(",\n");
+        json.append("  \"avgBeliefConfidence\": ").append(wm.averageConfidence()).append(",\n");
+
+        // Planner learned mappings
+        if (planner instanceof de.metis.modules.planner.OllamaPlanner op) {
+            json.append("  \"llmCalls\": ").append(op.llmCalls()).append(",\n");
+            json.append("  \"llmSuccessRate\": ").append(op.llmSuccessRate()).append(",\n");
+            json.append("  \"fallbackUses\": ").append(op.fallbackUses()).append(",\n");
+            json.append("  \"learnedMappings\": {\n");
+            var mappings = op.learnedSuccessRates();
+            int i = 0;
+            for (var entry : mappings.entrySet()) {
+                json.append("    \"").append(entry.getKey())
+                        .append("\": ").append(entry.getValue());
+                if (++i < mappings.size()) json.append(",");
+                json.append("\n");
+            }
+            json.append("  },\n");
+        }
+
+        // Top beliefs
+        json.append("  \"topBeliefs\": [\n");
+        var topBeliefs = wm.worldPicture(10);
+        int j = 0;
+        for (var b : topBeliefs) {
+            json.append("    {\"statement\": \"").append(escapeJsonValue(b.statement())).append("\"");
+            json.append(", \"confidence\": ").append(b.confidence());
+            json.append(", \"source\": \"").append(b.source()).append("\"");
+            json.append(", \"evidence\": ").append(b.evidence()).append("}");
+            if (++j < topBeliefs.size()) json.append(",");
+            json.append("\n");
+        }
+        json.append("  ],\n");
+
+        // Recent experiences
+        json.append("  \"recentExperiences\": [\n");
+        var recent = stm.recent(10);
+        int k = 0;
+        for (var exp : recent) {
+            json.append("    {\"action\": \"").append(exp.actionName()).append("\"");
+            json.append(", \"success\": ").append(exp.success());
+            json.append(", \"goal\": \"").append(escapeJsonValue(exp.goalDescription())).append("\"");
+            json.append(", \"error\": ").append(exp.predictionError());
+            json.append(", \"salience\": ").append(exp.salience()).append("}");
+            if (++k < recent.size()) json.append(",");
+            json.append("\n");
+        }
+        json.append("  ],\n");
+
+        // Evolution
+        var evo = agent.core().evolutionManager();
+        json.append("  \"evolutionCycles\": ").append(evo.evolutionCycles()).append(",\n");
+        json.append("  \"acceptedMutations\": ").append(evo.acceptedMutations()).append(",\n");
+        json.append("  \"rejectedMutations\": ").append(evo.rejectedMutations()).append("\n");
+
+        json.append("}\n");
+        sendJson(exchange, 200, json.toString());
+    }
+
+    private static String escapeJsonValue(String s) {
+        return s.replace("\\", "\\\\").replace("\"", "\\\"")
+                .replace("\n", " ").replace("\r", " ").replace("\t", " ");
+    }
 
     // ── Evolution control endpoints ─────────────────────────────
 
