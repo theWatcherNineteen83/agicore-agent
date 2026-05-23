@@ -4,12 +4,12 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>de.agicore</groupId>
+    <groupId>de.metis</groupId>
     <artifactId>agicore</artifactId>
     <version>0.2.0-evolution</version>
     <packaging>pom</packaging>
 
-    <name>AGI Core — Self-Evolving Agent System</name>
+    <name>Metis AGI — Self-Evolving Agent System</name>
     <description>Multi-module: immutable kernel + evolvable modules</description>
 
     <modules>
@@ -26,7 +26,7 @@
     <dependencyManagement>
         <dependencies>
             <dependency>
-                <groupId>de.agicore</groupId>
+                <groupId>de.metis</groupId>
                 <artifactId>agicore-kernel</artifactId>
                 <version>${project.version}</version>
             </dependency>

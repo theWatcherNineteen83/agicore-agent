@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>de.agicore</groupId>
+        <groupId>de.metis</groupId>
         <artifactId>agicore</artifactId>
         <version>0.2.0-evolution</version>
     </parent>
@@ -13,7 +13,7 @@
     <artifactId>agicore-kernel</artifactId>
     <packaging>jar</packaging>
 
-    <name>AGI Core Kernel</name>
+    <name>Metis AGI Kernel</name>
     <description>Immutable kernel — interfaces, core loop, fitness, evolution, safety</description>
 
     <dependencies>

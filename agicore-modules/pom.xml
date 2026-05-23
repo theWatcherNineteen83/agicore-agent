@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>de.agicore</groupId>
+        <groupId>de.metis</groupId>
         <artifactId>agicore</artifactId>
         <version>0.2.0-evolution</version>
     </parent>
@@ -13,12 +13,12 @@
     <artifactId>agicore-modules</artifactId>
     <packaging>jar</packaging>
 
-    <name>AGI Core Modules</name>
+    <name>Metis AGI Modules</name>
     <description>Evolvable modules — planner, goal heuristics, attention scoring</description>
 
     <dependencies>
         <dependency>
-            <groupId>de.agicore</groupId>
+            <groupId>de.metis</groupId>
             <artifactId>agicore-kernel</artifactId>
         </dependency>
         <dependency>
