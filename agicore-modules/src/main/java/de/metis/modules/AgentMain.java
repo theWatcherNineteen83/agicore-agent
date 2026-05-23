@@ -545,6 +545,7 @@ public final class AgentMain {
         String mutationModel = null;
         String embeddingModel = null;
         String bootstrapModel = null;
+        String bootstrapModels = null;  // comma-separated multi-model
 
         for (int i = 0; i < args.length; i++) {
             switch (args[i]) {
@@ -558,6 +559,7 @@ public final class AgentMain {
                 case "--mutation-model" -> mutationModel = args[++i];
                 case "--embedding-model" -> embeddingModel = args[++i];
                 case "--bootstrap-model" -> bootstrapModel = args[++i];
+                case "--bootstrap-models" -> bootstrapModels = args[++i];
                 case "--help", "-h" -> {
                     System.out.println("""
                             Metis AGI — Self-Evolving Agent System
@@ -571,7 +573,8 @@ public final class AgentMain {
                               --planning-model M    Override auto-selected planning model
                               --mutation-model M    Override auto-selected mutation model
                               --embedding-model M   Override auto-selected embedding model
-                              --bootstrap-model M   Bootstrap world knowledge from a small model
+                              --bootstrap-model M   Bootstrap from a single model
+                              --bootstrap-models A,B Bootstrap with consensus from multiple models
                             """);
                     return;
                 }
@@ -643,15 +646,23 @@ public final class AgentMain {
         agent.worldModel().update("filesystem-list explores directory contents", 0.8, "bootstrap", true);
         agent.worldModel().update("filesystem-read retrieves file contents", 0.75, "bootstrap", true);
 
-        // External knowledge bootstrap from a small model
-        if (bootstrapModel != null) {
-            LOG.info("Bootstrapping knowledge from model: " + bootstrapModel);
-            var kb = new KnowledgeBootstrap("http://192.168.22.204:11434", bootstrapModel);
+        // External knowledge bootstrap
+        List<String> bootstrapModelList = new ArrayList<>();
+        if (bootstrapModels != null) {
+            bootstrapModelList = Arrays.asList(bootstrapModels.split(","));
+        } else if (bootstrapModel != null) {
+            bootstrapModelList = List.of(bootstrapModel);
+        }
+
+        if (!bootstrapModelList.isEmpty()) {
+            LOG.info("Bootstrapping knowledge from " + bootstrapModelList.size()
+                    + " model(s): " + bootstrapModelList);
+            var kb = new KnowledgeBootstrap("http://192.168.22.204:11434", bootstrapModelList);
             var beliefs = kb.bootstrap();
             for (var b : beliefs) {
                 agent.worldModel().update(b.statement(), b.confidence(), b.source(), true);
             }
-            LOG.info("Injected " + beliefs.size() + " bootstrapped beliefs into WorldModel");
+            LOG.info("Injected " + beliefs.size() + " consensus beliefs into WorldModel");
         }
 
         // Initial goals

@@ -7,11 +7,17 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.*;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 /**
- * Bootstraps Metis's WorldModel by querying a small Ollama model
- * for foundational knowledge. The answers become initial beliefs
- * with calibrated confidence scores.
+ * Bootstraps Metis's WorldModel by querying one or more Ollama models.
+ * <p>
+ * Multi-model mode: queries all models for each seed question.
+ * Answers that agree across models get boosted confidence (consensus).
+ * Contradictory or unique answers get lower confidence (single-source).
+ * <p>
+ * Single model: {@code new KnowledgeBootstrap(url, List.of("phi4:latest"))}
+ * Multi-model:  {@code new KnowledgeBootstrap(url, List.of("phi4:latest", "llama3.2:3b", "mistral-small3.1:24b"))}
  */
 public class KnowledgeBootstrap {
 
@@ -28,44 +34,93 @@ public class KnowledgeBootstrap {
             "In one sentence: How should an evolving system balance stability and change?"
     );
 
+    /** Minimum Jaccard similarity for two answers to be considered "agreeing". */
+    private static final double AGREEMENT_THRESHOLD = 0.25;
+
     private final String ollamaUrl;
-    private final String model;
+    private final List<String> models;
     private final HttpClient http;
 
-    public KnowledgeBootstrap(String ollamaBaseUrl, String model) {
+    public KnowledgeBootstrap(String ollamaBaseUrl, List<String> models) {
         this.ollamaUrl = ollamaBaseUrl.endsWith("/") ? ollamaBaseUrl : ollamaBaseUrl;
-        this.model = model;
+        this.models = List.copyOf(models);
         this.http = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(10))
                 .build();
     }
 
     /**
-     * Query the small model and return extracted belief statements.
+     * Query all models for each question. Build consensus beliefs.
      */
     public List<BeliefEntry> bootstrap() {
         List<BeliefEntry> beliefs = new ArrayList<>();
-        LOG.info("Bootstrapping knowledge from model: " + model);
+        LOG.info("Bootstrapping knowledge from " + models.size() + " model(s): " + models);
 
         for (String question : SEED_QUESTIONS) {
-            try {
-                String answer = askModel(question);
-                if (answer != null && !answer.isBlank()) {
-                    String statement = extractStatement(answer);
-                    double confidence = assessConfidence(answer);
-                    beliefs.add(new BeliefEntry(statement, confidence, "bootstrap:" + model));
-                    LOG.fine("Bootstrap belief: " + statement + " (" + String.format("%.0f%%", confidence * 100) + ")");
+            // Collect answers from all models
+            List<ModelAnswer> answers = new ArrayList<>();
+            for (String model : models) {
+                try {
+                    String answer = askModel(question, model);
+                    if (answer != null && !answer.isBlank()) {
+                        String statement = extractStatement(answer);
+                        double baseConfidence = assessConfidence(answer);
+                        answers.add(new ModelAnswer(model, statement, baseConfidence));
+                        LOG.fine("  " + model + " → " + truncate(statement, 60));
+                    }
+                } catch (Exception e) {
+                    LOG.fine("  " + model + " failed: " + e.getMessage());
                 }
-            } catch (Exception e) {
-                LOG.fine("Bootstrap question failed: " + question + " — " + e.getMessage());
+            }
+
+            if (answers.isEmpty()) continue;
+
+            // Cluster similar answers
+            List<List<ModelAnswer>> clusters = clusterAnswers(answers);
+
+            // Generate beliefs from clusters
+            for (var cluster : clusters) {
+                // Use the most coherent answer as the belief statement
+                String bestStatement = pickBestStatement(cluster);
+
+                // Confidence: base + bonus for multi-model agreement + cluster size
+                double consensusBonus = 0.0;
+                if (models.size() > 1 && cluster.size() > 1) {
+                    consensusBonus = 0.15 * (cluster.size() - 1); // +15% per additional model
+                }
+                double avgBaseConf = cluster.stream()
+                        .mapToDouble(a -> a.confidence)
+                        .average().orElse(0.6);
+                double finalConfidence = Math.min(0.95, avgBaseConf + consensusBonus);
+
+                String source = cluster.stream()
+                        .map(a -> a.model)
+                        .distinct()
+                        .collect(Collectors.joining("+"));
+
+                String sourceTag = "bootstrap:" + source + "(" + cluster.size() + "/" + models.size() + " agree)";
+
+                if (models.size() > 1 && cluster.size() == 1) {
+                    // Single-model opinion: penalize
+                    finalConfidence *= 0.75;
+                    sourceTag = "bootstrap:" + source + " (single source, unverified)";
+                }
+
+                beliefs.add(new BeliefEntry(bestStatement, finalConfidence, sourceTag));
+                LOG.fine("  Belief: " + truncate(bestStatement, 60)
+                        + " [" + String.format("%.0f%%", finalConfidence * 100)
+                        + " from " + cluster.size() + "/" + models.size() + " models]");
             }
         }
 
-        LOG.info("Bootstrapped " + beliefs.size() + " beliefs from " + model);
+        LOG.info("Bootstrapped " + beliefs.size() + " beliefs (consensus from "
+                + models.size() + " model(s))");
         return beliefs;
     }
 
-    private String askModel(String question) throws Exception {
+    // ── Model query ──────────────────────────────────────────────────
+
+    private String askModel(String question, String model) throws Exception {
         String prompt = "Answer the following question with exactly ONE clear, factual sentence. "
                 + "No explanations, no qualifiers. Just the answer.\n\n"
                 + "Question: " + question + "\n\n"
@@ -97,9 +152,65 @@ public class KnowledgeBootstrap {
         return extractResponseField(response.body());
     }
 
-    /** Clean up model output into a belief statement. */
+    // ── Consensus clustering ────────────────────────────────────────
+
+    /**
+     * Group similar answers using Jaccard similarity on word sets.
+     */
+    private List<List<ModelAnswer>> clusterAnswers(List<ModelAnswer> answers) {
+        List<List<ModelAnswer>> clusters = new ArrayList<>();
+        boolean[] assigned = new boolean[answers.size()];
+
+        for (int i = 0; i < answers.size(); i++) {
+            if (assigned[i]) continue;
+
+            List<ModelAnswer> cluster = new ArrayList<>();
+            cluster.add(answers.get(i));
+            assigned[i] = true;
+
+            for (int j = i + 1; j < answers.size(); j++) {
+                if (assigned[j]) continue;
+                if (jaccardSimilarity(answers.get(i).statement, answers.get(j).statement) >= AGREEMENT_THRESHOLD) {
+                    cluster.add(answers.get(j));
+                    assigned[j] = true;
+                }
+            }
+            clusters.add(cluster);
+        }
+        return clusters;
+    }
+
+    /** Jaccard similarity: |A ∩ B| / |A ∪ B| */
+    private double jaccardSimilarity(String a, String b) {
+        Set<String> wordsA = wordSet(a);
+        Set<String> wordsB = wordSet(b);
+        if (wordsA.isEmpty() || wordsB.isEmpty()) return 0;
+
+        Set<String> intersection = new HashSet<>(wordsA);
+        intersection.retainAll(wordsB);
+        Set<String> union = new HashSet<>(wordsA);
+        union.addAll(wordsB);
+
+        return (double) intersection.size() / union.size();
+    }
+
+    private Set<String> wordSet(String text) {
+        return Arrays.stream(text.toLowerCase().split("\\W+"))
+                .filter(w -> w.length() > 3)
+                .collect(Collectors.toSet());
+    }
+
+    /** Pick the cleanest statement from a cluster. */
+    private String pickBestStatement(List<ModelAnswer> cluster) {
+        return cluster.stream()
+                .min(Comparator.comparingInt(a -> a.statement.length())) // prefer concise
+                .map(a -> a.statement)
+                .orElse(cluster.getFirst().statement);
+    }
+
+    // ── Text processing ──────────────────────────────────────────────
+
     private String extractStatement(String raw) {
-        // Remove common prefixes/qualifiers
         String cleaned = raw
                 .replaceAll("^(Answer:|Response:|The answer is|I think|I believe)\\s*", "")
                 .replaceAll("^(In one sentence:?\\s*)", "")
@@ -107,30 +218,24 @@ public class KnowledgeBootstrap {
                 .replaceAll("\\s+", " ")
                 .trim();
 
-        // Truncate to reasonable length
         if (cleaned.length() > 200) cleaned = cleaned.substring(0, 197) + "...";
-
         return cleaned;
     }
 
-    /** Heuristic confidence: coherent answers get higher confidence. */
     private double assessConfidence(String answer) {
-        double conf = 0.6; // base confidence for model output
-
-        // Longer, coherent answers = higher confidence (to a point)
+        double conf = 0.55; // base confidence for model output
         int len = answer.length();
         if (len > 30 && len < 200) conf += 0.15;
         if (len > 80) conf += 0.05;
 
-        // Sentences with "should" or "must" = lower confidence (normative, not factual)
         String lower = answer.toLowerCase();
         if (lower.contains("should") || lower.contains("must")) conf -= 0.1;
-
-        // Uncertainty markers = lower confidence
         if (lower.contains("maybe") || lower.contains("perhaps") || lower.contains("might")) conf -= 0.1;
 
         return Math.max(0.2, Math.min(0.95, conf));
     }
+
+    // ── Ollama API helpers ───────────────────────────────────────────
 
     private String extractResponseField(String json) {
         String searchKey = "\"response\":\"";
@@ -169,5 +274,13 @@ public class KnowledgeBootstrap {
                 .replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t");
     }
 
+    private String truncate(String s, int maxLen) {
+        return s.length() <= maxLen ? s : s.substring(0, maxLen) + "...";
+    }
+
+    // ── Records ──────────────────────────────────────────────────────
+
     public record BeliefEntry(String statement, double confidence, String source) {}
+
+    private record ModelAnswer(String model, String statement, double confidence) {}
 }
