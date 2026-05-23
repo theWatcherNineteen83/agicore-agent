@@ -120,6 +120,7 @@ public class MetisHttpServer {
         // Parse Ollama chat request
         String model = extractJsonString(body, "model");
         String userMessage = extractLastUserMessage(body);
+        boolean streaming = body.contains("\"stream\":true") || body.contains("\"stream\": true");
 
         if (userMessage == null || userMessage.isBlank()) {
             LOG.warning("No user message in request. Body (first 500 chars): " + truncate(body, 500));
@@ -160,7 +161,7 @@ public class MetisHttpServer {
         conversationHistory.add(new ChatMessage("assistant", response, Instant.now()));
 
         // Build Ollama-compatible chat response
-        String jsonResponse = buildChatResponse(model, response);
+        String jsonResponse = buildChatResponse(model, response, streaming);
         sendJson(exchange, 200, jsonResponse);
     }
 
@@ -283,27 +284,48 @@ public class MetisHttpServer {
 
     /** Build Ollama-compatible chat response JSON. */
     private String buildChatResponse(String model, String content) {
+        return buildChatResponse(model, content, false);
+    }
+
+    /** Build streaming or non-streaming response. */
+    private String buildChatResponse(String model, String content, boolean streaming) {
         String escapedContent = content.replace("\\", "\\\\").replace("\"", "\\\"")
                 .replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t");
 
-        return String.format("""
-                {
-                  "model": "%s",
-                  "created_at": "%s",
-                  "message": {
-                    "role": "assistant",
-                    "content": "%s"
-                  },
-                  "done": true,
-                  "done_reason": "stop",
-                  "total_duration": 1000000000,
-                  "load_duration": 0,
-                  "prompt_eval_count": 1,
-                  "prompt_eval_duration": 0,
-                  "eval_count": 1,
-                  "eval_duration": 0
-                }
-                """, model != null ? model : "metis-agent", Instant.now().toString(), escapedContent);
+        String now = Instant.now().toString();
+        String modelName = model != null ? model : "metis-agent";
+
+        if (streaming) {
+            // Streaming format: newline-delimited JSON chunks
+            // First chunk: content with done=false
+            String chunk1 = String.format("""
+                    {"model":"%s","created_at":"%s","message":{"role":"assistant","content":"%s"},"done":false}
+                    """, modelName, now, escapedContent);
+            // Final chunk: empty content with done=true
+            String chunk2 = String.format("""
+                    {"model":"%s","created_at":"%s","message":{"role":"assistant","content":""},"done":true,"done_reason":"stop","total_duration":1000000000,"eval_count":1}
+                    """, modelName, now);
+            return chunk1 + chunk2;
+        } else {
+            return String.format("""
+                    {
+                      "model": "%s",
+                      "created_at": "%s",
+                      "message": {
+                        "role": "assistant",
+                        "content": "%s"
+                      },
+                      "done": true,
+                      "done_reason": "stop",
+                      "total_duration": 1000000000,
+                      "load_duration": 0,
+                      "prompt_eval_count": 1,
+                      "prompt_eval_duration": 0,
+                      "eval_count": 1,
+                      "eval_duration": 0
+                    }
+                    """, modelName, now, escapedContent);
+        }
     }
 
     public boolean isEvolutionPaused() { return evolutionPaused.get(); }
