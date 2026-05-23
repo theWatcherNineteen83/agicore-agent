@@ -473,6 +473,7 @@ public class EvolutionManager {
     private String resolveClassName(String moduleName) {
         return switch (moduleName) {
             case "stub-planner" -> "StubPlanner";
+            case "ollama-planner" -> "OllamaPlanner";
             default -> moduleName;
         };
     }
@@ -480,6 +481,7 @@ public class EvolutionManager {
     private String resolvePackageName(String moduleName) {
         return switch (moduleName) {
             case "stub-planner" -> "de.metis.modules.planner";
+            case "ollama-planner" -> "de.metis.modules.planner";
             default -> "de.metis.modules";
         };
     }

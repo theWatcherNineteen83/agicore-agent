@@ -539,7 +539,8 @@ public final class AgentMain {
         Path persist = null;
         boolean evolution = false;
         boolean kernelEvolution = false;
-        int maxTicks = 0; // 0 = unlimited
+        int maxTicks = 0;
+        int apiPort = 0;  // 0 = disabled
         String planningModel = null;
         String mutationModel = null;
         String embeddingModel = null;
@@ -551,18 +552,20 @@ public final class AgentMain {
                 case "--evolution" -> evolution = true;
                 case "--kernel-evolution" -> { evolution = true; kernelEvolution = true; }
                 case "--max-ticks" -> maxTicks = Integer.parseInt(args[++i]);
+                case "--api-port" -> apiPort = Integer.parseInt(args[++i]);
                 case "--planning-model" -> planningModel = args[++i];
                 case "--mutation-model" -> mutationModel = args[++i];
                 case "--embedding-model" -> embeddingModel = args[++i];
                 case "--help", "-h" -> {
                     System.out.println("""
-                            AGI Core — Autonomous Agent Runtime
+                            Metis AGI — Self-Evolving Agent System
                             Options:
                               --interval N          Tick interval in ms (default: 3000)
                               --persist PATH        State persistence file
                               --evolution           Enable self-evolution (modules only)
                               --kernel-evolution    Enable kernel evolution (feature branches)
                               --max-ticks N         Stop after N ticks (default: unlimited)
+                              --api-port N          Start Ollama-compatible HTTP API on port N
                               --planning-model M    Override auto-selected planning model
                               --mutation-model M    Override auto-selected mutation model
                               --embedding-model M   Override auto-selected embedding model
@@ -623,10 +626,10 @@ public final class AgentMain {
                 // Register safety-critical kernel classes as evolvable
                 agent.core().evolutionManager().registerKernelModule(
                         "de.metis.kernel.planner.PlanValidator",
-                        "de/agicore/kernel/planner/PlanValidator.java");
+                        "de/metis/kernel/planner/PlanValidator.java");
                 agent.core().evolutionManager().registerKernelModule(
                         "de.metis.kernel.goal.GoalManager",
-                        "de/agicore/kernel/goal/GoalManager.java");
+                        "de/metis/kernel/goal/GoalManager.java");
                 LOG.info("Kernel evolution enabled — 2 safety-critical modules registered");
             }
         }
@@ -641,6 +644,13 @@ public final class AgentMain {
         agent.addGoal("Check system status via shell", "shell", 85, 0.9, 1);
         agent.addGoal("HTTP health check request", "http", 70, 0.8, 2);
 
+        // ── Start HTTP API (OpenWebUI integration) ────────────
+        MetisHttpServer httpServer = null;
+        if (apiPort > 0) {
+            httpServer = new MetisHttpServer(agent, apiPort);
+            httpServer.start();
+        }
+
         // Build and run
         var runtime = AgentMain.builder(agent)
                 .tickInterval(interval)
@@ -649,13 +659,15 @@ public final class AgentMain {
                 .emergenceReportInterval(50)
                 .build();
 
-        if (evolution) runtime = AgentMain.builder(agent)
-                .tickInterval(interval)
-                .persistTo(persist)
-                .withEvolution()
-                .idleGoalInterval(10)
-                .emergenceReportInterval(50)
-                .build();
+        if (evolution) {
+            runtime = AgentMain.builder(agent)
+                    .tickInterval(interval)
+                    .persistTo(persist)
+                    .withEvolution()
+                    .idleGoalInterval(10)
+                    .emergenceReportInterval(50)
+                    .build();
+        }
 
         try {
             if (maxTicks > 0) {
@@ -672,6 +684,10 @@ public final class AgentMain {
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "Agent runtime crashed", e);
             runtime.persistState();
+        } finally {
+            if (httpServer != null) {
+                httpServer.stop();
+            }
         }
     }
 }
