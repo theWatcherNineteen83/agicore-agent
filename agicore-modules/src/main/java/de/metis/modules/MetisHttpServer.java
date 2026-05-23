@@ -9,6 +9,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Logger;
 
 /**
@@ -34,6 +35,7 @@ public class MetisHttpServer {
     private final int port;
     private final List<ChatMessage> conversationHistory = new ArrayList<>();
     private static final int MAX_HISTORY = 50;
+    private final AtomicBoolean evolutionPaused = new AtomicBoolean(false);
 
     public MetisHttpServer(Agent agent, int port) throws IOException {
         this.agent = agent;
@@ -44,6 +46,9 @@ public class MetisHttpServer {
         server.createContext("/api/tags", this::handleTags);
         server.createContext("/api/chat", this::handleChat);
         server.createContext("/api/status", this::handleStatus);
+        server.createContext("/api/evolution/pause", this::handleEvolutionPause);
+        server.createContext("/api/evolution/resume", this::handleEvolutionResume);
+        server.createContext("/api/evolution/status", this::handleEvolutionStatus);
     }
 
     public void start() {
@@ -250,6 +255,42 @@ public class MetisHttpServer {
                   "eval_count": 0
                 }
                 """, model != null ? model : "metis-agent", Instant.now().toString(), escapedContent);
+    }
+
+    public boolean isEvolutionPaused() { return evolutionPaused.get(); }
+
+    // ── Evolution control endpoints ─────────────────────────────
+
+    private void handleEvolutionPause(HttpExchange exchange) throws IOException {
+        evolutionPaused.set(true);
+        agent.core().evolutionManager().setPaused(true);
+        var evo = agent.core().evolutionManager();
+        sendJson(exchange, 200, String.format("""
+                {"evolution_paused": true, "cycles": %d, "accepted": %d, "rejected": %d}
+                """, evo.evolutionCycles(), evo.acceptedMutations(), evo.rejectedMutations()));
+    }
+
+    private void handleEvolutionResume(HttpExchange exchange) throws IOException {
+        evolutionPaused.set(false);
+        agent.core().evolutionManager().setPaused(false);
+        var evo = agent.core().evolutionManager();
+        sendJson(exchange, 200, String.format("""
+                {"evolution_paused": false, "cycles": %d, "accepted": %d, "rejected": %d}
+                """, evo.evolutionCycles(), evo.acceptedMutations(), evo.rejectedMutations()));
+    }
+
+    private void handleEvolutionStatus(HttpExchange exchange) throws IOException {
+        var evo = agent.core().evolutionManager();
+        sendJson(exchange, 200, String.format("""
+                {
+                  "paused": %b,
+                  "evolutionCycles": %d,
+                  "acceptedMutations": %d,
+                  "rejectedMutations": %d,
+                  "baselineFitness": %.3f
+                }
+                """, evolutionPaused.get(), evo.evolutionCycles(),
+                evo.acceptedMutations(), evo.rejectedMutations(), evo.baselineFitness()));
     }
 
     // ── /api/status ──────────────────────────────────────────────

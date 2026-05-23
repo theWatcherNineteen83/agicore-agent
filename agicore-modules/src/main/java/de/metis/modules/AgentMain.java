@@ -651,6 +651,9 @@ public final class AgentMain {
             httpServer.start();
         }
 
+        // Build the runtime, wiring in the HTTP server for evolution control
+        final MetisHttpServer api = httpServer;
+
         // Build and run
         var runtime = AgentMain.builder(agent)
                 .tickInterval(interval)

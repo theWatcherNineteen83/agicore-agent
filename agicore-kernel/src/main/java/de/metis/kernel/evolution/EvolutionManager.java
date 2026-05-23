@@ -65,6 +65,7 @@ public class EvolutionManager {
     private final List<KernelModuleInfo> kernelModules = new ArrayList<>();
     private boolean kernelEvolutionEnabled = false;
     private String currentFeatureBranch = null;  // active kernel evolution branch
+    private volatile boolean paused = false;
 
     /** Max change for kernel mutations (stricter than module 15%). */
     private static final double KERNEL_MAX_CHANGE_PERCENT = 5.0;
@@ -122,6 +123,7 @@ public class EvolutionManager {
     }
 
     public boolean shouldEvolve(long tickCount, double currentFitness) {
+        if (paused) return false;
         if (currentFitness > baselineFitness + FitnessFunction.minImprovement()) {
             baselineFitness = currentFitness;
             lastImprovementTick = tickCount;
@@ -509,6 +511,8 @@ public class EvolutionManager {
     public int acceptedMutations() { return acceptedMutations; }
     public int rejectedMutations() { return rejectedMutations; }
     public double baselineFitness() { return baselineFitness; }
+    public boolean isPaused() { return paused; }
+    public void setPaused(boolean p) { this.paused = p; }
 
     public record ShadowEvalResult(double fitness, double successRate,
                                     double planningEff, int ticks) {}
