@@ -20,6 +20,7 @@ import de.agicore.kernel.self.SelfModel;
 import de.agicore.kernel.workspace.AttentionBuffer;
 import de.agicore.kernel.workspace.GlobalWorkspace;
 import de.agicore.kernel.world.WorldModel;
+import de.agicore.modules.evolution.ModelRegistry;
 import de.agicore.modules.planner.OllamaPlanner;
 import de.agicore.modules.planner.StubPlanner;
 
@@ -103,6 +104,12 @@ public class Agent {
         /** Use the Ollama LLM planner with custom configuration. */
         public Builder ollamaPlanner(String ollamaUrl, String model, Duration timeout) {
             this.planner = new OllamaPlanner(ollamaUrl, model, timeout);
+            return this;
+        }
+
+        /** Use the Ollama LLM planner with ModelRegistry for auto model selection. */
+        public Builder ollamaPlanner(String ollamaUrl, ModelRegistry registry, Duration timeout) {
+            this.planner = new OllamaPlanner(ollamaUrl, registry, timeout);
             return this;
         }
 

@@ -10,6 +10,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.function.Supplier;
 import java.util.logging.Logger;
 
 /**
@@ -33,8 +34,10 @@ public class OllamaMutationService implements EvolutionManager.MutationService {
     private static final Logger LOG = Logger.getLogger(OllamaMutationService.class.getName());
 
     private static final String OLLAMA_URL = "http://192.168.22.204:11434/api/generate";
-    private static final String MODEL = "mistral-small3.1:24b"; // excellent code generation, no thinking mode
+    private static final String DEFAULT_MODEL = "qwen3.6:27b-q4_K_M";
     private static final Duration TIMEOUT = Duration.ofSeconds(120);
+
+    private Supplier<String> modelProvider = () -> DEFAULT_MODEL;
 
     private final HttpClient http = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(10))
@@ -43,6 +46,30 @@ public class OllamaMutationService implements EvolutionManager.MutationService {
     private int mutationCount = 0;
     private String lastRawResponse = null;
     private PromptBank promptBank = new PromptBank();
+
+    /**
+     * Default: uses hardcoded model. Call {@link #withRegistry(ModelRegistry)} for auto-selection.
+     */
+    public OllamaMutationService() {}
+
+    /**
+     * Use a ModelRegistry for automatic model selection.
+     * The registry selects the best mutation-capable model from available models.
+     */
+    public OllamaMutationService(ModelRegistry registry) {
+        this.modelProvider = registry::mutationModel;
+    }
+
+    /** Manually set model provider. */
+    public OllamaMutationService withRegistry(ModelRegistry registry) {
+        this.modelProvider = registry::mutationModel;
+        return this;
+    }
+
+    /** Resolve current model name. */
+    public String currentModel() {
+        return modelProvider != null ? modelProvider.get() : DEFAULT_MODEL;
+    }
 
     /**
      * Generate a mutated variant of a Java source file.
@@ -72,7 +99,7 @@ public class OllamaMutationService implements EvolutionManager.MutationService {
                         "num_predict": 4096
                       }
                     }
-                    """, MODEL, escapeJson(prompt));
+                    """, currentModel(), escapeJson(prompt));
 
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(OLLAMA_URL))

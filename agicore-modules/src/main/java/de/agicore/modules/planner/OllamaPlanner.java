@@ -9,6 +9,8 @@ import de.agicore.kernel.workspace.ContentItem;
 import de.agicore.kernel.world.Belief;
 import de.agicore.kernel.world.WorldModel;
 
+import de.agicore.modules.evolution.ModelRegistry;
+
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -17,6 +19,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
@@ -46,7 +49,7 @@ public class OllamaPlanner implements Planner {
 
     // ── Ollama configuration ──────────────────────────────────
     private String ollamaUrl;
-    private String model;
+    private Supplier<String> modelProvider;  // lazy: resolves from ModelRegistry or fixed string
     private Duration timeout;
 
     // ── EvolvableModule state ──────────────────────────────────
@@ -76,7 +79,8 @@ public class OllamaPlanner implements Planner {
             .build();
 
     /**
-     * Create with defaults: miniedi Ollama, mistral-small3.1:24b.
+     * Create with defaults: miniedi Ollama, default model.
+     * Use {@link #OllamaPlanner(String, ModelRegistry, Duration)} for auto-selection.
      */
     public OllamaPlanner() {
         this("http://192.168.22.204:11434/api/generate",
@@ -85,7 +89,7 @@ public class OllamaPlanner implements Planner {
     }
 
     /**
-     * Full configuration.
+     * Full configuration with explicit model name.
      *
      * @param ollamaUrl Ollama generate endpoint
      * @param model     model name (e.g. "mistral-small3.1:24b")
@@ -93,7 +97,17 @@ public class OllamaPlanner implements Planner {
      */
     public OllamaPlanner(String ollamaUrl, String model, Duration timeout) {
         this.ollamaUrl = ollamaUrl;
-        this.model = model;
+        this.modelProvider = () -> model;
+        this.timeout = timeout;
+    }
+
+    /**
+     * Create with ModelRegistry for automatic model selection.
+     * The registry is queried each planning call (cached internally by registry).
+     */
+    public OllamaPlanner(String ollamaUrl, ModelRegistry registry, Duration timeout) {
+        this.ollamaUrl = ollamaUrl;
+        this.modelProvider = registry::planningModel;
         this.timeout = timeout;
     }
 
@@ -171,7 +185,7 @@ public class OllamaPlanner implements Planner {
                         "num_predict": 256
                       }
                     }
-                    """, model, escapeJson(prompt));
+                    """, resolveModel(), escapeJson(prompt));
 
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(ollamaUrl))
@@ -540,6 +554,11 @@ public class OllamaPlanner implements Planner {
                 return w;
         }
         return words.length > 0 ? words[0] : "unknown";
+    }
+
+    /** Resolve model name from provider (lazy, allows runtime model switching). */
+    private String resolveModel() {
+        return modelProvider != null ? modelProvider.get() : "mistral-small3.1:24b";
     }
 
     private static String escapeJson(String s) {

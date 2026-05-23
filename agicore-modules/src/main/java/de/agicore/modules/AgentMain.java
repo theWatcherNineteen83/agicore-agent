@@ -4,6 +4,7 @@ import de.agicore.kernel.core.AgentCoreLoop;
 import de.agicore.kernel.evolution.EvolutionManager;
 import de.agicore.kernel.metrics.PerformanceMetrics;
 import de.agicore.kernel.planner.Planner;
+import de.agicore.modules.evolution.ModelRegistry;
 import de.agicore.modules.evolution.OllamaMutationService;
 import de.agicore.modules.planner.OllamaPlanner;
 
@@ -563,10 +564,13 @@ public final class AgentMain {
         Logger.getLogger("").setLevel(Level.WARNING);
         Logger.getLogger("de.agicore").setLevel(Level.INFO);
 
-        // Build agent with LLM planner and file system actions
+        // Discover models and build agent with auto-selection
+        var modelRegistry = new ModelRegistry("http://192.168.22.204:11434").discover();
+
         Agent agent = Agent.builder()
                 .registerShellCommand(List.of("uname", "-a"))
                 .registerHttpGet(URI.create("https://httpbin.org/get"))
+                .ollamaPlanner("http://192.168.22.204:11434/api/generate", modelRegistry, Duration.ofSeconds(60))
                 .workspaceCapacity(7)
                 .build();
 
@@ -583,9 +587,9 @@ public final class AgentMain {
 
         // Inject Ollama mutation service if evolution enabled
         if (evolution) {
-            var ollama = new OllamaMutationService();
+            var ollama = new OllamaMutationService(modelRegistry);
             agent.core().evolutionManager().setMutationService(ollama);
-            LOG.info("Evolution enabled — OllamaMutationService (mistral-small3.1:24b @ miniedi:11434)");
+            LOG.info("Evolution enabled — OllamaMutationService (auto-selected: " + ollama.currentModel() + ")");
         }
 
         // Bootstrap world model
