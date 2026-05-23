@@ -251,8 +251,13 @@ public class MetisHttpServer {
                     "content": "%s"
                   },
                   "done": true,
-                  "total_duration": 0,
-                  "eval_count": 0
+                  "done_reason": "stop",
+                  "total_duration": 1000000000,
+                  "load_duration": 0,
+                  "prompt_eval_count": 1,
+                  "prompt_eval_duration": 0,
+                  "eval_count": 1,
+                  "eval_duration": 0
                 }
                 """, model != null ? model : "metis-agent", Instant.now().toString(), escapedContent);
     }
