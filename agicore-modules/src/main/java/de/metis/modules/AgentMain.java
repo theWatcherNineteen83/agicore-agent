@@ -2,6 +2,9 @@ package de.metis.modules;
 
 import de.metis.kernel.core.AgentCoreLoop;
 import de.metis.kernel.action.Crawl4AIAction;
+import de.metis.kernel.action.NativeWebScraperAction;
+import de.metis.kernel.action.LinuxExploreAction;
+import de.metis.kernel.action.ApiExplorerAction;
 import de.metis.kernel.action.JavaSandboxAction;
 import de.metis.kernel.evolution.EvolutionManager;
 import de.metis.kernel.metrics.PerformanceMetrics;
@@ -620,11 +623,20 @@ public final class AgentMain {
                         de.metis.kernel.action.FileSystemAction.Mode.READ,
                         Path.of("/tmp")));
 
-        // Web-Scraper (Crawl4AI auf kali:11235)
-        agent.core().executor().register(new Crawl4AIAction("https://example.com"));
+        // Web-Scraper (native, JDK-only)
+        agent.core().executor().register(new NativeWebScraperAction("https://example.com"));
 
         // Java-Code-Sandbox (jshell)
         agent.core().executor().register(new JavaSandboxAction("System.out.println(\"Hello from Metis!\");"));
+
+        // Linux-Lernmodus (Level 1-3)
+        agent.core().executor().register(new LinuxExploreAction(1));
+        agent.core().executor().register(new LinuxExploreAction(2) {
+            @Override public String name() { return "linux-explore-system"; }
+        });
+
+        // API-Explorer
+        agent.core().executor().register(new ApiExplorerAction("http://localhost:8080"));
 
         // Inject Ollama mutation service if evolution enabled
         if (evolution) {
@@ -653,6 +665,10 @@ public final class AgentMain {
         agent.worldModel().update("http actions work for health checks", 0.9, "bootstrap", true);
         agent.worldModel().update("filesystem-list explores directory contents", 0.8, "bootstrap", true);
         agent.worldModel().update("filesystem-read retrieves file contents", 0.75, "bootstrap", true);
+        agent.worldModel().update("webscrape extracts readable text from web pages", 0.85, "bootstrap", true);
+        agent.worldModel().update("javasandbox runs Java code experiments safely", 0.9, "bootstrap", true);
+        agent.worldModel().update("linux-explore probes system commands", 0.85, "bootstrap", true);
+        agent.worldModel().update("api-explore discovers HTTP endpoints", 0.8, "bootstrap", true);
 
         // External knowledge bootstrap
         List<String> bootstrapModelList = new ArrayList<>();
