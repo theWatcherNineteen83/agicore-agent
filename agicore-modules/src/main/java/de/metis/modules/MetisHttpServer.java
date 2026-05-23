@@ -229,17 +229,17 @@ public class MetisHttpServer {
         var beliefs = wm.worldPicture(3);
 
         StringBuilder sb = new StringBuilder();
-        sb.append("I processed your request through my cognitive loop.\n\n");
+        sb.append("Ich habe deine Anfrage durch meinen kognitiven Zyklus verarbeitet.\n\n");
 
         if (actionOutput != null && !actionOutput.isBlank()) {
             String trimmed = actionOutput.length() > 500
                     ? actionOutput.substring(0, 500) + "..." : actionOutput;
-            sb.append("Action output:\n```\n").append(trimmed).append("\n```\n\n");
+            sb.append("Aktionsergebnis:\n```\n").append(trimmed).append("\n```\n\n");
         }
 
         // Add relevant beliefs
         if (!beliefs.isEmpty()) {
-            sb.append("Relevant knowledge:\n");
+            sb.append("Relevantes Wissen:\n");
             for (var b : beliefs) {
                 sb.append("• ").append(b.statement())
                         .append(" (").append(String.format("%.0f%%", b.confidence() * 100)).append(")\n");
@@ -248,13 +248,13 @@ public class MetisHttpServer {
         }
 
         // Agent state
-        sb.append("My state: confidence=").append(String.format("%.0f%%", agent.meta().confidence() * 100))
+        sb.append("Mein Zustand: confidence=").append(String.format("%.0f%%", agent.meta().confidence() * 100))
                 .append(", beliefs=").append(wm.beliefCount())
                 .append(", mutations=").append(agent.core().evolutionManager().acceptedMutations())
                 .append("\n");
 
         long elapsed = System.currentTimeMillis() - startMs;
-        sb.append("(processed in ").append(elapsed).append("ms)");
+        sb.append("(verarbeitet in ").append(elapsed).append("ms)");
 
         return sb.toString();
     }
@@ -265,19 +265,19 @@ public class MetisHttpServer {
         var beliefs = wm.worldPicture(5);
 
         StringBuilder sb = new StringBuilder();
-        sb.append("I received your message but don't have a direct action for it.\n\n");
+        sb.append("Ich habe deine Nachricht erhalten, habe aber keine direkte Aktion dafür.\n\n");
 
-        sb.append("What I know:\n");
+        sb.append("Was ich weiß:\n");
         for (var b : beliefs) {
             sb.append("• ").append(b.statement())
                     .append(" (").append(String.format("%.0f%%", b.confidence() * 100)).append(")\n");
         }
 
-        sb.append("\nI'm a self-evolving AGI (Metis). I learn from interactions.\n");
-        sb.append("My planner uses Ollama (")
+        sb.append("\nIch bin eine selbst-evolvierende AGI (Metis). Ich lerne aus Interaktionen.\n");
+        sb.append("Mein Planer nutzt Ollama (")
                 .append(agent.planner() instanceof de.metis.modules.planner.OllamaPlanner ? "LLM-powered" : "keyword-based")
-                .append(") and I've completed ")
-                .append(agent.metrics().totalTicks()).append(" cognitive ticks.");
+                .append(") und habe  ")
+                .append(agent.metrics().totalTicks()).append(" kognitive Ticks.");
 
         return sb.toString();
     }

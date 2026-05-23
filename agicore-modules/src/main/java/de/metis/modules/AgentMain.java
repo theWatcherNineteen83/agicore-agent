@@ -1,6 +1,8 @@
 package de.metis.modules;
 
 import de.metis.kernel.core.AgentCoreLoop;
+import de.metis.kernel.action.Crawl4AIAction;
+import de.metis.kernel.action.JavaSandboxAction;
 import de.metis.kernel.evolution.EvolutionManager;
 import de.metis.kernel.metrics.PerformanceMetrics;
 import de.metis.kernel.planner.Planner;
@@ -617,6 +619,12 @@ public final class AgentMain {
                 new de.metis.kernel.action.FileSystemAction("filesystem-read",
                         de.metis.kernel.action.FileSystemAction.Mode.READ,
                         Path.of("/tmp")));
+
+        // Web-Scraper (Crawl4AI auf kali:11235)
+        agent.core().executor().register(new Crawl4AIAction("https://example.com"));
+
+        // Java-Code-Sandbox (jshell)
+        agent.core().executor().register(new JavaSandboxAction("System.out.println(\"Hello from Metis!\");"));
 
         // Inject Ollama mutation service if evolution enabled
         if (evolution) {

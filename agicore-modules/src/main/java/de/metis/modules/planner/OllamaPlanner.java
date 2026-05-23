@@ -234,22 +234,22 @@ public class OllamaPlanner implements Planner {
     private String buildPlanningPrompt(Goal goal, List<Experience> recentHistory,
                                         List<ContentItem> broadcast, MetaCognition meta) {
         StringBuilder sb = new StringBuilder();
-        sb.append("You are an AGI action planner. Choose the best action for a goal.\n");
-        sb.append("Respond with EXACTLY one JSON object: {\"action\":\"...\",\"reasoning\":\"...\",\"confidence\":0.XX}\n");
-        sb.append("No markdown. No explanation outside the JSON. Just the JSON.\n\n");
+        sb.append("Du bist ein AGI-Aktionsplaner. Wähle die beste Aktion für ein Ziel.\n");
+        sb.append("Antworte mit GENAU einem JSON-Objekt: {\"action\":\"...\",\"reasoning\":\"...\",\"confidence\":0.XX}\n");
+        sb.append("Kein Markdown. Keine Erklärung außerhalb des JSON. Nur das JSON.\n\n");
 
         // Goal
-        sb.append("GOAL: ").append(goal.description()).append("\n");
+        sb.append("ZIEL: ").append(goal.description()).append("\n");
         sb.append("Category: ").append(goal.category()).append("\n");
         sb.append("Priority: ").append(goal.priority()).append("/100\n");
         sb.append("Expected reward: ").append(String.format("%.2f", goal.expectedReward())).append("\n\n");
 
         // Available actions
-        sb.append("AVAILABLE ACTIONS: ").append(String.join(", ", availableActions)).append("\n\n");
+        sb.append("VERFÜGBARE AKTIONEN: ").append(String.join(", ", availableActions)).append("\n\n");
 
         // Workspace attention (broadcast)
         if (!broadcast.isEmpty()) {
-            sb.append("ATTENTION (what the agent is focused on):\n");
+            sb.append("AUFMERKSAMKEIT (Fokus des Agenten):\n");
             for (ContentItem item : broadcast) {
                 sb.append("- [").append(item.source()).append("] ")
                         .append(item.summary()).append("\n");
@@ -261,10 +261,10 @@ public class OllamaPlanner implements Planner {
         if (worldModel != null) {
             List<Belief> relevant = worldModel.query(goal.description(), 5);
             if (!relevant.isEmpty()) {
-                sb.append("WORLD KNOWLEDGE (relevant beliefs):\n");
+                sb.append("WELTWISSEN (relevante Überzeugungen):\n");
                 for (Belief b : relevant) {
                     sb.append("- ").append(b.statement())
-                            .append(" (confidence: ").append(String.format("%.2f", b.confidence())).append(")\n");
+                            .append(" (Konfidenz: ").append(String.format("%.2f", b.confidence())).append(")\n");
                 }
                 sb.append("\n");
             }
@@ -272,7 +272,7 @@ public class OllamaPlanner implements Planner {
 
         // Recent history (last 5 experiences)
         if (!recentHistory.isEmpty()) {
-            sb.append("RECENT HISTORY:\n");
+            sb.append("LETZTE ERFAHRUNGEN:\n");
             List<Experience> recent = recentHistory.size() > 5
                     ? recentHistory.subList(recentHistory.size() - 5, recentHistory.size())
                     : recentHistory;
@@ -286,7 +286,7 @@ public class OllamaPlanner implements Planner {
         }
 
         // Meta-cognitive state
-        sb.append("AGENT STATE:\n");
+        sb.append("AGENT-ZUSTAND:\n");
         sb.append("Confidence: ").append(String.format("%.2f", meta.confidence())).append("\n");
         sb.append("Surprised: ").append(meta.isSurprised()).append("\n");
         sb.append("Rolling error: ").append(String.format("%.2f", meta.rollingError())).append("\n");
@@ -311,8 +311,8 @@ public class OllamaPlanner implements Planner {
         }
         sb.append("\n");
 
-        sb.append("Based on all context above, which SINGLE action should the agent execute NOW?\n");
-        sb.append("Respond with ONLY the JSON object. No explanation. No markdown.\n");
+        sb.append("Welche EINZELNE Aktion soll der Agent JETZT ausführen?\n");
+        sb.append("Antworte NUR mit dem JSON-Objekt. Keine Erklärung. Kein Markdown.\n");
         sb.append("{\"action\":\"");
 
         return sb.toString();
