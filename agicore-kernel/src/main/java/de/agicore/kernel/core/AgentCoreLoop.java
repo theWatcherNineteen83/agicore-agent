@@ -375,6 +375,7 @@ public class AgentCoreLoop {
     public CognitiveCycle currentPhase() { return currentPhase; }
     public long tickCount() { return tickCount; }
     public GoalManager goals() { return goals; }
+    public Planner planner() { return planner; }
     public MetaCognition meta() { return meta; }
     public ShortTermMemory stm() { return stm; }
     public MemoryConsolidator consolidator() { return consolidator; }

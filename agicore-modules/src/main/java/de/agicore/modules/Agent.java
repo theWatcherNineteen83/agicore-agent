@@ -20,12 +20,15 @@ import de.agicore.kernel.self.SelfModel;
 import de.agicore.kernel.workspace.AttentionBuffer;
 import de.agicore.kernel.workspace.GlobalWorkspace;
 import de.agicore.kernel.world.WorldModel;
+import de.agicore.modules.planner.OllamaPlanner;
 import de.agicore.modules.planner.StubPlanner;
 
 import java.net.URI;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Agent facade — wires kernel (immutable) + modules (evolvable).
@@ -51,6 +54,7 @@ public class Agent {
     }
 
     public AgentCoreLoop core() { return core; }
+    public Planner planner() { return core.planner(); }
     public GoalManager goals() { return core.goals(); }
     public MetaCognition meta() { return core.meta(); }
     public ShortTermMemory stm() { return core.stm(); }
@@ -69,7 +73,7 @@ public class Agent {
         private ShortTermMemory stm = new ShortTermMemory();
         private LongTermMemory ltm = new LongTermMemory();
         private MetaCognition meta = new MetaCognition();
-        private Planner planner = new StubPlanner();
+        private Planner planner = new OllamaPlanner();  // Step D: LLM planner by default
         private PerformanceMetrics metrics = new PerformanceMetrics();
         private HyperparameterMutator hyperMutator = new HyperparameterMutator();
         private GlobalWorkspace workspace = new GlobalWorkspace();
@@ -95,11 +99,30 @@ public class Agent {
         public Builder planner(Planner p) { this.planner = p; return this; }
         public Builder evolutionManager(EvolutionManager e) { this.evolutionManager = e; return this; }
 
+        /** Use the Ollama LLM planner with custom configuration. */
+        public Builder ollamaPlanner(String ollamaUrl, String model, Duration timeout) {
+            this.planner = new OllamaPlanner(ollamaUrl, model, timeout);
+            return this;
+        }
+
+        /** Use the keyword-based stub planner (for testing/fallback). */
+        public Builder stubPlanner() {
+            this.planner = new StubPlanner();
+            return this;
+        }
+
         public Agent build() {
             var consolidator = new MemoryConsolidator(stm, ltm);
             selfModel.bind(meta, metrics);
             var metaRepr = new MetaRepresentation(selfModel, workspace);
             var planValidator = new PlanValidator(executor);
+
+            // Inject world model into OllamaPlanner for context building
+            if (planner instanceof OllamaPlanner op) {
+                op.withWorldModel(worldModel)
+                  .withAvailableActions(executor.availableActions());
+            }
+
             // Register evolvable modules
             if (planner instanceof de.agicore.kernel.planner.EvolvableModule em) {
                 evolutionManager.register(em);
