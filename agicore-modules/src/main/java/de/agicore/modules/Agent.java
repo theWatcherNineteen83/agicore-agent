@@ -55,6 +55,7 @@ public class Agent {
 
     public AgentCoreLoop core() { return core; }
     public Planner planner() { return core.planner(); }
+    public de.agicore.kernel.action.ActionExecutor executor() { return core.executor(); }
     public GoalManager goals() { return core.goals(); }
     public MetaCognition meta() { return core.meta(); }
     public ShortTermMemory stm() { return core.stm(); }

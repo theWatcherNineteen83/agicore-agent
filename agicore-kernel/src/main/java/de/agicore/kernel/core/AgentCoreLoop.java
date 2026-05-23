@@ -376,6 +376,7 @@ public class AgentCoreLoop {
     public long tickCount() { return tickCount; }
     public GoalManager goals() { return goals; }
     public Planner planner() { return planner; }
+    public ActionExecutor executor() { return executor; }
     public MetaCognition meta() { return meta; }
     public ShortTermMemory stm() { return stm; }
     public MemoryConsolidator consolidator() { return consolidator; }
