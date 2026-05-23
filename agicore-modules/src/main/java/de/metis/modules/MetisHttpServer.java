@@ -45,6 +45,7 @@ public class MetisHttpServer {
 
         server.createContext("/api/tags", this::handleTags);
         server.createContext("/api/chat", this::handleChat);
+        server.createContext("/api/show", this::handleShow);
         server.createContext("/api/status", this::handleStatus);
         server.createContext("/api/evolution/pause", this::handleEvolutionPause);
         server.createContext("/api/evolution/resume", this::handleEvolutionResume);
@@ -66,6 +67,7 @@ public class MetisHttpServer {
     // ── /api/tags ────────────────────────────────────────────────
 
     private void handleTags(HttpExchange exchange) throws IOException {
+        LOG.fine("GET /api/tags");
         String json = """
                 {
                   "models": [
@@ -88,16 +90,39 @@ public class MetisHttpServer {
         sendJson(exchange, 200, json);
     }
 
+    // ── /api/show ─────────────────────────────────────────────────
+
+    private void handleShow(HttpExchange exchange) throws IOException {
+        String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+        LOG.info("GET /api/show body=" + truncate(body, 200));
+        
+        String json = """
+                {
+                  "license": "MIT",
+                  "modelfile": "# Metis AGI — Self-Evolving Agent System\\n# Java-based cognitive agent with LLM-powered planning",
+                  "parameters": "agent",
+                  "template": "{{ .Prompt }}",
+                  "details": {
+                    "family": "metis",
+                    "parameter_size": "agent"
+                  }
+                }
+                """;
+        sendJson(exchange, 200, json);
+    }
+
     // ── /api/chat ────────────────────────────────────────────────
 
     private void handleChat(HttpExchange exchange) throws IOException {
         String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+        LOG.info("POST /api/chat body=" + truncate(body, 300));
 
         // Parse Ollama chat request
         String model = extractJsonString(body, "model");
         String userMessage = extractLastUserMessage(body);
 
         if (userMessage == null || userMessage.isBlank()) {
+            LOG.warning("No user message in request. Body (first 500 chars): " + truncate(body, 500));
             sendJson(exchange, 400, "{\"error\":\"No user message found\"}");
             return;
         }
@@ -124,9 +149,8 @@ public class MetisHttpServer {
             if (result != null && result.success()) {
                 response = buildResponse(userMessage, result.body(), startMs);
             } else if (result != null) {
-                response = "I tried to process that but the action didn't complete successfully: " + result.body();
+                response = buildIntrospectiveResponse(userMessage);
             } else {
-                // No action matched — use introspection
                 response = buildIntrospectiveResponse(userMessage);
             }
         } catch (Exception e) {
@@ -142,19 +166,39 @@ public class MetisHttpServer {
 
     /** Extract the last user message from Ollama chat messages array. */
     private String extractLastUserMessage(String json) {
-        // Find last "role":"user" entry and extract "content"
+        // Find last "role" (possibly with spaces):"user" entry and extract "content"
         String lastContent = null;
         int pos = 0;
         while (true) {
-            int roleIdx = json.indexOf("\"role\":\"user\"", pos);
+            int roleIdx = json.indexOf("\"role\"", pos);
             if (roleIdx < 0) break;
+            
+            // Skip past : "user" — handling optional whitespace
+            int colonIdx = json.indexOf(':', roleIdx);
+            if (colonIdx < 0) { pos = roleIdx + 1; continue; }
+            
+            // Find "user" after the colon
+            int userStart = json.indexOf("\"user\"", colonIdx);
+            if (userStart < 0 || (userStart - colonIdx > 20)) {
+                pos = roleIdx + 1;
+                continue;
+            }
 
-            int contentStart = json.indexOf("\"content\":\"", roleIdx);
+            // Now find "content" after this role
+            int contentStart = json.indexOf("\"content\"", userStart);
             if (contentStart < 0) { pos = roleIdx + 1; continue; }
-            contentStart += "\"content\":\"".length();
+            
+            // Find the colon after "content"
+            int contentColon = json.indexOf(':', contentStart);
+            if (contentColon < 0) { pos = roleIdx + 1; continue; }
+            
+            // Find the opening quote of the content value
+            int valStart = json.indexOf('"', contentColon + 1);
+            if (valStart < 0) { pos = roleIdx + 1; continue; }
+            valStart++; // skip opening quote
 
             StringBuilder content = new StringBuilder();
-            for (int i = contentStart; i < json.length(); i++) {
+            for (int i = valStart; i < json.length(); i++) {
                 char c = json.charAt(i);
                 if (c == '\\' && i + 1 < json.length()) {
                     char next = json.charAt(i + 1);
@@ -173,7 +217,7 @@ public class MetisHttpServer {
                 }
             }
             lastContent = content.toString();
-            pos = contentStart + lastContent.length() + 10;
+            pos = userStart + 10;
         }
         return lastContent;
     }
