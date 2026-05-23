@@ -260,13 +260,15 @@ public class MetisHttpServer {
         var planner = agent.planner();
         var wm = agent.worldModel();
 
-        String plannerInfo = "stub";
+        String plannerInfo;
         if (planner instanceof de.metis.modules.planner.OllamaPlanner op) {
             plannerInfo = String.format("""
-                    "plannerLlmCalls": %d,
+                      "plannerLlmCalls": %d,
                       "plannerLlmSuccessRate": %.2f,
                       "plannerFallbacks": %d,""",
                     op.llmCalls(), op.llmSuccessRate(), op.fallbackUses());
+        } else {
+            plannerInfo = "";
         }
 
         String json = String.format("""

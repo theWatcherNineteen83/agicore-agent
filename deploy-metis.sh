@@ -2,7 +2,7 @@
 # deploy-metis.sh — Deploys Metis to miniedi as a systemd service
 set -e
 
-MINIEDI="prometheus@192.168.22.204"
+MINIEDI="miniedi"
 MINIEDI_HOST="192.168.22.204"
 DEPLOY_DIR="/home/prometheus/metis"
 API_PORT="11735"
