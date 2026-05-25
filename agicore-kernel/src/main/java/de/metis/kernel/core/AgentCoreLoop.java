@@ -166,8 +166,9 @@ public class AgentCoreLoop {
             return null;
         }
 
-        // Huyen Kap. 6: Plan validieren vor Ausführung
-        PlanValidator.ValidationResult validation = planValidator.validate(plan);
+        // Huyen Kap. 6 + 1.4: Plan validieren vor Ausführung
+        // Enhanced with context-aware validation (goal relevance, confidence gate)
+        PlanValidator.ValidationResult validation = planValidator.validateWithContext(plan, goal, meta);
         if (!validation.valid()) {
             LOG.warning("Plan rejected by validator: " + validation.reason());
             goals.recordOutcome(currentGoal, false);

@@ -25,7 +25,7 @@ public class HyperparameterMutator {
 
     private static final double MUTATION_RATE = 0.1;
     private static final int MIN_EVALUATIONS = 5;
-    private static final double MIN_IMPROVEMENT = 0.03; // 3% absolute improvement
+    private static final double MIN_IMPROVEMENT = 0.005; // 0.5% absolute improvement (gelockert)
 
     private final Random rng = new Random();
     private final List<ConfigVersion> history = new ArrayList<>();

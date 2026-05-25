@@ -1,13 +1,22 @@
 package de.metis.kernel.evolution;
 
+import de.metis.kernel.action.ActionResult;
+import de.metis.kernel.goal.Goal;
+import de.metis.kernel.memory.Experience;
+import de.metis.kernel.meta.MetaCognition;
 import de.metis.kernel.metrics.PerformanceMetrics;
 import de.metis.kernel.planner.EvolvableModule;
+import de.metis.kernel.planner.Planner;
 import de.metis.kernel.safety.SafetyGuard;
+import de.metis.kernel.workspace.ContentItem;
 
 import javax.tools.JavaCompiler;
 import javax.tools.ToolProvider;
 import java.io.*;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.nio.file.*;
+import java.time.Instant;
 import java.util.*;
 import java.util.logging.Logger;
 
@@ -30,8 +39,9 @@ public class EvolutionManager {
 
     private static final Logger LOG = Logger.getLogger(EvolutionManager.class.getName());
 
-    private static final int STAGNATION_TICKS = 200;
-    private static final int SHADOW_TICKS = 300;
+    private static final int STAGNATION_TICKS = 100;
+    private static final int MAX_STAGNATION_TICKS = 200;
+    private static final int SHADOW_TICKS = 100;
 
     private final SafetyGuard safety;
     private final ShadowEnvironment shadowEnv;
@@ -124,11 +134,26 @@ public class EvolutionManager {
 
     public boolean shouldEvolve(long tickCount, double currentFitness) {
         if (paused) return false;
+
+        // First call: initialise baseline to prevent early resets
+        if (lastImprovementTick == 0 && baselineFitness == 0.0) {
+            baselineFitness = currentFitness;
+            lastImprovementTick = tickCount;
+            return false;
+        }
+
         if (currentFitness > baselineFitness + FitnessFunction.minImprovement()) {
             baselineFitness = currentFitness;
             lastImprovementTick = tickCount;
             return false;
         }
+
+        // Hard fallback: force evolution every MAX_STAGNATION ticks regardless
+        if ((tickCount - lastImprovementTick) >= MAX_STAGNATION_TICKS) {
+            LOG.info("Max stagnation reached — forcing evolution at tick " + tickCount);
+            return true;
+        }
+
         return (tickCount - lastImprovementTick) >= STAGNATION_TICKS;
     }
 
@@ -256,7 +281,9 @@ public class EvolutionManager {
             }
 
             // ── Extended shadow evaluation ───────────────
-            ShadowEvalResult shadowResult = runShadowEvaluation(SHADOW_TICKS * 2);
+            Path kernelOutputDir = Path.of("target/evolution-out");
+            ShadowEvalResult shadowResult = runShadowEvaluation(SHADOW_TICKS * 2,
+                    kernelOutputDir.toAbsolutePath(), km.simpleClassName());
             double mutantFitness = shadowResult.fitness();
 
             // ── Compare ───────────────────────────────────
@@ -322,7 +349,8 @@ public class EvolutionManager {
             return new EvolutionResult(false, "Compilation failed");
         }
 
-        ShadowEvalResult shadowResult = runShadowEvaluation(SHADOW_TICKS);
+        ShadowEvalResult shadowResult = runShadowEvaluation(SHADOW_TICKS,
+                outputDir.toAbsolutePath(), className);
         double mutantFitness = shadowResult.fitness();
         double improvement = mutantFitness - baselineFitness;
 
@@ -401,28 +429,127 @@ public class EvolutionManager {
         return success;
     }
 
-    private ShadowEvalResult runShadowEvaluation(int maxTicks) {
-        int successes = 0, failures = 0;
+    /**
+     * Run shadow evaluation by loading the compiled mutant Planner class
+     * and testing it against a diverse set of test goals.
+     * <p>
+     * This replaces the old canned-response approach. The mutant is
+     * dynamically loaded and its plan() method is called with real test
+     * goals. The resulting plan production rate and expected success
+     * estimates feed into the fitness function so different mutants
+     * actually produce different fitness scores.
+     */
+    private ShadowEvalResult runShadowEvaluation(int maxTicks, Path compiledClassDir, String className) {
+        Planner mutantPlanner = loadMutantPlanner(compiledClassDir, className);
+
+        // ── Test goals covering diverse domains ───────────
+        List<Goal> testGoals = List.of(
+                new Goal("Check system status via shell", "shell", 80, 0.7, 5),
+                new Goal("HTTP health check request", "http", 70, 0.6, 3),
+                new Goal("List files in current directory", "shell", 50, 0.3, 2),
+                new Goal("Fetch API data from endpoint", "http", 60, 0.5, 3),
+                new Goal("Unknown exploratory task", "unknown", 30, 0.2, 1),
+                new Goal("Complex multi-step shell operation", "shell", 90, 0.8, 10)
+        );
+
+        int planProduced = 0, planEmpty = 0;
+        double totalExpectedSuccess = 0;
+        List<Experience> emptyHistory = Collections.emptyList();
+        List<ContentItem> emptyBroadcast = Collections.emptyList();
+        MetaCognition dummyMeta = new MetaCognition();
+
         for (int tick = 0; tick < maxTicks && tick < safety.maxTicks(); tick++) {
-            String action = tick % 3 == 0 ? "shell" : "http";
-            var result = shadowEnv.execute(action, "shadow-" + tick);
-            if (result.success()) successes++; else failures++;
+            Goal goal = testGoals.get(tick % testGoals.size());
+
+            List<String> plan;
+            if (mutantPlanner != null) {
+                plan = mutantPlanner.plan(goal, emptyHistory, emptyBroadcast, dummyMeta);
+            } else {
+                // Fallback: use shadowEnv for basic action simulation
+                String action = tick % 3 == 0 ? "shell" : "http";
+                var result = shadowEnv.execute(action, "shadow-" + tick);
+                plan = result.success() ? List.of(action) : Collections.emptyList();
+            }
+
+            if (!plan.isEmpty()) {
+                planProduced++;
+                if (mutantPlanner != null) {
+                    totalExpectedSuccess += mutantPlanner.expectedSuccess(goal, plan.getFirst());
+                } else {
+                    totalExpectedSuccess += 0.5;
+                }
+            } else {
+                planEmpty++;
+            }
         }
-        int total = successes + failures;
-        double succRate = total == 0 ? 1.0 : (double) successes / total;
-        double planEff = total == 0 ? 1.0 : 1.0; // all ticks produced actions in shadow
-        double fitness = FitnessFunction.evaluate(
-                createShadowMetrics(succRate, planEff), 0.5);
-        return new ShadowEvalResult(fitness, succRate, planEff, maxTicks);
+
+        int totalPlans = planProduced + planEmpty;
+        double planProductionRate = totalPlans == 0 ? 0 : (double) planProduced / totalPlans;
+        double avgExpectedSuccess = planProduced == 0 ? 0.5 : totalExpectedSuccess / planProduced;
+
+        // Create metrics that reflect the mutant's actual behavior
+        PerformanceMetrics metrics = createShadowMetrics(planProductionRate, avgExpectedSuccess);
+
+        // Fitness from real metrics + entropy (plan diversity proxy)
+        double fitness = FitnessFunction.evaluate(metrics, planProductionRate);
+
+        // Final copies for lambda (variables modified in loop are not effectively final)
+        final int finalPlanProduced = planProduced;
+        final int finalTotalPlans = totalPlans;
+        final double finalPlanRate = planProductionRate;
+        final double finalAvgSuccess = avgExpectedSuccess;
+        final double finalFitness = fitness;
+        final String mutantLabel = mutantPlanner != null ? "MUTANT" : "FALLBACK";
+
+        LOG.info(() -> String.format(
+                "Shadow eval [%s]: plans=%d/%d (%.1f%%), avgExpSucc=%.2f, fitness=%.3f",
+                mutantLabel,
+                finalPlanProduced, finalTotalPlans, finalPlanRate * 100, finalAvgSuccess, finalFitness));
+
+        return new ShadowEvalResult(fitness, planProductionRate, avgExpectedSuccess, maxTicks);
     }
 
-    private PerformanceMetrics createShadowMetrics(double successRate, double planningEff) {
+    /**
+     * Load a compiled mutant Planner class via URLClassLoader.
+     * The compiled .class file must be in {@code de/metis/modules/planner/}
+     * under the given directory.
+     */
+    private Planner loadMutantPlanner(Path compiledClassDir, String className) {
+        try {
+            URLClassLoader loader = new URLClassLoader(
+                    new URL[]{compiledClassDir.toUri().toURL()},
+                    getClass().getClassLoader()
+            );
+            String fqcn = "de.metis.modules.planner." + className;
+            Class<?> clazz = loader.loadClass(fqcn);
+            return (Planner) clazz.getDeclaredConstructor().newInstance();
+        } catch (Exception e) {
+            LOG.warning("Shadow: could not load mutant " + className + ": " + e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Create a PerformanceMetrics object that reflects the given
+     * plan production rate and expected success rate, rather than
+     * always producing identical dummy metrics.
+     */
+    private PerformanceMetrics createShadowMetrics(double planProductionRate, double avgExpectedSuccess) {
         var m = new PerformanceMetrics();
-        for (int i = 0; i < 10; i++) {
-            m.recordTick(null,
-                    new de.metis.kernel.action.ActionResult("s", true, "ok", null,
-                            java.time.Instant.now(), java.time.Duration.ZERO),
-                    new de.metis.kernel.meta.MetaCognition());
+        MetaCognition dummyMeta = new MetaCognition();
+        int totalTicks = 50;
+        int successfulTicks = (int) Math.round(totalTicks * planProductionRate);
+
+        for (int i = 0; i < totalTicks; i++) {
+            Goal goal = new Goal("shadow-test-" + i, "shadow", 50, avgExpectedSuccess, 1);
+            if (i < successfulTicks) {
+                // Plan produced → record success
+                ActionResult ok = ActionResult.ok("shadow-action", "shadow output", Instant.now());
+                m.recordTick(goal, ok, dummyMeta);
+            } else {
+                // No plan → record null result (planning failure)
+                m.recordTick(goal, null, dummyMeta);
+            }
         }
         return m;
     }

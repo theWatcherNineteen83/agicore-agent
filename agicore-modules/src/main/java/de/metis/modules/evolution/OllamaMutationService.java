@@ -35,7 +35,7 @@ public class OllamaMutationService implements EvolutionManager.MutationService {
 
     private static final String OLLAMA_URL = "http://192.168.22.204:11434/api/generate";
     private static final String DEFAULT_MODEL = "qwen3.6:27b-q4_K_M";
-    private static final Duration TIMEOUT = Duration.ofSeconds(120);
+    private static final Duration TIMEOUT = Duration.ofSeconds(1200);
 
     private Supplier<String> modelProvider = () -> DEFAULT_MODEL;
 
@@ -140,17 +140,22 @@ public class OllamaMutationService implements EvolutionManager.MutationService {
     private String buildMutationPrompt(String moduleName, String source,
                                         String className, String packageName) {
         String basePrompt = String.format("""
-                Output ONLY the complete modified Java class starting with package declaration.
-                No explanations. No analysis. No markdown. JUST THE CODE.
+                You are a Java code mutation engine. Output ONLY valid, compilable Java code.
+                Start with the package declaration. No markdown, no explanations.
 
+                RULES:
+                1. Keep ALL imports, package declaration, class name, and method signatures identical.
+                2. Modify 10-20%% of the method bodies — change thresholds, add heuristics, improve keyword extraction.
+                3. Every change MUST produce valid Java that compiles with javac.
+                4. Do NOT add new imports or dependencies.
+                5. Return ONLY the complete modified Java source file.
+
+                Original file:
                 ```java
                 %s
                 ```
 
-                Modify up to 15%% of the code.
-                Focus ONLY on: keyword extraction, action selection, thresholds.
-                Do NOT change method signatures, imports, package, or class name.
-                Return ONLY the modified Java code.
+                Modified file (complete, compilable):
                 """, source);
 
         // Inject few-shot examples from prompt bank

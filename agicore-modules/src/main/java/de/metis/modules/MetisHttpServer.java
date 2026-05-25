@@ -407,6 +407,22 @@ public class MetisHttpServer {
                 .replace("\n", " ").replace("\r", " ").replace("\t", " ");
     }
 
+    /** Format a List as a JSON array string. */
+    private static String jsonList(java.util.List<String> items) {
+        if (items == null || items.isEmpty()) return "[]";
+        return "[" + items.stream()
+                .map(s -> "\"" + escapeJsonValue(s) + "\"")
+                .collect(java.util.stream.Collectors.joining(", ")) + "]";
+    }
+
+    /** Format a Map<String, Integer> as a JSON object string. */
+    private static String jsonMap(java.util.Map<String, Integer> map) {
+        if (map == null || map.isEmpty()) return "{}";
+        return "{" + map.entrySet().stream()
+                .map(e -> "\"" + escapeJsonValue(e.getKey()) + "\":" + e.getValue())
+                .collect(java.util.stream.Collectors.joining(", ")) + "}";
+    }
+
     // ── Evolution control endpoints ─────────────────────────────
 
     private void handleEvolutionPause(HttpExchange exchange) throws IOException {
@@ -454,8 +470,14 @@ public class MetisHttpServer {
             plannerInfo = String.format("""
                       "plannerLlmCalls": %d,
                       "plannerLlmSuccessRate": %.2f,
-                      "plannerFallbacks": %d,""",
-                    op.llmCalls(), op.llmSuccessRate(), op.fallbackUses());
+                      "plannerFallbacks": %d,
+                      "modelFallbackUses": %d,
+                      "modelFallbackChain": %s,
+                      "modelFallbackCounts": %s,""",
+                    op.llmCalls(), op.llmSuccessRate(), op.fallbackUses(),
+                    op.modelFallbackUses(),
+                    jsonList(op.fallbackModelChain()),
+                    jsonMap(op.modelFallbackCounts()));
         } else {
             plannerInfo = "";
         }

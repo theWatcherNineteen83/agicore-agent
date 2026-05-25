@@ -68,10 +68,16 @@ public class OllamaPlanner implements Planner {
     // ── Available action names (cached for prompt context) ────
     private Set<String> availableActions = Set.of("shell", "http");
 
+    // ── Model fallback chain (1.3) ───────────────────────────
+    private final List<String> fallbackModels = new ArrayList<>();
+    private final Map<String, Integer> modelFallbackCounts = new LinkedHashMap<>();
+    private static final boolean ENABLE_FALLBACK_CHAIN = true;
+
     // ── Statistics ─────────────────────────────────────────────
     private int llmCalls = 0;
     private int llmFailures = 0;
     private int fallbackUses = 0;
+    private int modelFallbackUses = 0;  // count of model-level fallbacks within Tier 1
     private Instant lastLlmCall;
 
     private final HttpClient http = HttpClient.newBuilder()
@@ -99,6 +105,12 @@ public class OllamaPlanner implements Planner {
         this.ollamaUrl = ollamaUrl;
         this.modelProvider = () -> model;
         this.timeout = timeout;
+        // Default fallback chain: nemotron → qwen3.6 → mistral-small3.1
+        this.fallbackModels.addAll(List.of(
+            "nemotron-mini:4.2b",
+            "nemotron:latest",
+            "qwen3.6:latest"
+        ));
     }
 
     /**
@@ -109,6 +121,12 @@ public class OllamaPlanner implements Planner {
         this.ollamaUrl = ollamaUrl;
         this.modelProvider = registry::planningModel;
         this.timeout = timeout;
+        // Default fallback chain: nemotron → qwen3.6 → mistral-small3.1
+        this.fallbackModels.addAll(List.of(
+            "nemotron-mini:4.2b",
+            "nemotron:latest",
+            "qwen3.6:latest"
+        ));
     }
 
     // ── Configuration setters (builder-friendly) ──────────────
@@ -120,6 +138,25 @@ public class OllamaPlanner implements Planner {
 
     public OllamaPlanner withAvailableActions(Set<String> actions) {
         this.availableActions = Set.copyOf(actions);
+        return this;
+    }
+
+    /**
+     * Configure custom model fallback chain (1.3).
+     * When the primary model fails, each fallback is tried in order.
+     * @param models ordered list of model names to try as fallbacks
+     */
+    public OllamaPlanner withFallbackModels(List<String> models) {
+        this.fallbackModels.clear();
+        if (models != null) this.fallbackModels.addAll(models);
+        return this;
+    }
+
+    /**
+     * Add a single fallback model to the chain.
+     */
+    public OllamaPlanner addFallbackModel(String model) {
+        if (model != null && !model.isBlank()) this.fallbackModels.add(model);
         return this;
     }
 
@@ -165,6 +202,11 @@ public class OllamaPlanner implements Planner {
 
     /**
      * Tier 1: Call Ollama with structured context and parse JSON response.
+     * <p>
+     * <b>Model Fallback Chain (1.3):</b> If the primary model fails,
+     * automatically retry with each fallback model (nemotron → qwen3.6 → mistral-small3.1).
+     * Only if ALL models fail does the call return null, falling through to
+     * Tier 2 (learned) and Tier 3 (keyword).
      */
     private String planViaOllama(Goal goal, List<Experience> recentHistory,
                                   List<ContentItem> broadcast, MetaCognition meta) {
@@ -173,19 +215,67 @@ public class OllamaPlanner implements Planner {
 
         String prompt = buildPlanningPrompt(goal, recentHistory, broadcast, meta);
 
+        // --- Try primary model first ---
+        String primaryModel = resolveModel();
+        String result = callOllamaModel(primaryModel, prompt);
+        if (result != null) return result;
+
+        // --- Model Fallback Chain (1.3) ---
+        if (ENABLE_FALLBACK_CHAIN && !fallbackModels.isEmpty()) {
+            List<String> modelsToTry = new ArrayList<>();
+            // Add all fallback models that differ from the primary
+            for (String fb : fallbackModels) {
+                if (!fb.equals(primaryModel)) {
+                    modelsToTry.add(fb);
+                }
+            }
+            // Also add mistral-small3.1:24b as ultimate LLM fallback if not already in chain
+            if (!modelsToTry.contains("mistral-small3.1:24b")
+                    && !"mistral-small3.1:24b".equals(primaryModel)) {
+                modelsToTry.add("mistral-small3.1:24b");
+            }
+
+            for (String fallbackModel : modelsToTry) {
+                LOG.info(() -> "Model fallback: trying " + fallbackModel
+                        + " (primary " + primaryModel + " failed)");
+                modelFallbackUses++;
+                modelFallbackCounts.merge(fallbackModel, 1, Integer::sum);
+                String fallbackResult = callOllamaModel(fallbackModel, prompt);
+                if (fallbackResult != null) {
+                    LOG.info(() -> "Model fallback SUCCESS: " + fallbackModel
+                            + " returned action=" + fallbackResult);
+                    return fallbackResult;
+                }
+                LOG.warning("Model fallback " + fallbackModel + " also failed");
+            }
+
+            LOG.warning("All models in fallback chain exhausted");
+        }
+
+        // All LLM attempts failed
+        llmFailures++;
+        return null;
+    }
+
+    /**
+     * Call a specific Ollama model with the planning prompt.
+     * Returns the parsed action name or null on failure.
+     */
+    private String callOllamaModel(String modelName, String prompt) {
         try {
             String jsonBody = String.format("""
                     {
                       "model": "%s",
                       "prompt": %s,
                       "stream": false,
+                      "format": "json",
                       "options": {
-                        "temperature": 0.3,
-                        "top_p": 0.9,
+                        "temperature": 0.1,
+                        "top_p": 0.95,
                         "num_predict": 256
                       }
                     }
-                    """, resolveModel(), escapeJson(prompt));
+                    """, modelName, escapeJson(prompt));
 
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(ollamaUrl))
@@ -197,32 +287,39 @@ public class OllamaPlanner implements Planner {
             HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
 
             if (response.statusCode() != 200) {
-                llmFailures++;
-                LOG.warning("Ollama planner returned " + response.statusCode());
+                LOG.warning("Ollama model " + modelName + " returned " + response.statusCode());
                 return null;
             }
 
             String responseText = extractResponseField(response.body());
             if (responseText == null || responseText.isBlank()) {
-                llmFailures++;
+                LOG.warning("Ollama model " + modelName + " response had no text field");
                 return null;
             }
 
             // Parse JSON from response
             ParsedPlan plan = parsePlanResponse(responseText);
             if (plan != null && plan.action != null && !plan.action.isBlank()) {
-                LOG.fine(() -> "LLM plan: action=" + plan.action
+                LOG.fine(() -> "LLM plan (" + modelName + "): action=" + plan.action
                         + " confidence=" + String.format("%.2f", plan.confidence)
                         + " reason=" + plan.reasoning);
                 return plan.action.trim().toLowerCase();
             }
 
-            llmFailures++;
+            // If format:json returned valid JSON but parsePlanResponse didn't find action,
+            // try parsing the raw response as the JSON object directly
+            ParsedPlan rawPlan = parsePlanResponse(response.body());
+            if (rawPlan != null && rawPlan.action != null && !rawPlan.action.isBlank()) {
+                LOG.fine(() -> "LLM plan (" + modelName + " raw): action=" + rawPlan.action);
+                return rawPlan.action.trim().toLowerCase();
+            }
+
+            LOG.warning("Failed to parse action from " + modelName + ": "
+                    + responseText.substring(0, Math.min(200, responseText.length())));
             return null;
 
         } catch (Exception e) {
-            llmFailures++;
-            LOG.warning("Ollama planner call failed: " + e.getMessage());
+            LOG.warning("Ollama model " + modelName + " call failed: " + e.getMessage());
             return null;
         }
     }
@@ -234,22 +331,24 @@ public class OllamaPlanner implements Planner {
     private String buildPlanningPrompt(Goal goal, List<Experience> recentHistory,
                                         List<ContentItem> broadcast, MetaCognition meta) {
         StringBuilder sb = new StringBuilder();
-        sb.append("Du bist ein AGI-Aktionsplaner. Wähle die beste Aktion für ein Ziel.\n");
-        sb.append("Antworte mit GENAU einem JSON-Objekt: {\"action\":\"...\",\"reasoning\":\"...\",\"confidence\":0.XX}\n");
-        sb.append("Kein Markdown. Keine Erklärung außerhalb des JSON. Nur das JSON.\n\n");
+        sb.append("You are an action planner for an autonomous agent. Your task is to select the BEST single action for the given goal.\n");
+        sb.append("Available actions are listed below. Choose exactly one.\n");
+        sb.append("Respond with ONLY a JSON object. No markdown, no explanation outside the JSON.\n");
+        sb.append("The JSON must have exactly these fields: action, reasoning, confidence\n");
+        sb.append("Example: {\"action\":\"shell\",\"reasoning\":\"system status check via shell\",\"confidence\":0.85}\n\n");
 
         // Goal
-        sb.append("ZIEL: ").append(goal.description()).append("\n");
+        sb.append("GOAL: ").append(goal.description()).append("\n");
         sb.append("Category: ").append(goal.category()).append("\n");
         sb.append("Priority: ").append(goal.priority()).append("/100\n");
         sb.append("Expected reward: ").append(String.format("%.2f", goal.expectedReward())).append("\n\n");
 
         // Available actions
-        sb.append("VERFÜGBARE AKTIONEN: ").append(String.join(", ", availableActions)).append("\n\n");
+        sb.append("AVAILABLE ACTIONS: ").append(String.join(", ", availableActions)).append("\n\n");
 
         // Workspace attention (broadcast)
         if (!broadcast.isEmpty()) {
-            sb.append("AUFMERKSAMKEIT (Fokus des Agenten):\n");
+            sb.append("ATTENTION FOCUS:\n");
             for (ContentItem item : broadcast) {
                 sb.append("- [").append(item.source()).append("] ")
                         .append(item.summary()).append("\n");
@@ -261,10 +360,10 @@ public class OllamaPlanner implements Planner {
         if (worldModel != null) {
             List<Belief> relevant = worldModel.query(goal.description(), 5);
             if (!relevant.isEmpty()) {
-                sb.append("WELTWISSEN (relevante Überzeugungen):\n");
+                sb.append("WORLD KNOWLEDGE (relevant beliefs):\n");
                 for (Belief b : relevant) {
                     sb.append("- ").append(b.statement())
-                            .append(" (Konfidenz: ").append(String.format("%.2f", b.confidence())).append(")\n");
+                            .append(" (confidence: ").append(String.format("%.2f", b.confidence())).append(")\n");
                 }
                 sb.append("\n");
             }
@@ -272,7 +371,7 @@ public class OllamaPlanner implements Planner {
 
         // Recent history (last 5 experiences)
         if (!recentHistory.isEmpty()) {
-            sb.append("LETZTE ERFAHRUNGEN:\n");
+            sb.append("RECENT EXPERIENCES:\n");
             List<Experience> recent = recentHistory.size() > 5
                     ? recentHistory.subList(recentHistory.size() - 5, recentHistory.size())
                     : recentHistory;
@@ -286,14 +385,14 @@ public class OllamaPlanner implements Planner {
         }
 
         // Meta-cognitive state
-        sb.append("AGENT-ZUSTAND:\n");
+        sb.append("AGENT STATE:\n");
         sb.append("Confidence: ").append(String.format("%.2f", meta.confidence())).append("\n");
         sb.append("Surprised: ").append(meta.isSurprised()).append("\n");
         sb.append("Rolling error: ").append(String.format("%.2f", meta.rollingError())).append("\n");
         sb.append("Observations: ").append(meta.observationCount()).append("\n\n");
 
         // Learned action-goal success rates (the agent's own experience)
-        sb.append("LEARNED ACTION SUCCESS RATES (from past experience):\n");
+        sb.append("LEARNED ACTION SUCCESS RATES:\n");
         if (planningAttempts.isEmpty()) {
             sb.append("(no learned data yet)\n");
         } else {
@@ -311,29 +410,53 @@ public class OllamaPlanner implements Planner {
         }
         sb.append("\n");
 
-        sb.append("Welche EINZELNE Aktion soll der Agent JETZT ausführen?\n");
-        sb.append("Antworte NUR mit dem JSON-Objekt. Keine Erklärung. Kein Markdown.\n");
-        sb.append("{\"action\":\"");
+        sb.append("Which SINGLE action should the agent execute NOW?\n");
+        sb.append("IMPORTANT: You MUST include all three fields: action, reasoning, confidence.\n");
+        sb.append("The action field IS REQUIRED. Choose from the available actions list.\n");
+        sb.append("Respond with ONLY:\n{\"action\":\"");
 
         return sb.toString();
     }
 
     /**
-     * Extract the "response" field from Ollama's JSON output.
+     * Extract the response text from Ollama's JSON wrapper.
+     * Handles /api/generate ("response" field), thinking models ("thinking" field),
+     * and /api/chat format ("message"."content" field).
      */
     private String extractResponseField(String json) {
-        String searchKey = "\"response\":\"";
-        int start = json.indexOf(searchKey);
-        if (start < 0) {
-            // Try "thinking" field (thinking models)
-            searchKey = "\"thinking\":\"";
-            start = json.indexOf(searchKey);
-            if (start < 0) return null;
-        }
-        start += searchKey.length();
+        // Priority 1: /api/generate "response" field
+        String text = extractJsonStringValue(json, "response");
+        if (text != null && !text.isBlank()) return text;
 
+        // Priority 2: /api/chat "message"."content" field
+        int msgIdx = json.indexOf("\"message\":");
+        if (msgIdx >= 0) {
+            int contentIdx = json.indexOf("\"content\":", msgIdx);
+            if (contentIdx >= 0) {
+                text = extractJsonStringAt(json, contentIdx + "\"content\":".length());
+                if (text != null && !text.isBlank()) return text;
+            }
+        }
+
+        // Priority 3: "thinking" field (thinking models in /api/generate)
+        text = extractJsonStringValue(json, "thinking");
+        if (text != null && !text.isBlank()) return text;
+
+        return null;
+    }
+
+    /** Extract a top-level JSON string value by key. */
+    private String extractJsonStringValue(String json, String key) {
+        String searchKey = "\"" + key + "\":\"";
+        int start = json.indexOf(searchKey);
+        if (start < 0) return null;
+        return extractJsonStringAt(json, start + searchKey.length());
+    }
+
+    /** Extract a JSON string value starting at a position after the opening quote. */
+    private String extractJsonStringAt(String json, int pos) {
         StringBuilder val = new StringBuilder();
-        for (int i = start; i < json.length(); i++) {
+        for (int i = pos; i < json.length(); i++) {
             char c = json.charAt(i);
             if (c == '\\' && i + 1 < json.length()) {
                 char next = json.charAt(i + 1);
@@ -341,7 +464,7 @@ public class OllamaPlanner implements Planner {
                     case 'n' -> { val.append('\n'); i++; }
                     case 't' -> { val.append('\t'); i++; }
                     case 'r' -> { val.append('\r'); i++; }
-                    case '"' -> { val.append('"'); i++; }
+                    case '\"' -> { val.append('"'); i++; }
                     case '\\' -> { val.append('\\'); i++; }
                     default -> val.append(c);
                 }
@@ -603,6 +726,9 @@ public class OllamaPlanner implements Planner {
     public int llmCalls() { return llmCalls; }
     public int llmFailures() { return llmFailures; }
     public int fallbackUses() { return fallbackUses; }
+    public int modelFallbackUses() { return modelFallbackUses; }
+    public Map<String, Integer> modelFallbackCounts() { return Map.copyOf(modelFallbackCounts); }
+    public List<String> fallbackModelChain() { return List.copyOf(fallbackModels); }
     public Instant lastLlmCall() { return lastLlmCall; }
 
     /**

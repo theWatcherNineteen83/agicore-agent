@@ -44,8 +44,11 @@ public class ModelRegistry {
             "phi4",             // strong reasoning
             "qwen3.6",          // general + reasoning
             "mistral-small3",   // fast reasoning
+            "nemotron",         // NVIDIA reasoning cascade
             "olmo-3",           // thinking model
-            "devstral"          // general purpose
+            "devstral",         // general purpose
+            "granite4",         // IBM reasoning
+            "laguna"            // general reasoning
     );
 
     /** Code-generation-capable models (structured output, large context). */
@@ -53,10 +56,12 @@ public class ModelRegistry {
             "qwen3.6",          // top code gen, large context
             "deepseek-r1",      // excellent code
             "mistral-small3",   // reliable code output
+            "nemotron",         // NVIDIA code generation
             "devstral",         // code-aware
             "granite4",         // code-trained
             "gemma4",           // capable code
-            "lfm2"              // fast, capable
+            "lfm2",             // fast, capable
+            "laguna"            // general code
     );
 
     /** Embedding-capable models (small, good vector representations). */
@@ -71,9 +76,9 @@ public class ModelRegistry {
     // ── Size ranges (in GB) ─────────────────────────────────────────────
 
     private static final double MIN_PLANNING_GB = 8.0;
-    private static final double MAX_PLANNING_GB = 32.0;
+    private static final double MAX_PLANNING_GB = 40.0;
     private static final double MIN_MUTATION_GB = 12.0;
-    private static final double MAX_MUTATION_GB = 38.0;
+    private static final double MAX_MUTATION_GB = 42.0;
     private static final double MAX_EMBEDDING_GB = 5.0;
 
     // ── Defaults (used when discovery fails) ─────────────────────────────
@@ -262,7 +267,7 @@ public class ModelRegistry {
         }
 
         // Also accept general models of appropriate size
-        return gb >= 12.0 && gb <= 28.0;
+        return gb >= 12.0 && gb <= 35.0;
     }
 
     private boolean isGoodForMutation(ModelInfo m) {

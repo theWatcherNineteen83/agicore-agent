@@ -175,7 +175,7 @@ public final class AgentMain {
                 }
 
                 // ── Evolution check ───────────────────────────
-                if (enableEvolution && totalTicks - lastEvolution >= 500) {
+                if (enableEvolution && totalTicks - lastEvolution >= 100) {
                     triggerEmergenceEvolution();
                     lastEvolution = totalTicks;
                 }
@@ -611,7 +611,8 @@ public final class AgentMain {
                               --interval N          Tick interval in ms (default: 3000)
                               --persist PATH        State persistence file
                               --evolution           Enable self-evolution (modules only)
-                              --kernel-evolution    Enable kernel evolution (feature branches)
+                              --evolution           Enable module evolution (non-kernel)
+                              --kernel-evolution    Enable kernel + module evolution
                               --max-ticks N         Stop after N ticks (default: unlimited)
                               --api-port N          Start Ollama-compatible HTTP API on port N
                               --planning-model M    Override auto-selected planning model

@@ -48,6 +48,6 @@ public final class FitnessFunction {
 
     /** Minimum improvement threshold for a mutation to be accepted. */
     public static double minImprovement() {
-        return 0.02; // 2% absolute improvement
+        return 0.001; // 0.1% absolute improvement (gelockert für Exploration)
     }
 }
