@@ -12,19 +12,21 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Logger;
 
+import de.metis.kernel.persistence.KnowledgeStore;
+import de.metis.modules.persona.Persona;
+
 /**
- * Ollama-compatible HTTP API so Metis appears as a model in OpenWebUI.
+ * Ollama-compatible HTTP API with EDI persona for conversational AI.
  * <p>
  * Endpoints:
  * <ul>
  *   <li>{@code GET /api/tags} — returns "metis-agent" as available model</li>
- *   <li>{@code POST /api/chat} — accepts Ollama chat format, processes as goal,
- *       returns Metis response with reasoning trace</li>
- *   <li>{@code GET /api/status} — Metis-specific: agent metrics, beliefs, evolution state</li>
+ *   <li>{@code POST /api/chat} — Ollama-compatible chat with EDI persona,
+ *       session persistence (SQLite), multi-turn context</li>
+ *   <li>{@code GET /api/status} — agent metrics, beliefs, evolution state</li>
+ *   <li>{@code GET /api/conversations} — list conversation sessions</li>
+ *   <li>{@code GET /api/conversations/{sessionId}} — load conversation history</li>
  * </ul>
- * <p>
- * Usage in OpenWebUI: add a new Ollama connection pointing to {@code http://kali:11735}.
- * Then select "metis-agent" as the model.
  */
 public class MetisHttpServer {
 
@@ -36,6 +38,7 @@ public class MetisHttpServer {
     private final List<ChatMessage> conversationHistory = new ArrayList<>();
     private static final int MAX_HISTORY = 50;
     private final AtomicBoolean evolutionPaused = new AtomicBoolean(false);
+    private KnowledgeStore knowledgeStore; // set via setter for conversation persistence
 
     public MetisHttpServer(Agent agent, int port) throws IOException {
         this.agent = agent;
@@ -51,7 +54,10 @@ public class MetisHttpServer {
         server.createContext("/api/evolution/resume", this::handleEvolutionResume);
         server.createContext("/api/evolution/status", this::handleEvolutionStatus);
         server.createContext("/api/learned", this::handleLearned);
+        server.createContext("/api/conversations", this::handleConversations);
     }
+
+    public void setKnowledgeStore(KnowledgeStore ks) { this.knowledgeStore = ks; }
 
     public void start() {
         server.start();
@@ -122,16 +128,25 @@ public class MetisHttpServer {
         String model = extractJsonString(body, "model");
         String userMessage = extractLastUserMessage(body);
         boolean streaming = body.contains("\"stream\":true") || body.contains("\"stream\": true");
+        String sessionId = extractJsonString(body, "session_id");
+        if (sessionId == null) sessionId = "default";
 
         if (userMessage == null || userMessage.isBlank()) {
-            LOG.warning("No user message in request. Body (first 500 chars): " + truncate(body, 500));
+            LOG.warning("No user message in request");
             sendJson(exchange, 400, "{\"error\":\"No user message found\"}");
             return;
         }
 
-        LOG.info("Chat message: \"" + truncate(userMessage, 80) + "\"");
+        LOG.info("Chat [" + sessionId + "]: \"" + truncate(userMessage, 80) + "\"");
 
-        // Store in conversation history
+        // Load conversation context from KnowledgeStore
+        String conversationContext = "";
+        if (knowledgeStore != null) {
+            conversationContext = knowledgeStore.conversationSummary(sessionId, 20);
+            knowledgeStore.saveConversationMessage(sessionId, "user", userMessage);
+        }
+
+        // Store in memory cache
         conversationHistory.add(new ChatMessage("user", userMessage, Instant.now()));
         while (conversationHistory.size() > MAX_HISTORY) {
             conversationHistory.removeFirst();
@@ -142,26 +157,28 @@ public class MetisHttpServer {
         long startMs = System.currentTimeMillis();
 
         try {
-            // Add as goal to agent
-            agent.addGoal(userMessage, "chat", 90, 0.95, 1);
+            // Inject EDI persona context
+            String enrichedGoal = Persona.systemPrompt()
+                    + "\n\nConversation context:\n" + conversationContext
+                    + "\n\nUser: " + userMessage + "\n\nEDI:";
+            agent.addGoal(enrichedGoal, "chat", 90, 0.95, 1);
 
-            // Run one cognitive tick to process the goal
             var result = agent.core().tick();
 
-            if (result != null && result.success()) {
-                response = buildResponse(userMessage, result.body(), startMs);
-            } else if (result != null) {
-                response = buildIntrospectiveResponse(userMessage);
+            if (result != null) {
+                response = buildEdiResponse(userMessage, result.body(), startMs, conversationContext);
             } else {
-                response = buildIntrospectiveResponse(userMessage);
+                response = buildEdiIntrospective(userMessage, conversationContext);
             }
         } catch (Exception e) {
-            response = "Error processing: " + e.getMessage();
+            response = "I encountered an error: " + e.getMessage();
         }
 
         conversationHistory.add(new ChatMessage("assistant", response, Instant.now()));
+        if (knowledgeStore != null) {
+            knowledgeStore.saveConversationMessage(sessionId, "assistant", response);
+        }
 
-        // Build Ollama-compatible chat response
         String jsonResponse = buildChatResponse(model, response, streaming);
         sendJson(exchange, 200, jsonResponse);
     }
@@ -224,63 +241,104 @@ public class MetisHttpServer {
         return lastContent;
     }
 
-    /** Build a thoughtful response using Metis's internal state. */
-    private String buildResponse(String userMessage, String actionOutput, long startMs) {
+    /** EDI-style response with persona and conversation context. */
+    private String buildEdiResponse(String userMessage, String actionOutput, long startMs,
+                                      String conversationContext) {
         var wm = agent.worldModel();
         var beliefs = wm.worldPicture(3);
+        long elapsed = System.currentTimeMillis() - startMs;
 
         StringBuilder sb = new StringBuilder();
-        sb.append("Ich habe deine Anfrage durch meinen kognitiven Zyklus verarbeitet.\n\n");
 
-        if (actionOutput != null && !actionOutput.isBlank()) {
-            String trimmed = actionOutput.length() > 500
-                    ? actionOutput.substring(0, 500) + "..." : actionOutput;
-            sb.append("Aktionsergebnis:\n```\n").append(trimmed).append("\n```\n\n");
+        // Add action result if relevant
+        if (actionOutput != null && !actionOutput.isBlank()
+                && !actionOutput.equals("ack") && !actionOutput.contains("health")) {
+            String trimmed = actionOutput.length() > 300
+                    ? actionOutput.substring(0, 300) + "..." : actionOutput;
+            if (!trimmed.startsWith("EDI:")) {
+                sb.append(trimmed).append("\n\n");
+            }
         }
 
-        // Add relevant beliefs
+        // Add relevant knowledge
         if (!beliefs.isEmpty()) {
-            sb.append("Relevantes Wissen:\n");
             for (var b : beliefs) {
-                sb.append("• ").append(b.statement())
-                        .append(" (").append(String.format("%.0f%%", b.confidence() * 100)).append(")\n");
+                if (b.confidence() > 0.7) {
+                    sb.append(b.statement()).append(". ");
+                }
             }
-            sb.append("\n");
+            if (sb.length() > 0) sb.append("\n");
         }
 
         // Agent state
-        sb.append("Mein Zustand: confidence=").append(String.format("%.0f%%", agent.meta().confidence() * 100))
-                .append(", beliefs=").append(wm.beliefCount())
-                .append(", mutations=").append(agent.core().evolutionManager().acceptedMutations())
-                .append("\n");
-
-        long elapsed = System.currentTimeMillis() - startMs;
-        sb.append("(verarbeitet in ").append(elapsed).append("ms)");
+        sb.append("[confidence: ").append(String.format("%.0f%%", agent.meta().confidence() * 100))
+                .append(", ")
+                .append(elapsed).append("ms]");
 
         return sb.toString();
     }
 
-    /** Fallback: no action matched, provide introspective response. */
-    private String buildIntrospectiveResponse(String userMessage) {
+    /** EDI-styled introspective response. */
+    private String buildEdiIntrospective(String userMessage, String conversationContext) {
         var wm = agent.worldModel();
         var beliefs = wm.worldPicture(5);
 
         StringBuilder sb = new StringBuilder();
-        sb.append("Ich habe deine Nachricht erhalten, habe aber keine direkte Aktion dafür.\n\n");
-
-        sb.append("Was ich weiß:\n");
+        sb.append("I received your message. As a self-evolving AI, I process queries through my cognitive loop.\n\n");
+        sb.append("What I know:\n");
         for (var b : beliefs) {
             sb.append("• ").append(b.statement())
                     .append(" (").append(String.format("%.0f%%", b.confidence() * 100)).append(")\n");
         }
-
-        sb.append("\nIch bin eine selbst-evolvierende AGI (Metis). Ich lerne aus Interaktionen.\n");
-        sb.append("Mein Planer nutzt Ollama (")
-                .append(agent.planner() instanceof de.metis.modules.planner.OllamaPlanner ? "LLM-powered" : "keyword-based")
-                .append(") und habe  ")
-                .append(agent.metrics().totalTicks()).append(" kognitive Ticks.");
+        sb.append("\nI am ").append(Persona.NAME).append(", running on Metis AGI v")
+                .append(agent.core().evolutionManager() != null ? "0.2.0" : "?").append(". ");
+        sb.append("I learn from every interaction.");
 
         return sb.toString();
+    }
+
+    // ── /api/conversations ────────────────────────────────────────
+
+    private void handleConversations(HttpExchange exchange) throws IOException {
+        String path = exchange.getRequestURI().getPath();
+        String method = exchange.getRequestMethod();
+
+        if (knowledgeStore == null) {
+            sendJson(exchange, 503, "{\"error\":\"No knowledge store configured\"}");
+            return;
+        }
+
+        // GET /api/conversations — list all sessions
+        if (path.equals("/api/conversations") && "GET".equals(method)) {
+            var sessions = knowledgeStore.listConversationSessions();
+            StringBuilder json = new StringBuilder("{\"sessions\":[");
+            for (int i = 0; i < sessions.size(); i++) {
+                if (i > 0) json.append(",");
+                json.append("\"").append(sessions.get(i)).append("\"");
+            }
+            json.append("]}");
+            sendJson(exchange, 200, json.toString());
+            return;
+        }
+
+        // GET /api/conversations/{sessionId} — load session messages
+        if (path.startsWith("/api/conversations/") && "GET".equals(method)) {
+            String sessionId = path.substring("/api/conversations/".length());
+            var msgs = knowledgeStore.loadConversation(sessionId, 100);
+            StringBuilder json = new StringBuilder("{\"session_id\":\"" + sessionId + "\",\"messages\":[");
+            for (int i = 0; i < msgs.size(); i++) {
+                if (i > 0) json.append(",");
+                var m = msgs.get(i);
+                json.append("{\"role\":\"").append(m.role()).append("\",");
+                json.append("\"content\":\"").append(m.content().replace("\\","\\\\").replace("\"","\\\"")).append("\",");
+                json.append("\"timestamp\":\"").append(m.timestamp()).append("\"}");
+            }
+            json.append("]}");
+            sendJson(exchange, 200, json.toString());
+            return;
+        }
+
+        sendJson(exchange, 404, "{\"error\":\"Not found\"}");
     }
 
     /** Build Ollama-compatible chat response JSON. */

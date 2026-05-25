@@ -89,6 +89,19 @@ public class KnowledgeStore implements AutoCloseable {
             stmt.execute("CREATE INDEX IF NOT EXISTS idx_beliefs_conf ON beliefs(confidence DESC)");
             stmt.execute("CREATE INDEX IF NOT EXISTS idx_experiences_time ON experiences(timestamp DESC)");
             stmt.execute("CREATE INDEX IF NOT EXISTS idx_experiences_action ON experiences(action_name)");
+
+            // Conversation support (Phase 2)
+            stmt.execute("""
+                    CREATE TABLE IF NOT EXISTS conversation_messages (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        session_id TEXT NOT NULL,
+                        role TEXT NOT NULL CHECK(role IN ('user','assistant','system')),
+                        content TEXT NOT NULL,
+                        timestamp TEXT NOT NULL
+                    )
+                    """);
+            stmt.execute("CREATE INDEX IF NOT EXISTS idx_conv_session ON conversation_messages(session_id)");
+            stmt.execute("CREATE INDEX IF NOT EXISTS idx_conv_time ON conversation_messages(timestamp)");
         }
     }
 
@@ -274,6 +287,77 @@ public class KnowledgeStore implements AutoCloseable {
              ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM evolution_history")) {
             return rs.getInt(1);
         } catch (SQLException e) { return 0; }
+    }
+
+    // ── Conversation (Phase 2) ────────────────────────────────────
+
+    public record ChatMessage(String sessionId, String role, String content, String timestamp) {}
+
+    public void saveConversationMessage(String sessionId, String role, String content) {
+        try (PreparedStatement ps = conn.prepareStatement("""
+                INSERT INTO conversation_messages (session_id, role, content, timestamp)
+                VALUES (?, ?, ?, ?)
+                """)) {
+            ps.setString(1, sessionId);
+            ps.setString(2, role);
+            ps.setString(3, content);
+            ps.setString(4, Instant.now().toString());
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            LOG.fine("Failed to save conversation message: " + e.getMessage());
+        }
+    }
+
+    public List<ChatMessage> loadConversation(String sessionId, int limit) {
+        List<ChatMessage> messages = new ArrayList<>();
+        try (PreparedStatement ps = conn.prepareStatement(
+                "SELECT session_id, role, content, timestamp FROM conversation_messages " +
+                "WHERE session_id = ? ORDER BY timestamp ASC LIMIT ?")) {
+            ps.setString(1, sessionId);
+            ps.setInt(2, limit);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    messages.add(new ChatMessage(
+                            rs.getString("session_id"),
+                            rs.getString("role"),
+                            rs.getString("content"),
+                            rs.getString("timestamp")));
+                }
+            }
+        } catch (SQLException e) {
+            LOG.fine("Failed to load conversation: " + e.getMessage());
+        }
+        return messages;
+    }
+
+    /** Summarize conversation history for context injection. */
+    public String conversationSummary(String sessionId, int maxMessages) {
+        List<ChatMessage> msgs = loadConversation(sessionId, maxMessages);
+        if (msgs.isEmpty()) return "(new conversation)";
+        StringBuilder sb = new StringBuilder();
+        for (var msg : msgs) {
+            sb.append(msg.role()).append(": ").append(msg.content());
+            if (msg.content().length() > 100) {
+                sb.setLength(sb.length() - msg.content().length() + 100);
+                sb.append("...");
+            }
+            sb.append("\n");
+        }
+        return sb.toString();
+    }
+
+    public List<String> listConversationSessions() {
+        List<String> sessions = new ArrayList<>();
+        try (Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(
+                     "SELECT DISTINCT session_id FROM conversation_messages ORDER BY MAX(timestamp) DESC")) {
+            while (rs.next()) {
+                sessions.add(rs.getString(1));
+            }
+        } catch (SQLException e) {
+            LOG.fine("Failed to list conversation sessions: " + e.getMessage());
+        }
+        return sessions;
     }
 
     @Override

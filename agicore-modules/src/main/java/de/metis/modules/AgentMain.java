@@ -753,6 +753,7 @@ public final class AgentMain {
         MetisHttpServer httpServer = null;
         if (apiPort > 0) {
             httpServer = new MetisHttpServer(agent, apiPort);
+            httpServer.setKnowledgeStore(knowledgeStore);
             httpServer.start();
         }
 
