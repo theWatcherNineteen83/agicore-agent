@@ -147,34 +147,47 @@ URL: http://<host>:11735
 | Endpoint | Beschreibung |
 |----------|-------------|
 | `GET /api/tags` | Verfügbare Modelle (Ollama-Format) |
-| `POST /api/chat` | Chat-Nachricht senden (Ollama-Format) |
-| `GET /api/status` | Agent-Metriken (Ticks, Beliefs, Confidence) |
+| `POST /api/chat` | Chat mit EDI-Persona, Session-Persistenz (SQLite) |
+| `GET /api/status` | Agent-Metriken + Planner-Status + Fallback-Chain |
+| `GET /api/learned` | Gelernte Mappings, Beliefs, Experiences |
+| `GET /api/conversations` | Alle Konversation-Sessions auflisten |
+| `GET /api/conversations/{id}` | Session-Verlauf laden |
 | `GET /api/evolution/status` | Evolution-Status |
-| `GET /api/evolution/pause` | Evolution pausieren |
-| `GET /api/evolution/resume` | Evolution fortsetzen |
+| `GET /api/evolution/pause` / `resume` | Evolution pausieren/fortsetzen |
 
-## Technologien
+## Status — 25.05.2026
 
-- **Java 21+** (Zulu JDK)
-- **Maven** Multi-Module (Kernel + Modules)
-- **Ollama** für LLM-Inferenz (Planning, Mutation, Embeddings)
-- **JDK HttpServer** für die REST-API (keine externen Dependencies)
-- **Javac** für Compile-Checks bei Mutationen
-- **Git** für Versionierung aller Evolution-Schritte
+**Version:** 0.2.0-evolution | **Planner:** 97–99% LLM-Erfolgsrate | **GPU:** ROCm-accelerated
 
-## Was Metis *nicht* ist
+### Phase 1: Zuverlässiger Kern ✅ ABGESCHLOSSEN
 
-- ❌ Kein Chatbot — Metis ist ein autonomer Agent mit eigenem Antrieb
-- ❌ Kein API-Wrapper um OpenAI — Metis denkt selbst, Ollama ist nur ein Werkzeug
-- ❌ Keine Cloud-AGI — Metis läuft komplett lokal, keine Daten verlassen dein Netzwerk
-- ❌ Nicht fertig — Metis entwickelt sich weiter, genau wie ihr Code
+- ✅ `format: json` — Ollama-Planner mit strukturiertem JSON-Output
+- ✅ Response-Parsing — /api/generate, /api/chat, Thinking-Modelle, Raw-Body-Fallback
+- ✅ Model-Fallback-Chain — nemotron-mini → nemotron → qwen3.6 → keyword
+- ✅ Plan-Validierung — Safety-Gate, Action-Relevance, Duplicate-Guard
+- ✅ Prompt-Optimierung — 10 Action-Descriptions, 4 Few-Shot-Beispiele
+- ✅ systemd-Service — Auto-Restart, Journal-Logging, Runs on boot
 
-## Status
+### Phase 2: Konversations-KI 🔄 IN ARBEIT
 
-**Version:** 0.2.0-evolution  
-**Kernel:** 39 Klassen (Cognitive Loop, WorldModel, SelfModel, Evolution, Safety)  
-**Modules:** 10 Klassen (OllamaPlanner, MutationService, ModelRegistry, HTTP-API)  
-**Getestet auf:** Ubuntu 24.04 + Kali Linux, Ryzen 7 5700G, RX 7900 XTX, 62 GB RAM
+- ✅ Persona-System — EDI-Identität (Mass Effect 3), Werte, Tonfall
+- ✅ Chat-Speicher — SQLite `conversation_messages` mit Session-ID
+- ✅ Multi-Turn-Kontext — `/api/chat` mit Konversationshistorie
+- ✅ `/api/conversations` — Sessions auflisten und durchsuchen
+- ⬜ Proaktive Meldungen — Event-Trigger (Kamera, E-Mail, Wetter)
+- ⬜ Telegram-Integration — Direkt erreichbar ohne OpenWebUI
+
+### Roadmap
+
+| Phase | Ziel | Status |
+|-------|------|--------|
+| 🔧 Phase 1 | Stabiler Kern (>85% Planner) | ✅ done |
+| 💬 Phase 2 | Konversation + Persona | 🔄 60% |
+| 👁️ Phase 3 | Wahrnehmung (HA, Kameras, ADS-B) | ⬜ |
+| 🎙️ Phase 4 | Sprachausgabe (TTS/STT) | ⬜ |
+| 🧠 Phase 5 | Eigenständigkeit + Selbstverbesserung | ⬜ |
+
+**Ziel:** EDI-ähnliche KI (Mass Effect 3) — eigenständig, per Text ansprechbar.
 
 ---
 
