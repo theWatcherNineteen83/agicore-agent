@@ -4,3 +4,5 @@ target/
 *.log
 !.gitignore
 dependency-reduced-pom.xml
+*.json
+*.db
