@@ -174,10 +174,29 @@ public class OllamaPlanner implements Planner {
     public List<String> plan(Goal goal, List<Experience> recentHistory,
                              List<ContentItem> broadcast, MetaCognition meta) {
 
-        // ── Tier 1: LLM reasoning ──────────────────────────────
+        // ── Tier 1: LLM reasoning with Evaluator-Optimizer loop ──
+        EvaluatedPlan bestPlan = planViaOllamaWithOptimizer(goal, recentHistory, broadcast, meta);
+
+        if (bestPlan != null && bestPlan.action != null && !bestPlan.action.isBlank()
+                && availableActions.contains(bestPlan.action)) {
+            LOG.fine(() -> "Ollama planned (optimized): " + bestPlan.action
+                    + " confidence=" + String.format("%.2f", bestPlan.confidence)
+                    + " iterations=" + bestPlan.iterations
+                    + " for goal: " + goal.description());
+            lastPlanConfidence = bestPlan.confidence;
+            return List.of(bestPlan.action);
+        }
+
+        // Fallback to simple plan if optimizer produced nothing
         String action = planViaOllama(goal, recentHistory, broadcast, meta);
 
         if (action != null && !action.isBlank() && availableActions.contains(action)) {
+            // Self-reflect: let the model critique its own decision
+            String reflection = selfReflect(goal, action);
+            if (reflection != null) {
+                LOG.fine(() -> "Self-reflection: " + reflection);
+                storeReflection(goal, action, reflection);
+            }
             LOG.fine(() -> "Ollama planned: " + action + " for goal: " + goal.description());
             return List.of(action);
         }
@@ -430,6 +449,122 @@ public class OllamaPlanner implements Planner {
 
         return sb.toString();
     }
+
+    /** Current plan confidence (set by evaluator-optimizer). */
+    private double lastPlanConfidence = 0.5;
+    /** Stored self-reflections for learning. */
+    private final List<String> recentReflections = new ArrayList<>();
+    private static final int MAX_REFLECTIONS = 20;
+
+    /**
+     * Evaluator-Optimizer loop (Huyen K.10): Plan → Evaluate → Improve.
+     * Runs up to 2 iterations, keeping the highest-confidence plan.
+     */
+    private EvaluatedPlan planViaOllamaWithOptimizer(Goal goal, List<Experience> recentHistory,
+                                                      List<ContentItem> broadcast, MetaCognition meta) {
+        EvaluatedPlan best = null;
+
+        for (int iteration = 0; iteration < 2; iteration++) {
+            String action;
+            double confidence = 0.5;
+
+            if (iteration == 0) {
+                // First pass: standard planning prompt
+                action = planViaOllama(goal, recentHistory, broadcast, meta);
+                if (action == null) continue;
+
+                // Extract confidence from parsed plan (via last response)
+                confidence = lastPlanConfidence;
+            } else {
+                // Second pass: evaluate previous plan and improve
+                if (best == null) break;
+
+                String evalPrompt = buildEvaluatorPrompt(goal, best.action, best.confidence,
+                        recentHistory, meta);
+                String improvedAction = callOllamaModel(resolveModel(), evalPrompt);
+                if (improvedAction == null) break;
+                action = improvedAction;
+                confidence = lastPlanConfidence;
+            }
+
+            if (action != null && availableActions.contains(action)) {
+                if (best == null || confidence > best.confidence) {
+                    best = new EvaluatedPlan(action, confidence, iteration + 1);
+                }
+                // If confidence is already high, stop optimizing
+                if (confidence >= 0.85) break;
+            }
+        }
+
+        return best;
+    }
+
+    /**
+     * Self-Reflection (Prompting K.3): Ask the model to critique its own planning decision.
+     * Returns a brief assessment or null if reflection fails.
+     */
+    private String selfReflect(Goal goal, String chosenAction) {
+        String prompt = "You previously chose action '" + chosenAction
+                + "' for goal: '" + goal.description() + "'.\n"
+                + "Critique your decision. Was it the best choice? What alternatives exist?\n"
+                + "Respond with ONE sentence. Start with 'CORRECT:' if right, 'ALTERNATIVE:' if another action would be better.\n"
+                + "Example: CORRECT: shell is the best choice for system status checks.\n"
+                + "Your critique:";
+
+        try {
+            String jsonBody = String.format("""
+                    {
+                      "model": "%s",
+                      "prompt": %s,
+                      "stream": false,
+                      "options": {
+                        "temperature": 0.3,
+                        "num_predict": 100
+                      }
+                    }
+                    """, resolveModel(), escapeJson(prompt));
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(ollamaUrl))
+                    .timeout(Duration.ofSeconds(20))
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
+                    .build();
+
+            HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() != 200) return null;
+
+            String text = extractResponseField(response.body());
+            return text != null ? text.strip() : null;
+        } catch (Exception e) {
+            LOG.fine("Self-reflection failed: " + e.getMessage());
+            return null;
+        }
+    }
+
+    private void storeReflection(Goal goal, String action, String reflection) {
+        recentReflections.add(goal.description() + " → " + action + ": " + reflection);
+        while (recentReflections.size() > MAX_REFLECTIONS) {
+            recentReflections.removeFirst();
+        }
+    }
+
+    /** Build evaluator prompt for second optimization iteration. */
+    private String buildEvaluatorPrompt(Goal goal, String previousAction, double previousConfidence,
+                                         List<Experience> recentHistory, MetaCognition meta) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("You are evaluating a previous planning decision to find a better action.\n");
+        sb.append("Respond with ONLY: {\"action\":\"<name>\",\"reasoning\":\"<why>\",\"confidence\":<0.0-1.0>}\n\n");
+        sb.append("GOAL: ").append(goal.description()).append("\n");
+        sb.append("Previous choice: ").append(previousAction)
+                .append(" (confidence: ").append(String.format("%.2f", previousConfidence)).append(")\n");
+        sb.append("AVAILABLE ACTIONS: ").append(String.join(", ", availableActions)).append("\n");
+        sb.append("Can you find a BETTER action? Consider alternatives. If the previous choice was best, repeat it.\n\n");
+        sb.append("Respond with ONLY:\n{\"action\":\"");
+        return sb.toString();
+    }
+
+    private record EvaluatedPlan(String action, double confidence, int iterations) {}
 
     /**
      * Extract the response text from Ollama's JSON wrapper.
