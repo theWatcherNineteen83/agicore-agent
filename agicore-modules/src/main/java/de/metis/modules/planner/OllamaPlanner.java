@@ -331,11 +331,24 @@ public class OllamaPlanner implements Planner {
     private String buildPlanningPrompt(Goal goal, List<Experience> recentHistory,
                                         List<ContentItem> broadcast, MetaCognition meta) {
         StringBuilder sb = new StringBuilder();
-        sb.append("You are an action planner for an autonomous agent. Your task is to select the BEST single action for the given goal.\n");
-        sb.append("Available actions are listed below. Choose exactly one.\n");
-        sb.append("Respond with ONLY a JSON object. No markdown, no explanation outside the JSON.\n");
-        sb.append("The JSON must have exactly these fields: action, reasoning, confidence\n");
-        sb.append("Example: {\"action\":\"shell\",\"reasoning\":\"system status check via shell\",\"confidence\":0.85}\n\n");
+        sb.append("You are an action planner for an autonomous agent. Select the BEST single action for the goal.\n");
+        sb.append("Respond with ONLY a JSON object: {\"action\":\"<name>\",\"reasoning\":\"<why>\",\"confidence\":<0.0-1.0>}\n\n");
+        sb.append("ACTION DESCRIPTIONS:\n");
+        sb.append("- shell: run Linux commands (system checks, process info)\n");
+        sb.append("- http: make HTTP requests (health checks, API calls)\n");
+        sb.append("- webscrape: extract text from web pages\n");
+        sb.append("- filesystem-list: list directory contents\n");
+        sb.append("- filesystem-read: read file contents\n");
+        sb.append("- api-explore: discover and probe HTTP endpoints\n");
+        sb.append("- linux-explore-system: probe system info (processes, memory, disk)\n");
+        sb.append("- memory-query: search agent's long-term memory\n");
+        sb.append("- self-analyze: analyze agent's own performance\n");
+        sb.append("- javasandbox: run safe Java code experiments\n\n");
+        sb.append("EXAMPLES:\n");
+        sb.append("Goal: Check system status → {\"action\":\"shell\",\"reasoning\":\"use shell for system check\",\"confidence\":0.9}\n");
+        sb.append("Goal: HTTP health check → {\"action\":\"http\",\"reasoning\":\"HTTP request for health endpoint\",\"confidence\":0.95}\n");
+        sb.append("Goal: Explore API endpoints → {\"action\":\"api-explore\",\"reasoning\":\"discover available HTTP endpoints\",\"confidence\":0.85}\n");
+        sb.append("Goal: Explore filesystem → {\"action\":\"filesystem-list\",\"reasoning\":\"list directory structure\",\"confidence\":0.8}\n\n");
 
         // Goal
         sb.append("GOAL: ").append(goal.description()).append("\n");

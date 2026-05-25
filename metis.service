@@ -1,0 +1,37 @@
+[Unit]
+Description=Metis AGI — Self-Evolving Agent System
+Documentation=https://github.com/theWatcherNineteen83/agicore-agent
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=admini
+WorkingDirectory=/home/admini/.openclaw/workspace/agicore
+Environment=JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+ExecStart=/usr/lib/jvm/java-21-openjdk-amd64/bin/java \
+    -Xmx512m \
+    -cp agicore-modules/target/metis-agent.jar \
+    de.metis.modules.AgentMain \
+    --planning-model mistral-small3.1:24b \
+    --api-port 11735 \
+    --evolution \
+    --persist agent-state.json \
+    --interval 5000
+ExecStop=/bin/kill -SIGTERM $MAINPID
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=metis
+
+# Hardening
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/admini/.openclaw/workspace/agicore
+ReadOnlyPaths=/usr/lib/jvm/java-21-openjdk-amd64
+
+[Install]
+WantedBy=multi-user.target
