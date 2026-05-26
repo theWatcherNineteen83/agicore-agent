@@ -3,6 +3,7 @@ package de.metis.modules.telegram;
 import de.metis.kernel.persistence.KnowledgeStore;
 import de.metis.modules.Agent;
 import de.metis.modules.persona.Persona;
+import de.metis.modules.chat.KnowledgeReplyService;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -34,6 +35,7 @@ public class TelegramBotService {
     private final HttpClient http;
     private final AtomicBoolean running = new AtomicBoolean(false);
     private KnowledgeStore knowledgeStore;
+    private KnowledgeReplyService knowledgeReply;
     private Thread pollingThread;
     private long lastUpdateId = 0;
 
@@ -50,7 +52,10 @@ public class TelegramBotService {
                 .build();
     }
 
-    public void setKnowledgeStore(KnowledgeStore ks) { this.knowledgeStore = ks; }
+    public void setKnowledgeStore(KnowledgeStore ks) {
+        this.knowledgeStore = ks;
+        this.knowledgeReply = new KnowledgeReplyService(ks);
+    }
 
     /**
      * Start the long-polling loop in a daemon thread.
@@ -304,16 +309,26 @@ public class TelegramBotService {
         }
 
         try {
-            // Build EDI persona prompt
-            String prompt = Persona.systemPrompt()
-                    + "\n\nConversation with " + userName + " on Telegram:"
-                    + (context.isEmpty() ? "\n(new conversation)" : "\n" + context)
-                    + "\n\n" + userName + ": " + text + "\n\nEDI:";
+            // 1st: Try answering from Metis's own knowledge
+            String response = null;
+            if (knowledgeReply != null) {
+                response = knowledgeReply.tryAnswer(text);
+                if (response != null) {
+                    LOG.info("Knowledge-based reply for: " + truncate(text, 50));
+                }
+            }
 
-            // Call Ollama directly for chat completion
-            String response = callOllama(prompt);
-            if (response == null || response.isBlank()) {
-                response = "I'm here, but I need a moment. Please try again.";
+            // 2nd: Fall back to LLM
+            if (response == null) {
+                String prompt = Persona.systemPrompt()
+                        + "\n\nConversation with " + userName + " on Telegram:"
+                        + (context.isEmpty() ? "\n(new conversation)" : "\n" + context)
+                        + "\n\n" + userName + ": " + text + "\n\nEDI:";
+
+                response = callOllama(prompt);
+                if (response == null || response.isBlank()) {
+                    response = "I'm here, but I need a moment. Please try again.";
+                }
             }
 
             // Clean up response

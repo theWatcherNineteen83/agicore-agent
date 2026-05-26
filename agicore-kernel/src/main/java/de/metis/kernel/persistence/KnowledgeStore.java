@@ -158,6 +158,41 @@ public class KnowledgeStore implements AutoCloseable {
         }
     }
 
+    /**
+     * Search beliefs by keyword match (SQL LIKE).
+     */
+    public List<Belief> searchBeliefs(List<String> keywords, int limit) {
+        List<Belief> results = new ArrayList<>();
+        if (keywords.isEmpty()) return results;
+
+        StringBuilder sql = new StringBuilder(
+                "SELECT statement, confidence, source FROM beliefs WHERE ");
+        for (int i = 0; i < keywords.size(); i++) {
+            if (i > 0) sql.append(" OR ");
+            sql.append("LOWER(statement) LIKE ?");
+        }
+        sql.append(" ORDER BY confidence DESC LIMIT ?");
+
+        try (PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+            for (int i = 0; i < keywords.size(); i++) {
+                ps.setString(i + 1, "%" + keywords.get(i).toLowerCase() + "%");
+            }
+            ps.setInt(keywords.size() + 1, limit);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    results.add(new Belief(
+                            rs.getString("statement"),
+                            rs.getDouble("confidence"),
+                            rs.getString("source")));
+                }
+            }
+        } catch (SQLException e) {
+            LOG.warning("Belief search failed: " + e.getMessage());
+        }
+        return results;
+    }
+
     // ── Experiences ─────────────────────────────────────────────────
 
     public void saveExperience(Experience exp) {
