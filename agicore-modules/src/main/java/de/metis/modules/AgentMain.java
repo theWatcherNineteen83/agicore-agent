@@ -24,6 +24,7 @@ import de.metis.modules.hardware.HardwareDiscovery;
 import de.metis.modules.hardware.HardwareProfileAction;
 import de.metis.modules.hardware.DeepNettsAction;
 import de.metis.modules.hardware.TornadoVmAction;
+import de.metis.modules.multiagent.AgentCoordinator;
 
 import java.io.*;
 import java.net.URI;
@@ -818,6 +819,21 @@ public final class AgentMain {
         agent.core().executor().register(tvAction);
         LOG.info("Registered action: " + tvAction.name() + " — TornadoVM GPU");
 
+        // ── Multi-Agent Coordinator ────────────────────────────
+        AgentCoordinator coordinator = new AgentCoordinator();
+        // Spawn Ops-Agent: 24/7 monitoring, no evolution
+        var opsAgent = Agent.builder()
+                .registerShellCommand(List.of("uptime"))
+                .registerHttpGet(URI.create("https://httpbin.org/status/200"))
+                .ollamaPlanner("http://192.168.22.204:11434/api/generate", modelRegistry, Duration.ofSeconds(60))
+                .workspaceCapacity(5)
+                .build();
+        opsAgent.worldModel().update("I monitor system health and MQTT events", 0.95, "coordinator", true);
+        opsAgent.worldModel().update("I report anomalies to the main Metis agent", 0.9, "coordinator", true);
+        opsAgent.addGoal("Monitor system health continuously", "monitor", 85, 0.9, 1);
+        coordinator.spawn("ops", "24/7 System Monitor", opsAgent, Duration.ofSeconds(10));
+        LOG.info("Multi-agent: Metis (main) + Ops (monitor) — " + coordinator.agentCount() + " agents");
+
         // Seed Deep Netts capability belief
         agent.worldModel().update(
                 "I can create and train neural networks using Deep Netts (pure Java, CPU)",
@@ -828,6 +844,7 @@ public final class AgentMain {
         if (apiPort > 0) {
             httpServer = new MetisHttpServer(agent, apiPort);
             httpServer.setKnowledgeStore(knowledgeStore);
+            httpServer.setCoordinator(coordinator);
             httpServer.start();
         }
 
@@ -912,6 +929,7 @@ public final class AgentMain {
             runtime.persistState();
         } finally {
             if (notifier != null) notifier.stop();
+            coordinator.shutdown();
             for (var trigger : eventTriggers) {
                 trigger.stop();
             }

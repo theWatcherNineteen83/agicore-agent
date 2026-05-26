@@ -14,6 +14,7 @@ import java.util.logging.Logger;
 
 import de.metis.kernel.persistence.KnowledgeStore;
 import de.metis.modules.persona.Persona;
+import de.metis.modules.multiagent.AgentCoordinator;
 
 /**
  * Ollama-compatible HTTP API with EDI persona for conversational AI.
@@ -39,6 +40,7 @@ public class MetisHttpServer {
     private static final int MAX_HISTORY = 50;
     private final AtomicBoolean evolutionPaused = new AtomicBoolean(false);
     private KnowledgeStore knowledgeStore; // set via setter for conversation persistence
+    private AgentCoordinator coordinator;
 
     public MetisHttpServer(Agent agent, int port) throws IOException {
         this.agent = agent;
@@ -55,9 +57,11 @@ public class MetisHttpServer {
         server.createContext("/api/evolution/status", this::handleEvolutionStatus);
         server.createContext("/api/learned", this::handleLearned);
         server.createContext("/api/conversations", this::handleConversations);
+        server.createContext("/api/agents", this::handleAgents);
     }
 
     public void setKnowledgeStore(KnowledgeStore ks) { this.knowledgeStore = ks; }
+    public void setCoordinator(AgentCoordinator c) { this.coordinator = c; }
 
     public void start() {
         server.start();
@@ -482,6 +486,31 @@ public class MetisHttpServer {
     }
 
     // ── Evolution control endpoints ─────────────────────────────
+
+    private void handleAgents(HttpExchange exchange) throws IOException {
+        if (coordinator == null) {
+            sendJson(exchange, 200, "{\"agents\":[],\"message\":\"Multi-agent not configured\"}");
+            return;
+        }
+        var status = coordinator.status();
+        StringBuilder json = new StringBuilder("{\"agents\":{");
+        boolean first = true;
+        for (var entry : status.entrySet()) {
+            if (!first) json.append(",");
+            json.append("\"").append(entry.getKey()).append("\":{");
+            boolean firstField = true;
+            for (var field : entry.getValue().entrySet()) {
+                if (!firstField) json.append(",");
+                json.append("\"").append(field.getKey()).append("\":")
+                    .append(field.getValue() instanceof Number ? field.getValue() : "\"" + field.getValue() + "\"");
+                firstField = false;
+            }
+            json.append("}");
+            first = false;
+        }
+        json.append("},\"count\":").append(status.size()).append("}");
+        sendJson(exchange, 200, json.toString());
+    }
 
     private void handleEvolutionPause(HttpExchange exchange) throws IOException {
         evolutionPaused.set(true);
