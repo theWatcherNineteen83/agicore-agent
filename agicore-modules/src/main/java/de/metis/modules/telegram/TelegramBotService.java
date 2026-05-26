@@ -353,6 +353,7 @@ public class TelegramBotService {
             return null;
         }
 
+        LOG.fine("Ollama response received, " + resp.body().length() + " bytes");
         // Extract "response" field from JSON
         String body = resp.body();
         String search = "\"response\":\"";
