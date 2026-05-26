@@ -18,6 +18,8 @@ import de.metis.modules.telegram.TelegramBotService;
 import de.metis.modules.events.EventTrigger;
 import de.metis.modules.events.WeatherPollingTrigger;
 import de.metis.modules.events.HAEventPoller;
+import de.metis.modules.hardware.HardwareDiscovery;
+import de.metis.modules.hardware.HardwareProfileAction;
 
 import java.io.*;
 import java.net.URI;
@@ -764,6 +766,36 @@ public final class AgentMain {
         LOG.info("KnowledgeStore: " + knowledgeStore.beliefCount() + " beliefs, "
                 + knowledgeStore.experienceCount() + " experiences, "
                 + knowledgeStore.mappingCount() + " mappings from DB");
+
+        // ── Hardware Discovery + Self-Awareness ──────────────────
+        HardwareDiscovery.HardwareProfile hw = HardwareDiscovery.discover();
+        LOG.info("Hardware discovered:\n" + hw.summary());
+
+        // Seed hardware beliefs into WorldModel
+        agent.worldModel().update("I run on CPU: " + hw.cpu().model()
+                + " (" + hw.cpu().physicalCores() + " cores, " + hw.cpu().logicalThreads() + " threads)",
+                0.95, "hardware-discovery", true);
+        agent.worldModel().update("Total RAM: " + hw.totalRamMb() + " MB, Available: "
+                + hw.availableRamMb() + " MB", 0.95, "hardware-discovery", true);
+        if (hw.hasROCm()) {
+            agent.worldModel().update("GPU acceleration available via ROCm — AMD GPU detected",
+                    0.95, "hardware-discovery", true);
+        }
+        if (hw.canRunLargeModels()) {
+            agent.worldModel().update("Sufficient VRAM for large language models (>=16 GB)",
+                    0.95, "hardware-discovery", true);
+        }
+        if (hw.cpu().hasAVX2()) {
+            agent.worldModel().update("CPU supports AVX2 SIMD instructions — vectorized operations possible",
+                    0.9, "hardware-discovery", true);
+        }
+        LOG.info("Hardware beliefs seeded: " + hw.cpu().model() + ", "
+                + hw.totalRamMb() + " MB RAM, " + hw.gpus().size() + " GPU(s)");
+
+        // Register hardware profiling action
+        var hwAction = new HardwareProfileAction(agent);
+        agent.core().executor().register(hwAction);
+        LOG.info("Registered action: " + hwAction.name());
 
         // ── Start HTTP API (OpenWebUI integration) ────────────
         MetisHttpServer httpServer = null;
