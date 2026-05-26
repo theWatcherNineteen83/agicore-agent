@@ -22,6 +22,7 @@ import de.metis.modules.events.MqttEventService;
 import de.metis.modules.hardware.HardwareDiscovery;
 import de.metis.modules.hardware.HardwareProfileAction;
 import de.metis.modules.hardware.DeepNettsAction;
+import de.metis.modules.hardware.TornadoVmAction;
 
 import java.io.*;
 import java.net.URI;
@@ -811,6 +812,10 @@ public final class AgentMain {
         var dnAction = new DeepNettsAction();
         agent.core().executor().register(dnAction);
         LOG.info("Registered action: " + dnAction.name() + " — Deep Netts neural networks");
+
+        var tvAction = new TornadoVmAction();
+        agent.core().executor().register(tvAction);
+        LOG.info("Registered action: " + tvAction.name() + " — TornadoVM GPU");
 
         // Seed Deep Netts capability belief
         agent.worldModel().update(
