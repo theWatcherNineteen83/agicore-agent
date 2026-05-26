@@ -39,27 +39,27 @@ public class ModelRegistry {
 
     /** Reasoning-capable models (have thinking/chain-of-thought modes). */
     private static final List<String> REASONING_FAMILIES = List.of(
-            "deepseek-r1",      // CoT-native
+            "deepseek-r1",      // CoT-native, strongest reasoning
             "phi4-reasoning",   // CoT-native
-            "phi4",             // strong reasoning
             "qwen3.6",          // general + reasoning
+            "phi4",             // strong reasoning
             "mistral-small3",   // fast reasoning
-            "nemotron",         // NVIDIA reasoning cascade
             "olmo-3",           // thinking model
-            "devstral",         // general purpose
+            "nemotron",         // NVIDIA reasoning cascade
             "granite4",         // IBM reasoning
+            "devstral",         // general purpose
             "laguna"            // general reasoning
     );
 
     /** Code-generation-capable models (structured output, large context). */
     private static final List<String> CODE_GEN_FAMILIES = List.of(
+            "deepseek-r1",      // excellent code + reasoning (preferred for mutations)
             "qwen3.6",          // top code gen, large context
-            "deepseek-r1",      // excellent code
             "mistral-small3",   // reliable code output
-            "nemotron",         // NVIDIA code generation
-            "devstral",         // code-aware
             "granite4",         // code-trained
             "gemma4",           // capable code
+            "nemotron",         // NVIDIA code generation
+            "devstral",         // code-aware
             "lfm2",             // fast, capable
             "laguna"            // general code
     );
@@ -84,7 +84,7 @@ public class ModelRegistry {
     // ── Defaults (used when discovery fails) ─────────────────────────────
 
     private static final String DEFAULT_PLANNING = "mistral-small3.1:24b";
-    private static final String DEFAULT_MUTATION = "qwen3.6:27b-q4_K_M";
+    private static final String DEFAULT_MUTATION = "deepseek-r1:32b";
     private static final String DEFAULT_EMBEDDING = "llama3.2:3b";
 
     /**
@@ -110,9 +110,9 @@ public class ModelRegistry {
             availableModels = fetchAvailableModels();
             LOG.info("Discovered " + availableModels.size() + " Ollama models");
 
-            selectedPlanningModel = selectBest(availableModels, this::isGoodForPlanning);
-            selectedMutationModel = selectBest(availableModels, this::isGoodForMutation);
-            selectedEmbeddingModel = selectBest(availableModels, this::isGoodForEmbedding);
+            selectedPlanningModel = selectBest(availableModels, this::isGoodForPlanning, REASONING_FAMILIES);
+            selectedMutationModel = selectBest(availableModels, this::isGoodForMutation, CODE_GEN_FAMILIES);
+            selectedEmbeddingModel = selectBest(availableModels, this::isGoodForEmbedding, EMBEDDING_FAMILIES);
 
             LOG.info("Auto-selected models:");
             LOG.info("  Planning:  " + selectedPlanningModel);
@@ -231,24 +231,34 @@ public class ModelRegistry {
 
     // ── Model selection ──────────────────────────────────────────────────
 
-    private String selectBest(List<ModelInfo> models, Predicate<ModelInfo> criteria) {
-        // Prefer models that match the criteria
+    private String selectBest(List<ModelInfo> models, Predicate<ModelInfo> criteria,
+                              List<String> familyPriority) {
+        // Prefer models that match the criteria, ranked by family priority then size
         var candidates = models.stream()
                 .filter(criteria)
-                .sorted(Comparator.comparingLong(ModelInfo::sizeBytes).reversed())
+                .sorted(Comparator
+                        .comparingInt((ModelInfo m) -> familyRank(m.name(), familyPriority))
+                        .thenComparing(Comparator.comparingLong(ModelInfo::sizeBytes).reversed()))
                 .toList();
 
         if (!candidates.isEmpty()) {
-            // Pick the largest candidate that fits criteria
-            // (larger models generally better, but within bounds)
             return candidates.getFirst().name();
         }
 
-        // Fallback: any model that roughly fits
+        // Fallback: any model that roughly fits, by size
         return models.stream()
                 .max(Comparator.comparingLong(ModelInfo::sizeBytes))
                 .map(ModelInfo::name)
                 .orElse(null);
+    }
+
+    /** Lower rank = higher priority. Models not in any family get rank 999. */
+    private static int familyRank(String modelName, List<String> families) {
+        String lower = modelName.toLowerCase();
+        for (int i = 0; i < families.size(); i++) {
+            if (lower.contains(families.get(i).toLowerCase())) return i;
+        }
+        return 999;
     }
 
     private boolean isGoodForPlanning(ModelInfo m) {
