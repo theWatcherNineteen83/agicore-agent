@@ -290,7 +290,8 @@ public class TelegramBotService {
     }
 
     /**
-     * Process an incoming message through Metis's EDI persona.
+     * Process an incoming message directly via Ollama LLM for conversational response.
+     * Uses the EDI persona and conversation context, bypassing the agent's action pipeline.
      */
     private String processMessage(long chatId, String userName, String text) {
         String sessionId = "telegram:" + chatId;
@@ -298,38 +299,86 @@ public class TelegramBotService {
         // Load conversation context
         String context = "";
         if (knowledgeStore != null) {
-            context = knowledgeStore.conversationSummary(sessionId, 15);
+            context = knowledgeStore.conversationSummary(sessionId, 10);
             knowledgeStore.saveConversationMessage(sessionId, "user", userName + ": " + text);
         }
 
-        long startMs = System.currentTimeMillis();
-
         try {
-            // Use EDI persona + context
-            String enrichedGoal = Persona.systemPrompt()
-                    + "\n\nConversation with " + userName + " on Telegram:\n" + context
+            // Build EDI persona prompt
+            String prompt = Persona.systemPrompt()
+                    + "\n\nConversation with " + userName + " on Telegram:"
+                    + (context.isEmpty() ? "\n(new conversation)" : "\n" + context)
                     + "\n\n" + userName + ": " + text + "\n\nEDI:";
 
-            agent.addGoal(enrichedGoal, "chat", 90, 0.95, 1);
-            var result = agent.core().tick();
-
-            String response;
-            if (result != null) {
-                response = buildResponse(result.body(), startMs);
-            } else {
-                response = "I processed that, but I need a moment to formulate a proper response.";
+            // Call Ollama directly for chat completion
+            String response = callOllama(prompt);
+            if (response == null || response.isBlank()) {
+                response = "I'm here, but I need a moment. Please try again.";
             }
 
-            // Save response to conversation
+            // Clean up response
+            response = buildResponse(response, System.currentTimeMillis());
+
+            // Save to conversation history
             if (knowledgeStore != null) {
                 knowledgeStore.saveConversationMessage(sessionId, "assistant", response);
             }
 
             return response;
         } catch (Exception e) {
-            LOG.warning("Message processing error: " + e.getMessage());
-            return "I encountered an internal error. Please try again.";
+            LOG.warning("Chat processing error: " + e.getMessage());
+            return "I encountered an error processing that. Please try again.";
         }
+    }
+
+    /**
+     * Call Ollama /api/generate for a direct LLM completion.
+     */
+    private String callOllama(String prompt) throws Exception {
+        String jsonBody = String.format("""
+                {"model":"mistral-small3.1:24b","prompt":%s,"stream":false,
+                 "options":{"temperature":0.8,"top_p":0.9,"num_predict":512}}
+                """, escapeJson(prompt));
+
+        HttpRequest req = HttpRequest.newBuilder()
+                .uri(URI.create("http://192.168.22.204:11434/api/generate"))
+                .timeout(Duration.ofSeconds(120))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
+                .build();
+
+        HttpResponse<String> resp = http.send(req, HttpResponse.BodyHandlers.ofString());
+        if (resp.statusCode() != 200) {
+            LOG.warning("Ollama returned " + resp.statusCode());
+            return null;
+        }
+
+        // Extract "response" field from JSON
+        String body = resp.body();
+        String search = "\"response\":\"";
+        int start = body.indexOf(search);
+        if (start < 0) return null;
+        start += search.length();
+
+        StringBuilder result = new StringBuilder();
+        for (int i = start; i < body.length(); i++) {
+            char c = body.charAt(i);
+            if (c == '\\' && i + 1 < body.length()) {
+                char next = body.charAt(i + 1);
+                switch (next) {
+                    case 'n' -> { result.append('\n'); i++; }
+                    case 't' -> { result.append('\t'); i++; }
+                    case '"' -> { result.append('"'); i++; }
+                    case '\\' -> { result.append('\\'); i++; }
+                    default -> result.append(c);
+                }
+            } else if (c == '"') {
+                break;
+            } else {
+                result.append(c);
+            }
+        }
+        return result.toString();
     }
 
     /**
