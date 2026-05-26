@@ -336,10 +336,11 @@ public class TelegramBotService {
      * Uses a fast model dedicated to chat to avoid competing with the planner.
      */
     private String callOllama(String prompt) throws Exception {
-        // Use llama3.2:3b for chat — tiny (2GB), fast, won't compete for VRAM
+        // Chat model: phi4 (9.1GB) — unused by agent, good reasoning, fast
+        // Ollama handles VRAM offloading automatically for inactive models
         String jsonBody = String.format("""
-                {"model":"llama3.2:3b","prompt":%s,"stream":false,
-                 "options":{"temperature":0.8,"top_p":0.9,"num_predict":300}}
+                {"model":"phi4:latest","prompt":%s,"stream":false,
+                 "options":{"temperature":0.8,"top_p":0.9,"num_predict":256}}
                 """, escapeJson(prompt));
 
         HttpRequest req = HttpRequest.newBuilder()
