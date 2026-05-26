@@ -18,6 +18,7 @@ import de.metis.modules.telegram.TelegramBotService;
 import de.metis.modules.events.EventTrigger;
 import de.metis.modules.events.WeatherPollingTrigger;
 import de.metis.modules.events.HAEventPoller;
+import de.metis.modules.events.MqttEventService;
 import de.metis.modules.hardware.HardwareDiscovery;
 import de.metis.modules.hardware.HardwareProfileAction;
 import de.metis.modules.hardware.DeepNettsAction;
@@ -601,6 +602,9 @@ public final class AgentMain {
         String weatherApiKey = null;
         String haUrl = null;
         String haToken = null;
+        String mqttBroker = null;
+        String mqttUser = null;
+        String mqttPass = null;
 
         for (int i = 0; i < args.length; i++) {
             switch (args[i]) {
@@ -619,6 +623,9 @@ public final class AgentMain {
                 case "--weather-api-key" -> weatherApiKey = args[++i];
                 case "--ha-url" -> haUrl = args[++i];
                 case "--ha-token" -> haToken = args[++i];
+                case "--mqtt-broker" -> mqttBroker = args[++i];
+                case "--mqtt-user" -> mqttUser = args[++i];
+                case "--mqtt-pass" -> mqttPass = args[++i];
                 case "--help", "-h" -> {
                     System.out.println("""
                             Metis AGI — Self-Evolving Agent System
@@ -639,6 +646,9 @@ public final class AgentMain {
                               --weather-api-key K  Weather.com PWS API key
                               --ha-url URL         Home Assistant URL (event triggers)
                               --ha-token T         Home Assistant access token
+                              --mqtt-broker URL    MQTT broker URL (tcp://host:port)
+                              --mqtt-user USER    MQTT username
+                              --mqtt-pass PASS    MQTT password
                             """);
                     return;
                 }
@@ -838,6 +848,13 @@ public final class AgentMain {
             ha.start(agent);
             eventTriggers.add(ha);
             LOG.info("HA event trigger active — " + ha.description());
+        }
+        if (mqttBroker != null && !mqttBroker.isBlank()) {
+            var topics = List.of("#"); // Subscribe to all topics initially
+            var mqtt = new MqttEventService(mqttBroker, mqttUser, mqttPass, topics);
+            mqtt.start(agent);
+            eventTriggers.add(mqtt);
+            LOG.info("MQTT event trigger active — " + mqtt.description());
         }
 
         // Build the runtime, wiring in the HTTP server for evolution control
