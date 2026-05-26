@@ -15,6 +15,9 @@ import de.metis.modules.evolution.OllamaMutationService;
 import de.metis.modules.evolution.OllamaEmbeddingService;
 import de.metis.modules.planner.OllamaPlanner;
 import de.metis.modules.telegram.TelegramBotService;
+import de.metis.modules.events.EventTrigger;
+import de.metis.modules.events.WeatherPollingTrigger;
+import de.metis.modules.events.HAEventPoller;
 
 import java.io.*;
 import java.net.URI;
@@ -592,6 +595,9 @@ public final class AgentMain {
         String bootstrapModel = null;
         String bootstrapModels = null;  // comma-separated multi-model
         String telegramToken = null;
+        String weatherApiKey = null;
+        String haUrl = null;
+        String haToken = null;
 
         for (int i = 0; i < args.length; i++) {
             switch (args[i]) {
@@ -607,6 +613,9 @@ public final class AgentMain {
                 case "--bootstrap-model" -> bootstrapModel = args[++i];
                 case "--bootstrap-models" -> bootstrapModels = args[++i];
                 case "--telegram-token" -> telegramToken = args[++i];
+                case "--weather-api-key" -> weatherApiKey = args[++i];
+                case "--ha-url" -> haUrl = args[++i];
+                case "--ha-token" -> haToken = args[++i];
                 case "--help", "-h" -> {
                     System.out.println("""
                             Metis AGI — Self-Evolving Agent System
@@ -623,6 +632,10 @@ public final class AgentMain {
                               --embedding-model M   Override auto-selected embedding model
                               --bootstrap-model M   Bootstrap from a single model
                               --bootstrap-models A,B Bootstrap with consensus from multiple models
+                              --telegram-token T    Telegram Bot token for direct messaging
+                              --weather-api-key K  Weather.com PWS API key
+                              --ha-url URL         Home Assistant URL (event triggers)
+                              --ha-token T         Home Assistant access token
                             """);
                     return;
                 }
@@ -769,6 +782,22 @@ public final class AgentMain {
             LOG.info("Telegram bot active — direct messaging enabled");
         }
 
+        // ── Start Event Triggers ──────────────────────────────
+        List<EventTrigger> eventTriggers = new ArrayList<>();
+        if (weatherApiKey != null && !weatherApiKey.isBlank()) {
+            var weather = new WeatherPollingTrigger(weatherApiKey, "ICOBURG22");
+            weather.start(agent);
+            eventTriggers.add(weather);
+            LOG.info("Weather event trigger active — " + weather.description());
+        }
+        if (haUrl != null && !haUrl.isBlank() && haToken != null && !haToken.isBlank()) {
+            var ha = new HAEventPoller(haUrl, haToken)
+                    .watch("binary_sensor.", "person.", "camera.");
+            ha.start(agent);
+            eventTriggers.add(ha);
+            LOG.info("HA event trigger active — " + ha.description());
+        }
+
         // Build the runtime, wiring in the HTTP server for evolution control
         final MetisHttpServer api = httpServer;
 
@@ -808,6 +837,9 @@ public final class AgentMain {
             LOG.log(Level.SEVERE, "Agent runtime crashed", e);
             runtime.persistState();
         } finally {
+            for (var trigger : eventTriggers) {
+                trigger.stop();
+            }
             if (telegramBot != null) {
                 telegramBot.stop();
             }
