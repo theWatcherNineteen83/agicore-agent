@@ -21,6 +21,7 @@ import de.metis.kernel.self.SelfModel;
 import de.metis.kernel.workspace.ContentItem;
 import de.metis.kernel.workspace.GlobalWorkspace;
 import de.metis.kernel.world.WorldModel;
+import de.metis.kernel.world.CausalModel;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -45,6 +46,7 @@ import java.util.logging.Logger;
 public class AgentCoreLoop {
     
     private final Supplier<de.metis.kernel.goal.Goal> idleGoalSupplier;
+    private final CausalModel causalModel = new CausalModel();
 
     private static final Logger LOG = Logger.getLogger(AgentCoreLoop.class.getName());
 
@@ -224,6 +226,7 @@ public class AgentCoreLoop {
         planner.learnFromOutcome(goal, plan, result);
         goals.recordOutcome(goal, result.success());
         metrics.recordTick(goal, result, meta);
+        causalModel.observe("action:" + result.name(), "goal:" + goal.description().substring(0, Math.min(goal.description().length(), 50)), result.success() ? "success" : "failure", result.success());
 
         // Phase 3: update world model from observation
         worldModel.observe(
@@ -386,6 +389,7 @@ public class AgentCoreLoop {
     public Planner planner() { return planner; }
     public ActionExecutor executor() { return executor; }
     public MetaCognition meta() { return meta; }
+    public CausalModel causalModel() { return causalModel; }
     public ShortTermMemory stm() { return stm; }
     public MemoryConsolidator consolidator() { return consolidator; }
     public PerformanceMetrics metrics() { return metrics; }

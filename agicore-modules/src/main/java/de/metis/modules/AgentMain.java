@@ -886,7 +886,15 @@ public final class AgentMain {
             LOG.info("HA event trigger active — " + ha.description());
         }
         if (mqttBroker != null && !mqttBroker.isBlank()) {
-            var topics = List.of("#"); // Subscribe to all topics initially
+            var topics = List.of(
+                    "+/+/RTL_433toMQTT/+/+/temperature_C",  // Temperatur-Sensoren
+                    "+/+/RTL_433toMQTT/+/+/humidity",       // Feuchte
+                    "+/+/RTL_433toMQTT/+/+/battery_ok",     // Batterie-Status
+                    "homeassistant/binary_sensor/+/state",   // Bewegungsmelder
+                    "homeassistant/sensor/+/state",          // HA-Sensoren
+                    "solar/+/+",                            // Solar/Batterie
+                    "stat/+/+"                               // Status-Updates
+            );
             var mqtt = new MqttEventService(mqttBroker, mqttUser, mqttPass, topics);
             mqtt.start(agent);
             eventTriggers.add(mqtt);
