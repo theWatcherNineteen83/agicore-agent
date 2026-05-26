@@ -49,3 +49,10 @@
 - [ ] Prediction-Error-getriebene Exploration (statt random Idle-Goals)
 - [ ] Wissenslücken-Erkennung ("was weiß ich nicht?")
 - [ ] Kompetenz-Hunger (Bereiche mit niedriger Success-Rate bevorzugen)
+
+## 26.05. Abends — Runde 2 & 3 ✅
+- [x] MQTT-Topic-Filter (Wildcard → spezifische Topics)
+- [x] Kausale Schicht (CausalModel, Pearl Do-Calculus)
+- [x] Fitness-Signal (geometrisch, 4D, Kalibrierung)
+- [x] Curiosity-Engine (Surprise→Goal)
+- [x] Proaktive Meldungen (MQTT/Wetter → Telegram)

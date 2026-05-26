@@ -173,7 +173,7 @@ URL: http://<host>:11735
 - ✅ Prompt-Optimierung — 10 Action-Descriptions, 4 Few-Shot-Beispiele
 - ✅ systemd-Service — Auto-Restart, Journal-Logging, Runs on boot
 
-### Phase 2: Konversations-KI 🟢 ~90% ABGESCHLOSSEN
+### Phase 2: Konversations-KI 🟢 ✅ 100% ABGESCHLOSSEN
 
 - ✅ Persona-System — EDI-Identität (Mass Effect 3), Werte, Tonfall
 - ✅ Chat-Speicher — SQLite `conversation_messages` mit Session-ID
@@ -201,7 +201,7 @@ URL: http://<host>:11735
 | Phase | Ziel | Status |
 |-------|------|--------|
 | 🔧 Phase 1 | Stabiler Kern (>85% Planner) | ✅ done |
-| 💬 Phase 2 | Konversation + Persona + Events | 🟢 ~90% |
+| 💬 Phase 2 | Konversation + Persona + Events | 🟢 ✅ 100% |
 | ⚡ Phase 2.5 | Hardware-Optimierung (GPU, Panama) | 🔄 begonnen |
 | 👁️ Phase 3 | Wahrnehmung (HA, Kameras, ADS-B) | ⬜ |
 | 🎙️ Phase 4 | Sprachausgabe (TTS/STT) | ⬜ |
