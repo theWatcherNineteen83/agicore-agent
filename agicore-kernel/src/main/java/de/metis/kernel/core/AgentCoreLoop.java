@@ -15,6 +15,8 @@ import de.metis.kernel.metrics.PerformanceMetrics;
 import de.metis.kernel.optimize.HyperparameterMutator;
 import de.metis.kernel.planner.PlanValidator;
 import de.metis.kernel.planner.Planner;
+
+import java.util.function.Supplier;
 import de.metis.kernel.self.SelfModel;
 import de.metis.kernel.workspace.ContentItem;
 import de.metis.kernel.workspace.GlobalWorkspace;
@@ -41,6 +43,8 @@ import java.util.logging.Logger;
  * and planning — the agent "attends to" what won.
  */
 public class AgentCoreLoop {
+    
+    private final Supplier<de.metis.kernel.goal.Goal> idleGoalSupplier;
 
     private static final Logger LOG = Logger.getLogger(AgentCoreLoop.class.getName());
 
@@ -79,7 +83,8 @@ public class AgentCoreLoop {
                          PerformanceMetrics metrics, HyperparameterMutator hyperMutator,
                          GlobalWorkspace workspace, SelfModel selfModel,
                          WorldModel worldModel, MetaRepresentation metaRepr,
-                         EvolutionManager evolutionManager) {
+                         EvolutionManager evolutionManager,
+                         Supplier<Goal> idleGoalSupplier) {
         this.goals = goals;
         this.planner = planner;
         this.planValidator = planValidator;
@@ -96,6 +101,7 @@ public class AgentCoreLoop {
         this.worldModel = worldModel;
         this.metaRepr = metaRepr;
         this.evolutionManager = evolutionManager;
+        this.idleGoalSupplier = idleGoalSupplier;
 
         this.selfModel.bind(meta, metrics);
     }
@@ -127,11 +133,12 @@ public class AgentCoreLoop {
         Goal goal = goals.nextGoalBiased(attentionKeywords, 25);
         if (goal == null) {
             // Hardening: idle exploration — create a curiosity goal
-            if (tickCount % 5 == 0 && !executor.availableActions().isEmpty()) {
-                String exploreAction = executor.availableActions().iterator().next();
-                goal = goals.add(new de.metis.kernel.goal.Goal(
-                        "Idle exploration via " + exploreAction, "exploration", 40, 0.3, 1));
-                LOG.fine("Idle: created exploration goal");
+            if (tickCount % 5 == 0 && idleGoalSupplier != null) {
+                var idleGoal = idleGoalSupplier.get();
+                if (idleGoal != null) {
+                    goal = goals.add(idleGoal);
+                    LOG.fine("Idle: curiosity-generated goal");
+                }
             }
         }
         if (goal == null) {

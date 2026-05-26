@@ -35,3 +35,17 @@
 - [ ] Selbstständige Code-Generierung
 - [ ] JNI/Panama-Bridge für GPU
 - [ ] Multi-Agent-Koordination
+
+## 🔴 Nächstes Todo-Fenster: Fitness-Signal (Claude-Review 26.05.)
+
+### Multidimensionales Fitness-Signal
+- [ ] Prediction-Accuracy (World-Model vs Beobachtung)
+- [ ] Surprise-Reduction über Zeit  
+- [ ] Resource-Efficiency (CPU/Heap pro Goal)
+- [ ] Goal-Completion-Rate nach Kategorie
+- [ ] Fitness visualisieren in /api/status
+
+### Curiosity-Engine
+- [ ] Prediction-Error-getriebene Exploration (statt random Idle-Goals)
+- [ ] Wissenslücken-Erkennung ("was weiß ich nicht?")
+- [ ] Kompetenz-Hunger (Bereiche mit niedriger Success-Rate bevorzugen)

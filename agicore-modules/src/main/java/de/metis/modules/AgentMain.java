@@ -25,6 +25,8 @@ import de.metis.modules.hardware.HardwareProfileAction;
 import de.metis.modules.hardware.DeepNettsAction;
 import de.metis.modules.hardware.TornadoVmAction;
 import de.metis.modules.multiagent.AgentCoordinator;
+import de.metis.modules.CuriosityEngine;
+import de.metis.kernel.metrics.FitnessSignal;
 
 import java.io.*;
 import java.net.URI;
@@ -681,7 +683,7 @@ public final class AgentMain {
                 .registerShellCommand(List.of("uname", "-a"))
                 .registerHttpGet(URI.create("https://httpbin.org/get"))
                 .ollamaPlanner("http://192.168.22.204:11434/api/generate", modelRegistry, Duration.ofSeconds(60))
-                .workspaceCapacity(7)
+                .workspaceCapacity(5)
                 .build();
 
         // Register filesystem actions (kernel extensibility)
@@ -776,6 +778,8 @@ public final class AgentMain {
         // Wire embedding provider for semantic belief search
         var embedSvc = new OllamaEmbeddingService();
         agent.worldModel().setEmbeddingProvider(embedSvc::embed);
+
+        // Not needed here — fitness + curiosity created below for the main agent
 
         LOG.info("KnowledgeStore: " + knowledgeStore.beliefCount() + " beliefs, "
                 + knowledgeStore.experienceCount() + " experiences, "

@@ -23,6 +23,8 @@ import de.metis.kernel.world.WorldModel;
 import de.metis.modules.evolution.ModelRegistry;
 import de.metis.modules.planner.OllamaPlanner;
 import de.metis.modules.planner.StubPlanner;
+import de.metis.kernel.metrics.FitnessSignal;
+import de.metis.modules.CuriosityEngine;
 
 import java.net.URI;
 import java.time.Duration;
@@ -82,6 +84,8 @@ public class Agent {
         private SelfModel selfModel = new SelfModel();
         private WorldModel worldModel = new WorldModel();
         private EvolutionManager evolutionManager = new EvolutionManager();
+        private CuriosityEngine curiosityEngine = null;
+        private FitnessSignal fitnessSignal = null;
 
         public Builder registerShellCommand(List<String> command, long timeoutSeconds) {
             executor.register(new ShellCommandAction(command, timeoutSeconds)); return this;
@@ -118,6 +122,8 @@ public class Agent {
             this.planner = new StubPlanner();
             return this;
         }
+        public Builder curiosityEngine(CuriosityEngine c) { this.curiosityEngine = c; return this; }
+        public Builder fitnessSignal(FitnessSignal f) { this.fitnessSignal = f; return this; }
 
         public Agent build() {
             var consolidator = new MemoryConsolidator(stm, ltm);
@@ -137,7 +143,8 @@ public class Agent {
             }
             var loop = new AgentCoreLoop(goalManager, planner, planValidator, executor,
                     consolidator, meta, metrics, hyperMutator,
-                    workspace, selfModel, worldModel, metaRepr, evolutionManager);
+                    workspace, selfModel, worldModel, metaRepr, evolutionManager,
+                    curiosityEngine != null ? () -> curiosityEngine.generateExplorationGoal() : null);
             return new Agent(loop);
         }
     }
