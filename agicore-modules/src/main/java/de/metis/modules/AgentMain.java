@@ -19,6 +19,7 @@ import de.metis.modules.events.EventTrigger;
 import de.metis.modules.events.WeatherPollingTrigger;
 import de.metis.modules.events.HAEventPoller;
 import de.metis.modules.events.MqttEventService;
+import de.metis.modules.events.ProactiveNotificationService;
 import de.metis.modules.hardware.HardwareDiscovery;
 import de.metis.modules.hardware.HardwareProfileAction;
 import de.metis.modules.hardware.DeepNettsAction;
@@ -839,6 +840,15 @@ public final class AgentMain {
             LOG.info("Telegram bot active — direct messaging enabled");
         }
 
+        // ── Proactive Notifications ───────────────────────────
+        ProactiveNotificationService notifier = null;
+        if (telegramBot != null) {
+            notifier = new ProactiveNotificationService(telegramBot, 265324594L);
+            notifier.start();
+            agent.core().goals().onGoalAdded(notifier::onGoalAdded);
+            LOG.info("Proactive notifications active → Telegram chat 265324594");
+        }
+
         // ── Start Event Triggers ──────────────────────────────
         List<EventTrigger> eventTriggers = new ArrayList<>();
         if (weatherApiKey != null && !weatherApiKey.isBlank()) {
@@ -901,6 +911,7 @@ public final class AgentMain {
             LOG.log(Level.SEVERE, "Agent runtime crashed", e);
             runtime.persistState();
         } finally {
+            if (notifier != null) notifier.stop();
             for (var trigger : eventTriggers) {
                 trigger.stop();
             }

@@ -19,6 +19,12 @@ public class GoalManager {
 
     private final Map<UUID, Goal> goals = new ConcurrentHashMap<>();
     private final GoalConflictResolver resolver;
+    private final List<java.util.function.Consumer<Goal>> goalListeners = new ArrayList<>();
+
+    /** Register a listener notified on every goal addition. */
+    public void onGoalAdded(java.util.function.Consumer<Goal> listener) {
+        goalListeners.add(listener);
+    }
 
     /**
      * Tracks success/failure counts per goal category for adaptive reprioritization.
@@ -42,6 +48,7 @@ public class GoalManager {
     public Goal add(Goal goal) {
         goals.put(goal.id(), goal);
         LOG.info(() -> "Goal added: " + goal);
+        for (var l : goalListeners) { try { l.accept(goal); } catch (Exception e) {} }
         return goal;
     }
 
