@@ -333,16 +333,18 @@ public class TelegramBotService {
 
     /**
      * Call Ollama /api/generate for a direct LLM completion.
+     * Uses a fast model dedicated to chat to avoid competing with the planner.
      */
     private String callOllama(String prompt) throws Exception {
+        // Use phi4 for chat — fast (9GB), separate from planning model
         String jsonBody = String.format("""
-                {"model":"mistral-small3.1:24b","prompt":%s,"stream":false,
-                 "options":{"temperature":0.8,"top_p":0.9,"num_predict":512}}
+                {"model":"phi4:latest","prompt":%s,"stream":false,
+                 "options":{"temperature":0.8,"top_p":0.9,"num_predict":300}}
                 """, escapeJson(prompt));
 
         HttpRequest req = HttpRequest.newBuilder()
                 .uri(URI.create("http://192.168.22.204:11434/api/generate"))
-                .timeout(Duration.ofSeconds(120))
+                .timeout(Duration.ofSeconds(180))
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
                 .build();
