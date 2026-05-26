@@ -84,24 +84,33 @@ public class TelegramBotService {
         deleteWebhook();
 
         int cyclesSinceLog = 0;
+        LOG.info("Telegram polling loop started, lastUpdateId=" + lastUpdateId);
         while (running.get()) {
             try {
+                LOG.fine("Polling for updates... (offset=" + (lastUpdateId + 1) + ")");
                 var updates = getUpdates();
                 if (updates != null) {
+                    int count = updates.split("\"update_id\"").length - 1;
+                    if (count > 0) {
+                        LOG.info("Received " + count + " Telegram updates");
+                    }
                     processUpdates(updates);
+                } else {
+                    LOG.warning("getUpdates returned null — API may be unreachable");
                 }
                 cyclesSinceLog++;
-                if (cyclesSinceLog % 10 == 0) {
-                    LOG.fine("Telegram poll alive, cycles=" + cyclesSinceLog + ", lastUpdateId=" + lastUpdateId);
+                if (cyclesSinceLog % 3 == 0) {
+                    LOG.info("Telegram poll alive, cycles=" + cyclesSinceLog + ", lastUpdateId=" + lastUpdateId);
                 }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 break;
             } catch (Exception e) {
-                LOG.warning("Polling error: " + e.getMessage());
+                LOG.warning("Polling error: " + e.getClass().getSimpleName() + " — " + e.getMessage());
                 try { Thread.sleep(5000); } catch (InterruptedException ie) { break; }
             }
         }
+        LOG.info("Telegram polling loop exited");
     }
 
     // ── Telegram API methods ──────────────────────────────────────
@@ -183,60 +192,100 @@ public class TelegramBotService {
 
     /**
      * Parse and process incoming updates from getUpdates response.
+     * Extracts update_id, chat_id, and text using simple string operations
+     * (no JSON library dependency).
      */
     private void processUpdates(String json) {
-        int resultStart = json.indexOf("\"result\":[");
-        if (resultStart < 0) return;
-        resultStart += "\"result\":".length();
-
-        int arrEnd = findMatchingBracket(json, resultStart - 1);
-        if (arrEnd < 0) return;
-
-        // Extract each update object and process
-        int pos = resultStart + 1; // skip '['
-        while (pos < arrEnd && running.get()) {
-            int objStart = json.indexOf('{', pos);
-            if (objStart < 0 || objStart >= arrEnd) break;
-            int objEnd = findMatchingBrace(json, objStart);
-            if (objEnd < 0 || objEnd >= arrEnd) break;
-
-            String updateObj = json.substring(objStart, objEnd + 1);
-            processSingleUpdate(updateObj);
-            pos = objEnd + 1;
-        }
-    }
-
-    /**
-     * Process a single update object.
-     */
-    private void processSingleUpdate(String update) {
-        long updateId = extractJsonLong(update, "update_id");
-        if (updateId > lastUpdateId) {
-            lastUpdateId = updateId;
-        }
-
-        // Only process messages
-        int msgStart = update.indexOf("\"message\":{");
-        if (msgStart < 0) return;
-
-        int msgObjEnd = findMatchingBrace(update, msgStart + "\"message\":".length());
-        if (msgObjEnd < 0) return;
-        String message = update.substring(msgStart + "\"message\":".length(), msgObjEnd + 1);
-
-        // Extract fields
-        long chatId = extractJsonLong(message, "id");
-        String text = extractJsonString(message, "text");
-        String firstName = extractJsonString(message, "first_name");
-        if (firstName == null) firstName = "User";
-
-        if (text == null || text.isBlank()) return;
-
-        LOG.info("Telegram [" + chatId + "|" + firstName + "]: \"" + truncate(text, 80) + "\"");
-
-        // Process through Metis
-        String response = processMessage(chatId, firstName, text);
-        if (response != null && !response.isBlank()) {
-            sendMessage(chatId, response);
+        // Simple extraction: find each "update_id" and extract surrounding fields
+        int pos = 0;
+        while (pos < json.length() && running.get()) {
+            int uidStart = json.indexOf("\"update_id\":", pos);
+            if (uidStart < 0) break;
+            uidStart += "\"update_id\":".length();
+            
+            // Parse update_id (number)
+            long updateId = 0;
+            while (uidStart < json.length() && (Character.isWhitespace(json.charAt(uidStart)))) uidStart++;
+            StringBuilder numBuf = new StringBuilder();
+            while (uidStart < json.length() && Character.isDigit(json.charAt(uidStart))) {
+                numBuf.append(json.charAt(uidStart++));
+            }
+            if (numBuf.length() > 0) updateId = Long.parseLong(numBuf.toString());
+            
+            // Update lastUpdateId
+            if (updateId > lastUpdateId) {
+                lastUpdateId = updateId;
+            }
+            
+            // Extract chat_id from "chat":{"id":NEXT_NUMBER
+            long chatId = 0;
+            int chatIdx = json.indexOf("\"chat\":{", uidStart);
+            if (chatIdx > 0) {
+                int idIdx = json.indexOf("\"id\":", chatIdx);
+                if (idIdx > 0) {
+                    idIdx += "\"id\":".length();
+                    while (idIdx < json.length() && Character.isWhitespace(json.charAt(idIdx))) idIdx++;
+                    StringBuilder idBuf = new StringBuilder();
+                    while (idIdx < json.length() && Character.isDigit(json.charAt(idIdx))) {
+                        idBuf.append(json.charAt(idIdx++));
+                    }
+                    if (idBuf.length() > 0) chatId = Long.parseLong(idBuf.toString());
+                }
+            }
+            
+            // Extract text from "text":"..."
+            String text = null;
+            int textIdx = json.indexOf("\"text\":\"", uidStart);
+            if (textIdx > 0) {
+                textIdx += "\"text\":\"".length();
+                StringBuilder textBuf = new StringBuilder();
+                for (int i = textIdx; i < json.length(); i++) {
+                    char c = json.charAt(i);
+                    if (c == '\\' && i + 1 < json.length()) {
+                        char next = json.charAt(i + 1);
+                        switch (next) {
+                            case 'n' -> { textBuf.append('\n'); i++; }
+                            case 't' -> { textBuf.append('\t'); i++; }
+                            case '"' -> { textBuf.append('"'); i++; }
+                            case '\\' -> { textBuf.append('\\'); i++; }
+                            default -> textBuf.append(c);
+                        }
+                    } else if (c == '"') {
+                        break;
+                    } else {
+                        textBuf.append(c);
+                    }
+                }
+                text = textBuf.toString();
+            }
+            
+            // Extract first_name from "from":{"id":...,"first_name":"..."
+            String firstName = null;
+            int fromIdx = json.indexOf("\"from\":{", uidStart);
+            if (fromIdx > 0) {
+                int fnIdx = json.indexOf("\"first_name\":\"", fromIdx);
+                if (fnIdx > 0) {
+                    fnIdx += "\"first_name\":\"".length();
+                    StringBuilder fnBuf = new StringBuilder();
+                    for (int i = fnIdx; i < json.length() && json.charAt(i) != '"'; i++) {
+                        fnBuf.append(json.charAt(i));
+                    }
+                    firstName = fnBuf.toString();
+                }
+            }
+            
+            if (firstName == null) firstName = "User";
+            
+            // Process the message if we have chatId and text
+            if (chatId > 0 && text != null && !text.isBlank()) {
+                LOG.info("Telegram [" + chatId + "|" + firstName + "]: \"" + truncate(text, 80) + "\"");
+                String response = processMessage(chatId, firstName, text);
+                if (response != null && !response.isBlank()) {
+                    sendMessage(chatId, response);
+                }
+            }
+            
+            pos = uidStart; // advance past current update_id
         }
     }
 
