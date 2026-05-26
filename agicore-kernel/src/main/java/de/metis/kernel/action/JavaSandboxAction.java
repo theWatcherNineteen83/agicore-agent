@@ -45,6 +45,10 @@ public class JavaSandboxAction implements Action {
         return NAME;
     }
 
+    @Override public String category() {
+        return "write";
+    }
+
     @Override
     public ActionResult execute() {
         Instant start = Instant.now();

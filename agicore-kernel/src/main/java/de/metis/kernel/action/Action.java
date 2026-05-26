@@ -18,6 +18,12 @@ public interface Action {
     String name();
 
     /**
+     * Category: "read" (observing) or "write" (changing).
+     * Defaults to "read" — override for write actions.
+     */
+    default String category() { return "read"; }
+
+    /**
      * Execute this action and return the result.
      * <p>
      * Implementations must be self-contained: the caller provides no context

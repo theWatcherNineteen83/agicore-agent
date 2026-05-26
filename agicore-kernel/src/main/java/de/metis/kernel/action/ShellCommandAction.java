@@ -47,6 +47,10 @@ public class ShellCommandAction implements Action {
         return NAME;
     }
 
+    @Override public String category() {
+        return "read";
+    }
+
     @Override
     public ActionResult execute() {
         Instant start = Instant.now();
