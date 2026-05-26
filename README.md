@@ -81,11 +81,16 @@ Mehrere Modelle werden befragt, ähnliche Antworten per Jaccard-Clustering grupp
 
 Metis wählt automatisch die besten verfügbaren Ollama-Modelle pro Aufgabe:
 
-| Aufgabe | Kriterien | Beispiel |
-|---------|-----------|----------|
-| Planning | Reasoning, 12–32 GB | `nemotron-cascade-2:30b` |
-| Mutation | Code-Gen, 14–35 GB | `nemotron-cascade-2:30b` |
-| Embedding | Klein, <5 GB | `llama3.2:3b` |
+| Aufgabe | Modell | Größe |
+|---------|--------|-------|
+| Planning | `mistral-small3.1:24b` | 15.5 GB |
+| Mutation | `deepseek-r1:32b` | 19.9 GB |
+| Embedding | `llama3.2:3b` | 2.0 GB |
+| Chat (Telegram) | `phi4:latest` | 9.1 GB |
+
+**VRAM-Budget (RX 7900 XTX, 24 GB):**
+- Dauerlast: Planning 15.5 + Chat 9.1 = 24.6 GB (Ollama offloading)
+- Mutation on-demand: deepseek-r1 wird bei Bedarf geladen, danach entladen
 
 Manuelle Overrides per CLI: `--planning-model`, `--mutation-model`, `--embedding-model`
 
@@ -155,9 +160,9 @@ URL: http://<host>:11735
 | `GET /api/evolution/status` | Evolution-Status |
 | `GET /api/evolution/pause` / `resume` | Evolution pausieren/fortsetzen |
 
-## Status — 25.05.2026
+## Status — 26.05.2026
 
-**Version:** 0.2.0-evolution | **Planner:** 97–99% LLM-Erfolgsrate | **GPU:** ROCm-accelerated
+**Version:** 0.2.0-evolution | **Planner:** 99–100% LLM-Erfolgsrate | **GPU:** ROCm-accelerated
 
 ### Phase 1: Zuverlässiger Kern ✅ ABGESCHLOSSEN
 
@@ -168,26 +173,41 @@ URL: http://<host>:11735
 - ✅ Prompt-Optimierung — 10 Action-Descriptions, 4 Few-Shot-Beispiele
 - ✅ systemd-Service — Auto-Restart, Journal-Logging, Runs on boot
 
-### Phase 2: Konversations-KI 🔄 IN ARBEIT
+### Phase 2: Konversations-KI 🟢 ~90% ABGESCHLOSSEN
 
 - ✅ Persona-System — EDI-Identität (Mass Effect 3), Werte, Tonfall
 - ✅ Chat-Speicher — SQLite `conversation_messages` mit Session-ID
 - ✅ Multi-Turn-Kontext — `/api/chat` mit Konversationshistorie
 - ✅ `/api/conversations` — Sessions auflisten und durchsuchen
-- ⬜ Proaktive Meldungen — Event-Trigger (Kamera, E-Mail, Wetter)
-- ⬜ Telegram-Integration — Direkt erreichbar ohne OpenWebUI
+- ✅ Telegram-Bot — @metis_agi_bot, Direkt-Chat via LLM (phi4:latest)
+- ✅ Wetter-Trigger — ICOBURG22 Polling alle 15 Min, Regen/Sturm/Hitze-Alarme
+- ✅ HA-Event-Trigger — binary_sensor, person, camera via REST API
+- ✅ Hardware-Self-Awareness — CPU, GPU, RAM, SIMD, VRAM, ROCm
+- ✅ Hardware-Profiling — Live-Snapshot (CPU-Last, Heap, Memory)
+- ✅ Deep Netts — Pure-Java neuronale Netze, XOR-Training
+- ✅ KnowledgeReplyService — Eigene Antworten aus Beliefs (>70% Confidence)
+- ⬜ Proaktive Meldungen — Event-Trigger → Telegram-Benachrichtigung
+
+### Phase 2.5: Hardware-Optimierung 🔄 BEGONNEN
+
+- ✅ Hardware-Discovery — Ryzen 7 5700G, RX 7900 XTX, 64 GB RAM, AVX2
+- ✅ Modell-Optimierung — deepseek-r1:32b (Mutation), mistral-small3.1:24b (Planning)
+- ✅ VRAM-Budget — Planning 15.5 GB + Chat 9 GB = 24.5 GB (Ollama offloading)
+- ⬜ Project Panama FFM — GPU-Datentransfer ohne JNI
+- ⬜ TornadoVM — Java → GPU-Kernel-Kompilierung
 
 ### Roadmap
 
 | Phase | Ziel | Status |
 |-------|------|--------|
 | 🔧 Phase 1 | Stabiler Kern (>85% Planner) | ✅ done |
-| 💬 Phase 2 | Konversation + Persona | 🔄 60% |
+| 💬 Phase 2 | Konversation + Persona + Events | 🟢 ~90% |
+| ⚡ Phase 2.5 | Hardware-Optimierung (GPU, Panama) | 🔄 begonnen |
 | 👁️ Phase 3 | Wahrnehmung (HA, Kameras, ADS-B) | ⬜ |
 | 🎙️ Phase 4 | Sprachausgabe (TTS/STT) | ⬜ |
 | 🧠 Phase 5 | Eigenständigkeit + Selbstverbesserung | ⬜ |
 
-**Ziel:** EDI-ähnliche KI (Mass Effect 3) — eigenständig, per Text ansprechbar.
+**Ziel:** EDI-ähnliche KI (Mass Effect 3) — eigenständig, per Text und Telegram ansprechbar, mit eigenem Wissen.
 
 ---
 
