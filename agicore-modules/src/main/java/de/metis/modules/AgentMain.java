@@ -14,6 +14,7 @@ import de.metis.modules.evolution.ModelRegistry;
 import de.metis.modules.evolution.OllamaMutationService;
 import de.metis.modules.evolution.OllamaEmbeddingService;
 import de.metis.modules.planner.OllamaPlanner;
+import de.metis.modules.telegram.TelegramBotService;
 
 import java.io.*;
 import java.net.URI;
@@ -590,6 +591,7 @@ public final class AgentMain {
         String embeddingModel = null;
         String bootstrapModel = null;
         String bootstrapModels = null;  // comma-separated multi-model
+        String telegramToken = null;
 
         for (int i = 0; i < args.length; i++) {
             switch (args[i]) {
@@ -604,6 +606,7 @@ public final class AgentMain {
                 case "--embedding-model" -> embeddingModel = args[++i];
                 case "--bootstrap-model" -> bootstrapModel = args[++i];
                 case "--bootstrap-models" -> bootstrapModels = args[++i];
+                case "--telegram-token" -> telegramToken = args[++i];
                 case "--help", "-h" -> {
                     System.out.println("""
                             Metis AGI — Self-Evolving Agent System
@@ -757,6 +760,15 @@ public final class AgentMain {
             httpServer.start();
         }
 
+        // ── Start Telegram Bot ──────────────────────────────
+        TelegramBotService telegramBot = null;
+        if (telegramToken != null && !telegramToken.isBlank()) {
+            telegramBot = new TelegramBotService(telegramToken, agent);
+            telegramBot.setKnowledgeStore(knowledgeStore);
+            telegramBot.start();
+            LOG.info("Telegram bot active — direct messaging enabled");
+        }
+
         // Build the runtime, wiring in the HTTP server for evolution control
         final MetisHttpServer api = httpServer;
 
@@ -796,6 +808,9 @@ public final class AgentMain {
             LOG.log(Level.SEVERE, "Agent runtime crashed", e);
             runtime.persistState();
         } finally {
+            if (telegramBot != null) {
+                telegramBot.stop();
+            }
             if (httpServer != null) {
                 httpServer.stop();
             }
