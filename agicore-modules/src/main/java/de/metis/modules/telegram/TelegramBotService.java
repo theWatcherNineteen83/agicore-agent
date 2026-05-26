@@ -25,8 +25,8 @@ public class TelegramBotService {
 
     private static final Logger LOG = Logger.getLogger(TelegramBotService.class.getName());
     private static final String API_BASE = "https://api.telegram.org/bot";
-    private static final Duration POLL_TIMEOUT = Duration.ofSeconds(60);
-    private static final Duration HTTP_TIMEOUT = Duration.ofSeconds(30);
+    private static final Duration POLL_TIMEOUT = Duration.ofSeconds(15);
+    private static final Duration HTTP_TIMEOUT = Duration.ofSeconds(20);
 
     private final String token;
     private final String apiUrl;
@@ -83,11 +83,16 @@ public class TelegramBotService {
         // Delete any pending webhook to enable getUpdates
         deleteWebhook();
 
+        int cyclesSinceLog = 0;
         while (running.get()) {
             try {
                 var updates = getUpdates();
                 if (updates != null) {
                     processUpdates(updates);
+                }
+                cyclesSinceLog++;
+                if (cyclesSinceLog % 10 == 0) {
+                    LOG.fine("Telegram poll alive, cycles=" + cyclesSinceLog + ", lastUpdateId=" + lastUpdateId);
                 }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
@@ -107,7 +112,7 @@ public class TelegramBotService {
     private void deleteWebhook() {
         try {
             HttpRequest req = HttpRequest.newBuilder()
-                    .uri(URI.create(apiUrl + "/deleteWebhook?drop_pending_updates=true"))
+                    .uri(URI.create(apiUrl + "/deleteWebhook"))
                     .timeout(HTTP_TIMEOUT)
                     .GET()
                     .build();
@@ -121,10 +126,10 @@ public class TelegramBotService {
      * Long-poll getUpdates with offset tracking.
      */
     private String getUpdates() throws Exception {
-        String url = apiUrl + "/getUpdates?timeout=60&offset=" + (lastUpdateId + 1);
+        String url = apiUrl + "/getUpdates?timeout=10&offset=" + (lastUpdateId + 1);
         HttpRequest req = HttpRequest.newBuilder()
                 .uri(URI.create(url))
-                .timeout(POLL_TIMEOUT.plus(Duration.ofSeconds(10)))
+                .timeout(HTTP_TIMEOUT)
                 .GET()
                 .build();
 
@@ -133,7 +138,12 @@ public class TelegramBotService {
             LOG.warning("getUpdates returned " + resp.statusCode() + ": " + resp.body());
             return null;
         }
-        return resp.body();
+        String body = resp.body();
+        if (body.contains("\"result\":[")) {
+            int count = body.split("\"update_id\"").length - 1;
+            LOG.fine("Poll: " + count + " updates received");
+        }
+        return body;
     }
 
     /**
