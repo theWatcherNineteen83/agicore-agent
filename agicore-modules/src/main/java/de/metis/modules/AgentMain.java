@@ -20,6 +20,7 @@ import de.metis.modules.events.WeatherPollingTrigger;
 import de.metis.modules.events.HAEventPoller;
 import de.metis.modules.hardware.HardwareDiscovery;
 import de.metis.modules.hardware.HardwareProfileAction;
+import de.metis.modules.hardware.DeepNettsAction;
 
 import java.io.*;
 import java.net.URI;
@@ -792,10 +793,19 @@ public final class AgentMain {
         LOG.info("Hardware beliefs seeded: " + hw.cpu().model() + ", "
                 + hw.totalRamMb() + " MB RAM, " + hw.gpus().size() + " GPU(s)");
 
-        // Register hardware profiling action
+        // Register hardware profiling + Deep Netts AI actions
         var hwAction = new HardwareProfileAction(agent);
         agent.core().executor().register(hwAction);
         LOG.info("Registered action: " + hwAction.name());
+
+        var dnAction = new DeepNettsAction();
+        agent.core().executor().register(dnAction);
+        LOG.info("Registered action: " + dnAction.name() + " — Deep Netts neural networks");
+
+        // Seed Deep Netts capability belief
+        agent.worldModel().update(
+                "I can create and train neural networks using Deep Netts (pure Java, CPU)",
+                0.9, "deepnetts-init", true);
 
         // ── Start HTTP API (OpenWebUI integration) ────────────
         MetisHttpServer httpServer = null;

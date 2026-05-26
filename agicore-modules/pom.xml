@@ -21,6 +21,12 @@
             <groupId>de.metis</groupId>
             <artifactId>agicore-kernel</artifactId>
         </dependency>
+        <!-- Deep Netts: Pure Java Deep Learning (CPU, Community Edition) -->
+        <dependency>
+            <groupId>com.deepnetts</groupId>
+            <artifactId>deepnetts-core</artifactId>
+            <version>1.13.2</version>
+        </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
