@@ -28,7 +28,7 @@ public class MaryTTSSpeakAction implements Action {
     private static volatile MaryInterface mary;
 
     public MaryTTSSpeakAction(String text) {
-        this(text, "dfki-pavoque-neutral-hsmm");
+        this(text, "bits1-hsmm");  // Java 17+ patched German voice
     }
 
     public MaryTTSSpeakAction(String text, String voice) {
