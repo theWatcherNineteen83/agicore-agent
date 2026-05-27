@@ -74,6 +74,8 @@ public class AgentCoreLoop {
     private final EvolutionManager evolutionManager;
     /** Trigger evolution check every N ticks. */
     private static final int EVOLUTION_CHECK_INTERVAL = 100;
+    /** Enable human-in-the-loop approval for write-category actions. */
+    private boolean requireApprovalForWrite = true;
 
     private long tickCount = 0;
     private CognitiveCycle currentPhase = CognitiveCycle.PERCEIVE;
@@ -193,6 +195,16 @@ public class AgentCoreLoop {
         LOG.fine(() -> "Plan validated: " + validation.reason());
 
         String actionName = plan.getFirst();
+
+        // ── Human-in-the-Loop: Approval-Gate für Write-Aktionen ──
+        if (requireApprovalForWrite && executor.requiresApproval(actionName)) {
+            LOG.warning(() -> "⛔ Write action blocked (requires human approval): " + actionName
+                    + " for goal: " + currentGoal.description());
+            goals.recordOutcome(currentGoal, false);
+            goals.complete(currentGoal.id());
+            metrics.recordTick(currentGoal, null, meta);
+            return ActionResult.fail(actionName, "Blocked: requires human approval", java.time.Instant.now());
+        }
 
         // ── EXECUTE ──────────────────────────────────────────────
         currentPhase = CognitiveCycle.EXECUTE;
@@ -393,6 +405,8 @@ public class AgentCoreLoop {
     public GoalManager goals() { return goals; }
     public Planner planner() { return planner; }
     public ActionExecutor executor() { return executor; }
+    public void setRequireApprovalForWrite(boolean require) { this.requireApprovalForWrite = require; }
+    public boolean isRequireApprovalForWrite() { return requireApprovalForWrite; }
     public MetaCognition meta() { return meta; }
     public CausalModel causalModel() { return causalModel; }
     public ShortTermMemory stm() { return stm; }

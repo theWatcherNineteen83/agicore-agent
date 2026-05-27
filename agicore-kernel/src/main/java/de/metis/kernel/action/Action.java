@@ -24,6 +24,13 @@ public interface Action {
     default String category() { return "read"; }
 
     /**
+     * Whether this action requires human approval before execution.
+     * Default: true for write-category actions (safety-first).
+     * Override to relax for safe write actions (e.g., appending to log).
+     */
+    default boolean requiresApproval() { return "write".equals(category()); }
+
+    /**
      * Execute this action and return the result.
      * <p>
      * Implementations must be self-contained: the caller provides no context

@@ -51,4 +51,15 @@ public class ActionExecutor {
     public java.util.Set<String> availableActions() {
         return java.util.Set.copyOf(registry.keySet());
     }
+
+    /**
+     * Check if a named action requires human approval before execution.
+     *
+     * @param name the action's registered name
+     * @return true if the action requires approval, false otherwise
+     */
+    public boolean requiresApproval(String name) {
+        Action action = registry.get(name);
+        return action != null && action.requiresApproval();
+    }
 }

@@ -596,6 +596,7 @@ public final class AgentMain {
         Path persist = null;
         boolean evolution = false;
         boolean kernelEvolution = false;
+        boolean requireApproval = true;
         int maxTicks = 0;
         int apiPort = 0;  // 0 = disabled
         String planningModel = null;
@@ -631,6 +632,7 @@ public final class AgentMain {
                 case "--mqtt-broker" -> mqttBroker = args[++i];
                 case "--mqtt-user" -> mqttUser = args[++i];
                 case "--mqtt-pass" -> mqttPass = args[++i];
+                case "--no-approval-gate" -> requireApproval = false;
                 case "--help", "-h" -> {
                     System.out.println("""
                             Metis AGI — Self-Evolving Agent System
@@ -685,6 +687,10 @@ public final class AgentMain {
                 .ollamaPlanner("http://192.168.22.204:11434/api/generate", modelRegistry, Duration.ofSeconds(60))
                 .workspaceCapacity(5)
                 .build();
+
+        // Human-in-the-loop: enable/disable approval gate for write actions
+        agent.core().setRequireApprovalForWrite(requireApproval);
+        LOG.info("Approval gate: " + (requireApproval ? "ENABLED (write actions blocked)" : "DISABLED"));
 
         // Register filesystem actions (kernel extensibility)
         agent.core().executor().register(
