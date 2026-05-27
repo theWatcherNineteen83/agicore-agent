@@ -734,7 +734,10 @@ public final class AgentMain {
         // Audio I/O (Mikrofon + Lautsprecher)
         agent.core().executor().register(new AudioInputAction(5));
         agent.core().executor().register(new AudioOutputAction(Path.of("/tmp/test-piper.wav")));
-        LOG.info("Speech actions registered: piper, whisper, mary, sphinx, audio-in, audio-out");
+        // Vocabulary Learning (STT correction → grammar improvement)
+        agent.core().executor().register(new de.metis.kernel.action.VocabularyLearningAction(
+                "test", "test"));
+        LOG.info("Speech actions registered: piper, whisper, mary, vosk, audio-in, audio-out, vocab-learn");
 
         // Inject Ollama mutation service if evolution enabled
         if (evolution) {

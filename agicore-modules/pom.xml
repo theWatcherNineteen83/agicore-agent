@@ -33,6 +33,29 @@
             <artifactId>org.eclipse.paho.client.mqttv3</artifactId>
             <version>1.2.5</version>
         </dependency>
+        <!-- MaryTTS: Pure Java Text-to-Speech (DFKI, German native) -->
+        <dependency>
+            <groupId>de.dfki.mary</groupId>
+            <artifactId>marytts-runtime</artifactId>
+            <version>5.2.1</version>
+            <classifier>jar-with-dependencies</classifier>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.twmacinta</groupId>
+                    <artifactId>fast-md5</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>gov.nist.math</groupId>
+                    <artifactId>Jampack</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <!-- Vosk: Offline Speech Recognition with Java bindings -->
+        <dependency>
+            <groupId>com.alphacephei</groupId>
+            <artifactId>vosk</artifactId>
+            <version>0.3.45</version>
+        </dependency>
         <!-- TornadoVM GPU Acceleration -->
         <dependency>
             <groupId>org.tornadovm</groupId>
@@ -49,6 +72,13 @@
             <artifactId>junit-jupiter</artifactId>
         </dependency>
     </dependencies>
+
+    <repositories>
+        <repository>
+            <id>marytts-mlt</id>
+            <url>https://mlt.jfrog.io/artifactory/mlt-mvn-releases-local</url>
+        </repository>
+    </repositories>
 
     <build>
         <plugins>

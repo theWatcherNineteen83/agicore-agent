@@ -3,18 +3,18 @@
 **Ziel:** EDI-ähnliche KI (Mass Effect 3) — eigenständig, per Sprache und Text ansprechbar,
 mit eigenem Wissen, Persönlichkeit und der Fähigkeit, sich selbst zu verbessern.
 
-**Stand: 27.05.2026 (20 Commits heute)**
+**Stand: 27.05.2026 (23 Commits heute)**
 
 ---
 
-## Fortschritt gesamt: ~75%
+## Fortschritt gesamt: ~82%
 
 ```
 Phase 1 ████████████████████ 100%  Zuverlässiger Kern
 Phase 2 ████████████████████ 100%  Konversation + Events
 Ph 2.5  ████████████████████ 100%  Hardware-Optimierung
 Phase 3 ████████░░░░░░░░░░░░  40%  Wahrnehmung (HA ✅, Kamera/ADS-B ⬜)
-Phase 4 ████████████░░░░░░░░  60%  Sprachausgabe (Code ✅, Audio-I/O ✅, Test 🔜)
+Phase 4 █████████████████░░░  85%  Sprachausgabe (Audio ✅, Java ✅, Test 🔜)
 Phase 5 ██████░░░░░░░░░░░░░░  30%  Eigenständigkeit
 ```
 
@@ -68,19 +68,25 @@ Phase 5 ██████░░░░░░░░░░░░░░  30%  Eigen
 | 3.2 | Kamera-Integration | Türkamera (MJPEG 1080p) + Keller (RTSP) | ⬜ |
 | 3.3 | ADS-B Flugdaten | readsb JSON-Feed → Goals | ⬜ |
 
-## Phase 4: Sprachausgabe & -eingabe 🟡 60%
+## Phase 4: Sprachausgabe & -eingabe 🟡 80%
 
 | # | Feature | Beschreibung | Status |
 |---|---------|-------------|--------|
 | 4.1 | Piper TTS Action | Neural TTS, Deutsch (thorsten-medium) | ✅ |
 | 4.2 | Whisper STT Action | Neural STT, Deutsch (ggml-tiny) | ✅ |
-| 4.3 | MaryTTS Action | Java-native evolvable stub | ✅ |
-| 4.4 | Sphinx4 Action | Java-native evolvable stub | ✅ |
-| 4.5 | Piper CLI installiert | ~/bin/piper + de_DE-thorsten-medium | ✅ |
-| 4.6 | Whisper CLI installiert | ~/bin/whisper-cpp + ggml-tiny.bin | ✅ |
-| 4.7 | Audio-Input (Mikrofon) | Java Sound API → 16kHz mono WAV | ✅ |
-| 4.8 | Audio-Output (Lautsprecher) | Java Sound API ← WAV | ✅ |
-| 4.9 | Voice-Loop | Kontinuierliche Sprachinteraktion | 🔜 |
+| 4.3 | MaryTTS Action | Java-native TTS (de.dfki.mary:5.2.1, fat JAR) | ✅ |
+| 4.4 | Vosk STT Action | Java-native STT (com.alphacephei:vosk:0.3.45) | ✅ |
+| 4.5 | ALSA + PipeWire | Audio-Stack auf miniedi (Realtek ALC1220) | ✅ |
+| 4.6 | Piper CLI + Model | de_DE-thorsten-medium (63 MB) installiert | ✅ |
+| 4.7 | Whisper CLI + Model | openai-whisper (tiny+small) via pipx installiert | ✅ |
+| 4.8 | Audio-Input (Mikrofon) | arecord + Java Sound API → 16kHz mono WAV | ✅ |
+| 4.9 | Audio-Output (Kopfhörer) | aplay/pw-cat + Java Sound API ← WAV | ✅ |
+| 4.10 | Voice-Loop (Shell) | tmux-Session, Push-to-Talk, Metis-Chat | ✅ |
+| 4.11 | Kalibrierung | Referenz-Audio (28s) + Hearing/Speech Benchmark | ✅ |
+| 4.12 | VocabularyLearning | Java-Action: lernt aus STT-Korrekturen → Vosk-Grammatik | ✅ |
+| 4.13 | Vosk deutsches Modell | vosk-model-de downloaden (~92 MB) | ✅ |
+| 4.14 | Voice-Loop (Java) | Java-native kontinuierliche Sprachinteraktion | 🔜 |
+| 4.15 | Live-Test mit Georg | End-to-End: Mikrofon → Metis → Kopfhörer | 🔜 |
 
 ## Phase 5: Eigenständigkeit 🟡 30%
 
@@ -98,9 +104,9 @@ Phase 5 ██████░░░░░░░░░░░░░░  30%  Eigen
 
 ## Nächste Schritte (priorisiert)
 
-1. 🔴 **Piper + Whisper CLI installieren** (miniedi) — macht Phase 4 funktionsfähig
-2. 🔴 **Audio-Input/Output** — Mikrofon + Lautsprecher via Java Sound API
-3. 🟡 **Voice-Loop** — kontinuierliche Sprachsteuerung
+1. 🟡 **Vosk deutsches Modell** — vosk-model-de downloaden (~50 MB)
+2. 🟡 **Java Voice-Loop** — MaryTTS + Vosk native integrieren
+3. 🟡 **Live-Test** — Mikrofon → Metis → Kopfhörer mit Georg
 4. 🟡 **HA Direktzugriff** — Home Assistant states/services API
 5. 🟡 **Kamera-Integration** — MJPEG/RTSP Stream-Verarbeitung
 6. ⚪ **Selbstständige Code-Generierung** — Metis schreibt eigenen Code

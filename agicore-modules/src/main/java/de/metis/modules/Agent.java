@@ -2,7 +2,10 @@ package de.metis.modules;
 
 import de.metis.kernel.action.ActionExecutor;
 import de.metis.kernel.action.HttpRequestAction;
+import de.metis.kernel.action.MaryTTSSpeakAction;
 import de.metis.kernel.action.ShellCommandAction;
+import de.metis.kernel.action.VocabularyLearningAction;
+import de.metis.kernel.action.VoskListenAction;
 import de.metis.kernel.core.AgentCoreLoop;
 import de.metis.kernel.evolution.EvolutionManager;
 import de.metis.kernel.goal.Goal;
@@ -104,6 +107,11 @@ public class Agent {
         public Builder registerHttp(String method, URI uri, Map<String, String> headers, Optional<String> body) {
             executor.register(new HttpRequestAction(method, uri, headers, body)); return this;
         }
+        public Builder registerSpeakTTS(String text) { executor.register(new MaryTTSSpeakAction(text)); return this; }
+        public Builder registerSpeakTTS(String text, String voice) { executor.register(new MaryTTSSpeakAction(text, voice)); return this; }
+        public Builder registerListenSTT(int durationSeconds) { executor.register(new VoskListenAction(durationSeconds)); return this; }
+        public Builder registerListenSTT() { return registerListenSTT(5); }
+        public Builder registerLearnVocabulary(String heard, String correct) { executor.register(new VocabularyLearningAction(heard, correct)); return this; }
         public Builder workspaceCapacity(int capacity) {
             this.workspace = new GlobalWorkspace(new AttentionBuffer(capacity)); return this;
         }
