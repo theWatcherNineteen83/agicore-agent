@@ -2,6 +2,7 @@ package de.metis.modules.events;
 
 import de.metis.modules.events.EventTrigger;
 import de.metis.modules.Agent;
+import de.metis.kernel.goal.Goal;
 
 import org.eclipse.paho.client.mqttv3.*;
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
@@ -27,6 +28,8 @@ public class MqttEventService implements EventTrigger, MqttCallback {
 
     private final AtomicBoolean running = new AtomicBoolean(false);
     private final Map<String, String> lastStates = new ConcurrentHashMap<>();
+    private final Map<String, UUID> topicGoals = new ConcurrentHashMap<>();
+    private static final int MAX_PAYLOAD_LENGTH = 100;
 
     private MqttClient client;
     private Agent agent;
@@ -118,14 +121,21 @@ public class MqttEventService implements EventTrigger, MqttCallback {
             return; // No change
         }
 
+        // Truncate long payloads (MQTT JSON blobs can be 2+ KB)
+        String shortState = state.length() > MAX_PAYLOAD_LENGTH
+                ? state.substring(0, MAX_PAYLOAD_LENGTH - 3) + "..."
+                : state;
+
         // Extract friendly name from topic
         String entityName = topicToName(topic);
         String eventDesc;
         if (oldState == null) {
-            eventDesc = String.format("MQTT: %s = %s (initial)", entityName, state);
+            eventDesc = String.format("MQTT: %s = %s (initial)", entityName, shortState);
         } else {
-            eventDesc = String.format("MQTT: %s wechselte von '%s' → '%s'",
-                    entityName, oldState, state);
+            String shortOld = oldState.length() > MAX_PAYLOAD_LENGTH
+                    ? oldState.substring(0, MAX_PAYLOAD_LENGTH - 3) + "..."
+                    : oldState;
+            eventDesc = String.format("MQTT: %s changed", entityName);
         }
 
         // Determine priority
@@ -135,7 +145,14 @@ public class MqttEventService implements EventTrigger, MqttCallback {
         if (topic.contains("smoke") || topic.contains("gas") || topic.contains("alarm")) priority = 95;
         if (topic.contains("person") || topic.contains("presence")) priority = 70;
 
-        agent.addGoal(eventDesc, "mqtt-event", priority, 0.75, 1);
+        // Deduplicate: complete previous goal for this topic before adding new one
+        UUID oldGoalId = topicGoals.put(topic, null); // placeholder
+        if (oldGoalId != null && agent != null) {
+            agent.completeGoal(oldGoalId);
+        }
+
+        Goal newGoal = agent.addGoal(eventDesc, "mqtt-event", priority, 0.75, 1);
+        topicGoals.put(topic, newGoal.id());
         LOG.fine("MQTT → goal: " + eventDesc);
     }
 

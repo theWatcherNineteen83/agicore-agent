@@ -29,6 +29,7 @@ import de.metis.modules.CuriosityEngine;
 import java.net.URI;
 import java.time.Duration;
 import java.util.List;
+import java.util.UUID;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -48,12 +49,16 @@ public class Agent {
     public void tick() { core.tick(); }
     public void run(int maxTicks) { core.run(maxTicks); }
 
-    public void addGoal(String description, String category, int priority, double reward, int cost) {
-        core.goals().add(new Goal(description, category, priority, reward, cost));
+    public Goal addGoal(String description, String category, int priority, double reward, int cost) {
+        return core.goals().add(new Goal(description, category, priority, reward, cost));
     }
 
-    public void addGoal(String description, int priority, double reward, int cost) {
-        core.goals().add(description, priority, reward, cost);
+    public Goal addGoal(String description, int priority, double reward, int cost) {
+        return core.goals().add(description, priority, reward, cost);
+    }
+
+    public void completeGoal(UUID id) {
+        core.goals().complete(id);
     }
 
     public AgentCoreLoop core() { return core; }

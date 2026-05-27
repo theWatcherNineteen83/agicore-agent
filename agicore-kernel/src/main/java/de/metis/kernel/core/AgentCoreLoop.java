@@ -114,6 +114,11 @@ public class AgentCoreLoop {
     public ActionResult tick() {
         tickCount++;
 
+        // Periodic goal cleanup: prevent unbounded accumulation from MQTT floods
+        if (tickCount % 30 == 0) {
+            goals.purgeExpired(java.time.Duration.ofMinutes(5));
+        }
+
         // ── Phase 3: GLOBAL WORKSPACE BROADCAST ─────────────────
         // Collect content from all subsystems and run the competition.
         // Winners bias perception and planning in this tick.

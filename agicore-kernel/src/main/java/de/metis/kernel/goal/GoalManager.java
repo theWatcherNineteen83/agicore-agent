@@ -159,6 +159,30 @@ public class GoalManager {
         return (int) goals.values().stream().filter(Goal::active).count();
     }
 
+    /**
+     * Auto-close active goals older than {@code maxAge}.
+     * Prevents unbounded goal accumulation from high-frequency event sources (e.g. MQTT).
+     *
+     * @param maxAge maximum age for an active goal before it's auto-completed
+     * @return number of goals auto-closed
+     */
+    public int purgeExpired(java.time.Duration maxAge) {
+        java.time.Instant cutoff = java.time.Instant.now().minus(maxAge);
+        List<Goal> expired = goals.values().stream()
+                .filter(g -> g.active() && g.createdAt().isBefore(cutoff))
+                .toList();
+        int purged = 0;
+        for (Goal g : expired) {
+            complete(g.id());
+            purged++;
+        }
+        if (purged > 0) {
+            final int count = purged;
+            LOG.info(() -> "Purged " + count + " expired goals (maxAge=" + maxAge.toMinutes() + "m)");
+        }
+        return purged;
+    }
+
     // ── Phase 2: Adaptive Reprioritization ──────────────────────
 
     /**
