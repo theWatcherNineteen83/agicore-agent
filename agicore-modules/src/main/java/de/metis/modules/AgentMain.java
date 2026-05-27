@@ -740,7 +740,10 @@ public final class AgentMain {
         // Vocabulary Learning (STT correction → grammar improvement)
         agent.core().executor().register(new de.metis.kernel.action.VocabularyLearningAction(
                 "test", "test"));
-        LOG.info("Speech actions registered: piper, whisper, mary, vosk, audio-in, audio-out, vocab-learn");
+        // Wikipedia self-service — reads articles from local dump
+        agent.core().executor().register(new de.metis.kernel.action.WikipediaAction(
+                "Künstliche Intelligenz"));
+        LOG.info("Speech/Knowledge actions registered: piper, whisper, mary, vosk, audio-in, audio-out, vocab-learn, wikipedia");
 
         // ── Voice Loop Service (optional, controlled by voice-loop flag) ──
         VoiceLoopService voiceLoop = null;

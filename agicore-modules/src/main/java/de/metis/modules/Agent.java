@@ -5,6 +5,7 @@ import de.metis.kernel.action.HttpRequestAction;
 import de.metis.kernel.action.MaryTTSSpeakAction;
 import de.metis.kernel.action.ShellCommandAction;
 import de.metis.kernel.action.VocabularyLearningAction;
+import de.metis.kernel.action.WikipediaAction;
 import de.metis.kernel.action.VoskListenAction;
 import de.metis.kernel.core.AgentCoreLoop;
 import de.metis.kernel.evolution.EvolutionManager;
@@ -33,6 +34,7 @@ import java.net.URI;
 import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
+import java.nio.file.Path;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -112,6 +114,8 @@ public class Agent {
         public Builder registerListenSTT(int durationSeconds) { executor.register(new VoskListenAction(durationSeconds)); return this; }
         public Builder registerListenSTT() { return registerListenSTT(5); }
         public Builder registerLearnVocabulary(String heard, String correct) { executor.register(new VocabularyLearningAction(heard, correct)); return this; }
+        public Builder registerWikipedia(String topic) { executor.register(new WikipediaAction(topic)); return this; }
+        public Builder registerWikipedia(String topic, String mode, Path dir) { executor.register(new WikipediaAction(topic, mode, dir)); return this; }
         public Builder workspaceCapacity(int capacity) {
             this.workspace = new GlobalWorkspace(new AttentionBuffer(capacity)); return this;
         }
