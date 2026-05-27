@@ -26,7 +26,7 @@
 ## Phase 3: Wahrnehmung ⬜
 - [ ] Kamera-Integration (Türkamera, Keller)
 - [ ] ADS-B Flugdaten
-- [ ] Home Assistant Direktzugriff (states, services)
+- [x] Home Assistant Direktzugriff (states, services) ✅
 
 ## Phase 4: Sprachausgabe 🟡 40%
 - [x] Piper TTS Action (neural, Deutsch, CLI) ✅
