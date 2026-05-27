@@ -25,8 +25,8 @@ public class WhisperSttAction implements Action {
 
     private static final Logger LOG = Logger.getLogger(WhisperSttAction.class.getName());
     private static final String NAME = "stt-whisper";
-    private static final String DEFAULT_MODEL = "ggml-tiny.bin";
-    private static final String WHISPER_BIN = "whisper-cpp";
+    private static final String DEFAULT_MODEL = System.getProperty("user.home") + "/ggml-tiny.bin";
+    private static final String WHISPER_BIN = System.getProperty("user.home") + "/bin/whisper-cpp";
 
     private final Path audioFile;
     private final String model;
@@ -58,8 +58,8 @@ public class WhisperSttAction implements Action {
                     WHISPER_BIN,
                     "-m", model,
                     "-l", language,
-                    "-f", audioFile.toString(),
-                    "-otxt"  // output as text
+                    "--no-timestamps",
+                    "-f", audioFile.toString()
             );
             pb.redirectError(ProcessBuilder.Redirect.DISCARD);
 

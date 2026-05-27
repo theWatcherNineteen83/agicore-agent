@@ -25,7 +25,7 @@ public class PiperTtsAction implements Action {
 
     private static final Logger LOG = Logger.getLogger(PiperTtsAction.class.getName());
     private static final String NAME = "tts-piper";
-    private static final String DEFAULT_MODEL = "de_DE-thorsten-medium";
+    private static final String DEFAULT_MODEL = System.getProperty("user.home") + "/piper-voices/de_DE-thorsten-medium.onnx";
     private static final String PIPER_BIN = "piper";
 
     private final String text;
