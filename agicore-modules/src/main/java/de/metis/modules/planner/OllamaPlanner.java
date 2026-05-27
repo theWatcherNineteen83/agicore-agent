@@ -90,7 +90,7 @@ public class OllamaPlanner implements Planner {
      */
     public OllamaPlanner() {
         this("http://192.168.22.204:11434/api/generate",
-             "mistral-small3.1:24b",
+             "nemotron-cascade-2:30b",
              Duration.ofSeconds(60));
     }
 
@@ -105,9 +105,9 @@ public class OllamaPlanner implements Planner {
         this.ollamaUrl = ollamaUrl;
         this.modelProvider = () -> model;
         this.timeout = timeout;
-        // Default fallback chain: nemotron → qwen3.6 → mistral-small3.1
+        // Default fallback chain: mistral-small3.1 → nemotron → qwen3.6
         this.fallbackModels.addAll(List.of(
-            "nemotron-mini:4.2b",
+            "mistral-small3.1:24b",
             "nemotron:latest",
             "qwen3.6:latest"
         ));
@@ -121,9 +121,9 @@ public class OllamaPlanner implements Planner {
         this.ollamaUrl = ollamaUrl;
         this.modelProvider = registry::planningModel;
         this.timeout = timeout;
-        // Default fallback chain: nemotron → qwen3.6 → mistral-small3.1
+        // Default fallback chain: mistral-small3.1 → nemotron → qwen3.6
         this.fallbackModels.addAll(List.of(
-            "nemotron-mini:4.2b",
+            "mistral-small3.1:24b",
             "nemotron:latest",
             "qwen3.6:latest"
         ));
@@ -248,10 +248,10 @@ public class OllamaPlanner implements Planner {
                     modelsToTry.add(fb);
                 }
             }
-            // Also add mistral-small3.1:24b as ultimate LLM fallback if not already in chain
-            if (!modelsToTry.contains("mistral-small3.1:24b")
-                    && !"mistral-small3.1:24b".equals(primaryModel)) {
-                modelsToTry.add("mistral-small3.1:24b");
+            // Also add qwen3.6:latest as ultimate LLM fallback if not already in chain
+            if (!modelsToTry.contains("qwen3.6:latest")
+                    && !"qwen3.6:latest".equals(primaryModel)) {
+                modelsToTry.add("qwen3.6:latest");
             }
 
             for (String fallbackModel : modelsToTry) {
@@ -289,7 +289,7 @@ public class OllamaPlanner implements Planner {
                       "stream": false,
                       "format": "json",
                       "options": {
-                        "temperature": 0.1,
+                        "temperature": 0.3,
                         "top_p": 0.95,
                         "num_predict": 256
                       }
@@ -350,37 +350,60 @@ public class OllamaPlanner implements Planner {
     private String buildPlanningPrompt(Goal goal, List<Experience> recentHistory,
                                         List<ContentItem> broadcast, MetaCognition meta) {
         StringBuilder sb = new StringBuilder();
-        sb.append("You are an action planner for an autonomous agent. Select the BEST single action for the goal.\n");
-        sb.append("Respond with ONLY a JSON object: {\"action\":\"<name>\",\"reasoning\":\"<why>\",\"confidence\":<0.0-1.0>}\n\n");
-        sb.append("ACTION DESCRIPTIONS:\n");
-        sb.append("- shell: run Linux commands (system checks, process info)\n");
-        sb.append("- http: make HTTP requests (health checks, API calls)\n");
-        sb.append("- webscrape: extract text from web pages\n");
-        sb.append("- filesystem-list: list directory contents\n");
-        sb.append("- filesystem-read: read file contents\n");
-        sb.append("- api-explore: discover and probe HTTP endpoints\n");
-        sb.append("- linux-explore-system: probe system info (processes, memory, disk)\n");
-        sb.append("- memory-query: search agent's long-term memory\n");
-        sb.append("- self-analyze: analyze agent's own performance\n");
-        sb.append("- javasandbox: run safe Java code experiments\n\n");
-        sb.append("EXAMPLES:\n");
-        sb.append("Goal: Check system status → {\"action\":\"shell\",\"reasoning\":\"use shell for system check\",\"confidence\":0.9}\n");
-        sb.append("Goal: HTTP health check → {\"action\":\"http\",\"reasoning\":\"HTTP request for health endpoint\",\"confidence\":0.95}\n");
-        sb.append("Goal: Explore API endpoints → {\"action\":\"api-explore\",\"reasoning\":\"discover available HTTP endpoints\",\"confidence\":0.85}\n");
-        sb.append("Goal: Explore filesystem → {\"action\":\"filesystem-list\",\"reasoning\":\"list directory structure\",\"confidence\":0.8}\n\n");
 
-        // Goal
-        sb.append("GOAL: ").append(goal.description()).append("\n");
+        // ── System role + Chain-of-Thought ──
+        sb.append("You are Metis, an autonomous agent that selects the single best action per goal.\n");
+        sb.append("Think step by step before answering:\n");
+        sb.append("  (1) ANALYZE: What does the goal really need? What type of work?\n");
+        sb.append("  (2) MATCH: Which action category fits best?\n");
+        sb.append("  (3) CHECK: Did this action fail recently for similar goals? If action has 0% learned success → avoid it.\n");
+        sb.append("  (4) DECIDE: Pick the action with highest expected success. Be decisive — ONE action.\n\n");
+
+        sb.append("RULES:\n");
+        sb.append("- Prefer actions with proven success rates over untested ones\n");
+        sb.append("- If an action has 0% success or recently failed for similar goals → STRONGLY prefer alternatives\n");
+        sb.append("- Shell is the default fallback only when no specialized action fits\n");
+        sb.append("- Be decisive: return exactly ONE action, no hedging\n\n");
+
+        // ── Action catalog ──
+        sb.append("ACTION CATALOG:\n");
+        sb.append("- shell: run Linux commands (system checks, process info, general exploration)\n");
+        sb.append("- http: make HTTP requests (health checks, API calls, endpoint testing)\n");
+        sb.append("- webscrape: extract human-readable text from web pages\n");
+        sb.append("- filesystem-list: list directory contents, discover file structure\n");
+        sb.append("- filesystem-read: read complete file contents by path\n");
+        sb.append("- api-explore: discover and probe HTTP endpoints on a target host\n");
+        sb.append("- linux-explore-system: deep system probe (processes, memory, disk, network)\n");
+        sb.append("- memory-query: search the agent's own long-term knowledge base\n");
+        sb.append("- self-analyze: inspect agent's own performance metrics and state\n");
+        sb.append("- javasandbox: execute safe, sandboxed Java code experiments\n\n");
+
+        // ── Rich Few-Shot examples (one per action category) ──
+        sb.append("FEW-SHOT EXAMPLES:\n");
+        sb.append("Goal: Check system status → {\"action\":\"shell\",\"reasoning\":\"shell commands for system health check\",\"confidence\":0.90}\n");
+        sb.append("Goal: Verify if webserver is reachable → {\"action\":\"http\",\"reasoning\":\"HTTP GET to health endpoint\",\"confidence\":0.95}\n");
+        sb.append("Goal: Extract article text from a URL → {\"action\":\"webscrape\",\"reasoning\":\"webscrape extracts readable text from HTML\",\"confidence\":0.90}\n");
+        sb.append("Goal: List all files in /etc directory → {\"action\":\"filesystem-list\",\"reasoning\":\"directory listing via filesystem action\",\"confidence\":0.95}\n");
+        sb.append("Goal: Read the contents of config.json → {\"action\":\"filesystem-read\",\"reasoning\":\"read specific file by path\",\"confidence\":0.95}\n");
+        sb.append("Goal: Discover available REST endpoints → {\"action\":\"api-explore\",\"reasoning\":\"probe HTTP endpoints systematically\",\"confidence\":0.85}\n");
+        sb.append("Goal: Get detailed system resource overview → {\"action\":\"linux-explore-system\",\"reasoning\":\"deep system probe for resources\",\"confidence\":0.85}\n");
+        sb.append("Goal: What do I know about network configuration? → {\"action\":\"memory-query\",\"reasoning\":\"search agent's long-term knowledge base\",\"confidence\":0.80}\n");
+        sb.append("Goal: How well am I performing lately? → {\"action\":\"self-analyze\",\"reasoning\":\"self-analysis of performance metrics\",\"confidence\":0.85}\n");
+        sb.append("Goal: Run a Java math experiment safely → {\"action\":\"javasandbox\",\"reasoning\":\"sandboxed Java execution for safe code\",\"confidence\":0.90}\n\n");
+
+        // ── Goal context ──
+        sb.append("CURRENT GOAL:\n");
+        sb.append("Description: ").append(goal.description()).append("\n");
         sb.append("Category: ").append(goal.category()).append("\n");
         sb.append("Priority: ").append(goal.priority()).append("/100\n");
         sb.append("Expected reward: ").append(String.format("%.2f", goal.expectedReward())).append("\n\n");
 
-        // Available actions
+        // ── Available actions ──
         sb.append("AVAILABLE ACTIONS: ").append(String.join(", ", availableActions)).append("\n\n");
 
-        // Workspace attention (broadcast)
+        // ── Workspace attention (broadcast) ──
         if (!broadcast.isEmpty()) {
-            sb.append("ATTENTION FOCUS:\n");
+            sb.append("ATTENTION FOCUS (what the agent is currently attending to):\n");
             for (ContentItem item : broadcast) {
                 sb.append("- [").append(item.source()).append("] ")
                         .append(item.summary()).append("\n");
@@ -388,11 +411,11 @@ public class OllamaPlanner implements Planner {
             sb.append("\n");
         }
 
-        // World model beliefs (most relevant to goal)
+        // ── World model beliefs ──
         if (worldModel != null) {
             List<Belief> relevant = worldModel.query(goal.description(), 5);
             if (!relevant.isEmpty()) {
-                sb.append("WORLD KNOWLEDGE (relevant beliefs):\n");
+                sb.append("WORLD KNOWLEDGE (beliefs relevant to this goal):\n");
                 for (Belief b : relevant) {
                     sb.append("- ").append(b.statement())
                             .append(" (confidence: ").append(String.format("%.2f", b.confidence())).append(")\n");
@@ -401,32 +424,32 @@ public class OllamaPlanner implements Planner {
             }
         }
 
-        // Recent history (last 5 experiences)
+        // ── Recent experiences ──
         if (!recentHistory.isEmpty()) {
-            sb.append("RECENT EXPERIENCES:\n");
+            sb.append("RECENT EXPERIENCES (last 5, pay attention to failures!):\n");
             List<Experience> recent = recentHistory.size() > 5
                     ? recentHistory.subList(recentHistory.size() - 5, recentHistory.size())
                     : recentHistory;
             for (Experience exp : recent) {
                 sb.append("- ").append(exp.actionName())
-                        .append(exp.success() ? " ✓" : " ✗")
-                        .append(" goal: ").append(exp.goalDescription())
-                        .append(" (error: ").append(String.format("%.2f", exp.predictionError())).append(")\n");
+                        .append(exp.success() ? " ✓" : " ✗ FAILED")
+                        .append(" | goal: ").append(exp.goalDescription())
+                        .append(" | error: ").append(String.format("%.2f", exp.predictionError())).append("\n");
             }
             sb.append("\n");
         }
 
-        // Meta-cognitive state
-        sb.append("AGENT STATE:\n");
+        // ── Meta-cognitive state ──
+        sb.append("AGENT INTERNAL STATE:\n");
         sb.append("Confidence: ").append(String.format("%.2f", meta.confidence())).append("\n");
         sb.append("Surprised: ").append(meta.isSurprised()).append("\n");
         sb.append("Rolling error: ").append(String.format("%.2f", meta.rollingError())).append("\n");
         sb.append("Observations: ").append(meta.observationCount()).append("\n\n");
 
-        // Learned action-goal success rates (the agent's own experience)
-        sb.append("LEARNED ACTION SUCCESS RATES:\n");
+        // ── Learned success rates ──
+        sb.append("LEARNED ACTION SUCCESS RATES (warning: avoid actions with 0%!):\n");
         if (planningAttempts.isEmpty()) {
-            sb.append("(no learned data yet)\n");
+            sb.append("(no learned data yet — use examples above as guide)\n");
         } else {
             for (var entry : planningAttempts.entrySet()) {
                 String key = entry.getKey();
@@ -436,16 +459,18 @@ public class OllamaPlanner implements Planner {
                 if (att >= MIN_ATTEMPTS) {
                     sb.append("- ").append(key)
                             .append(": ").append(String.format("%.0f%%", rate * 100))
-                            .append(" (").append(succ).append("/").append(att).append(")\n");
+                            .append(" (").append(succ).append("/").append(att).append(")");
+                    if (rate == 0.0) sb.append(" ⚠️ AVOID");
+                    sb.append("\n");
                 }
             }
         }
         sb.append("\n");
 
-        sb.append("Which SINGLE action should the agent execute NOW?\n");
-        sb.append("IMPORTANT: You MUST include all three fields: action, reasoning, confidence.\n");
-        sb.append("The action field IS REQUIRED. Choose from the available actions list.\n");
-        sb.append("Respond with ONLY:\n{\"action\":\"");
+        // ── Final instruction ──
+        sb.append("DECISION: Based on the above analysis, which SINGLE action should execute NOW?\n");
+        sb.append("Respond with ONLY this JSON (no markdown, no extra text):\n");
+        sb.append("{\"action\":\"<name>\",\"reasoning\":\"<one sentence why>\",\"confidence\":<0.0-1.0>}");
 
         return sb.toString();
     }
@@ -829,7 +854,7 @@ public class OllamaPlanner implements Planner {
 
     /** Resolve model name from provider (lazy, allows runtime model switching). */
     private String resolveModel() {
-        return modelProvider != null ? modelProvider.get() : "mistral-small3.1:24b";
+        return modelProvider != null ? modelProvider.get() : "nemotron-cascade-2:30b";
     }
 
     private static String escapeJson(String s) {
