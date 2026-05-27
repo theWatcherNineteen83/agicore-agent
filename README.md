@@ -83,10 +83,12 @@ Metis wählt automatisch die besten verfügbaren Ollama-Modelle pro Aufgabe:
 
 | Aufgabe | Modell | Größe |
 |---------|--------|-------|
-| Planning | `mistral-small3.1:24b` | 15.5 GB |
+| Planning | `nemotron-cascade-2:30b` | ~18 GB |
 | Mutation | `deepseek-r1:32b` | 19.9 GB |
 | Embedding | `llama3.2:3b` | 2.0 GB |
 | Chat (Telegram) | `phi4:latest` | 9.1 GB |
+
+**Fallback-Chain (auto):** nemotron-cascade-2:30b → mistral-small3.1:24b → nemotron:latest → qwen3.6:latest
 
 **VRAM-Budget (RX 7900 XTX, 24 GB):**
 - Dauerlast: Planning 15.5 + Chat 9.1 = 24.6 GB (Ollama offloading)
@@ -160,7 +162,7 @@ URL: http://<host>:11735
 | `GET /api/evolution/status` | Evolution-Status |
 | `GET /api/evolution/pause` / `resume` | Evolution pausieren/fortsetzen |
 
-## Status — 26.05.2026
+## Status — 27.05.2026
 
 **Version:** 0.2.0-evolution | **Planner:** 99–100% LLM-Erfolgsrate | **GPU:** ROCm-accelerated
 
@@ -168,41 +170,47 @@ URL: http://<host>:11735
 
 - ✅ `format: json` — Ollama-Planner mit strukturiertem JSON-Output
 - ✅ Response-Parsing — /api/generate, /api/chat, Thinking-Modelle, Raw-Body-Fallback
-- ✅ Model-Fallback-Chain — nemotron-mini → nemotron → qwen3.6 → keyword
+- ✅ Model-Fallback-Chain — 3-stufig: mistral-small3.1→nemotron→qwen3.6
 - ✅ Plan-Validierung — Safety-Gate, Action-Relevance, Duplicate-Guard
-- ✅ Prompt-Optimierung — 10 Action-Descriptions, 4 Few-Shot-Beispiele
+- ✅ Prompt-Optimierung v1 — 4 Few-Shot-Beispiele
+- ✅ **Prompt-Optimierung v2** — Chain-of-Thought (4-Schritt), 10 Few-Shot, Failure-Avoidance, temp 0.3
 - ✅ systemd-Service — Auto-Restart, Journal-Logging, Runs on boot
 
-### Phase 2: Konversations-KI 🟢 ✅ 100% ABGESCHLOSSEN
+### Phase 2: Konversations-KI ✅ 100%
 
 - ✅ Persona-System — EDI-Identität (Mass Effect 3), Werte, Tonfall
 - ✅ Chat-Speicher — SQLite `conversation_messages` mit Session-ID
 - ✅ Multi-Turn-Kontext — `/api/chat` mit Konversationshistorie
-- ✅ `/api/conversations` — Sessions auflisten und durchsuchen
 - ✅ Telegram-Bot — @metis_agi_bot, Direkt-Chat via LLM (phi4:latest)
-- ✅ Wetter-Trigger — ICOBURG22 Polling alle 15 Min, Regen/Sturm/Hitze-Alarme
+- ✅ Wetter-Trigger — ICOBURG22 Polling alle 15 Min
 - ✅ HA-Event-Trigger — binary_sensor, person, camera via REST API
 - ✅ Hardware-Self-Awareness — CPU, GPU, RAM, SIMD, VRAM, ROCm
-- ✅ Hardware-Profiling — Live-Snapshot (CPU-Last, Heap, Memory)
 - ✅ Deep Netts — Pure-Java neuronale Netze, XOR-Training
 - ✅ KnowledgeReplyService — Eigene Antworten aus Beliefs (>70% Confidence)
-- ⬜ Proaktive Meldungen — Event-Trigger → Telegram-Benachrichtigung
+- ✅ **Proaktive Meldungen** — MQTT/Wetter/HA-Events → Telegram
+- ✅ **MQTT-Integration** — Eclipse Paho, Topic-Filter, Event-Trigger
 
-### Phase 2.5: Hardware-Optimierung 🔄 BEGONNEN
+### Runde 2 & 3 (26.05. Abends) ✅
+
+- ✅ Fitness-Signal — multidimensional (Prediction-Accuracy, Surprise, Efficiency, Completion)
+- ✅ Curiosity-Engine — Surprise-getriebene Exploration
+- ✅ Kausale Schicht — CausalModel (Pearl Do-Calculus)
+- ✅ MQTT-Topic-Filter — Wildcard → spezifische Topics
+
+### Phase 2.5: Hardware-Optimierung 🔄
 
 - ✅ Hardware-Discovery — Ryzen 7 5700G, RX 7900 XTX, 64 GB RAM, AVX2
-- ✅ Modell-Optimierung — deepseek-r1:32b (Mutation), mistral-small3.1:24b (Planning)
-- ✅ VRAM-Budget — Planning 15.5 GB + Chat 9 GB = 24.5 GB (Ollama offloading)
+- ✅ VRAM-Budget — Planning ~18 GB + Chat 9 GB = 27 GB (Ollama offloading)
 - ⬜ Project Panama FFM — GPU-Datentransfer ohne JNI
-- ⬜ TornadoVM — Java → GPU-Kernel-Kompilierung
+- ⬜ TornadoVM (vorbereitet) — Java → GPU-Kernel-Kompilierung
 
 ### Roadmap
 
 | Phase | Ziel | Status |
 |-------|------|--------|
 | 🔧 Phase 1 | Stabiler Kern (>85% Planner) | ✅ done |
-| 💬 Phase 2 | Konversation + Persona + Events | 🟢 ✅ 100% |
-| ⚡ Phase 2.5 | Hardware-Optimierung (GPU, Panama) | 🔄 begonnen |
+| 💬 Phase 2 | Konversation + Persona + Events + MQTT | ✅ 100% |
+| ⚡ Phase 2.5 | Hardware-Optimierung (GPU, Panama, TornadoVM) | 🔄 begonnen |
 | 👁️ Phase 3 | Wahrnehmung (HA, Kameras, ADS-B) | ⬜ |
 | 🎙️ Phase 4 | Sprachausgabe (TTS/STT) | ⬜ |
 | 🧠 Phase 5 | Eigenständigkeit + Selbstverbesserung | ⬜ |
