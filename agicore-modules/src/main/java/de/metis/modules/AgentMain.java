@@ -33,6 +33,7 @@ import de.metis.modules.speech.MaryTtsAction;
 import de.metis.modules.speech.SphinxSttAction;
 import de.metis.modules.speech.AudioOutputAction;
 import de.metis.modules.speech.AudioInputAction;
+import de.metis.modules.speech.VoiceLoopService;
 import de.metis.modules.home.HomeAssistantAction;
 
 import java.io.*;
@@ -604,6 +605,7 @@ public final class AgentMain {
         boolean evolution = false;
         boolean kernelEvolution = false;
         boolean requireApproval = true;
+        boolean voiceLoopEnabled = false;
         int maxTicks = 0;
         int apiPort = 0;  // 0 = disabled
         String planningModel = null;
@@ -640,6 +642,7 @@ public final class AgentMain {
                 case "--mqtt-user" -> mqttUser = args[++i];
                 case "--mqtt-pass" -> mqttPass = args[++i];
                 case "--no-approval-gate" -> requireApproval = false;
+                case "--voice-loop" -> voiceLoopEnabled = true;
                 case "--help", "-h" -> {
                     System.out.println("""
                             Metis AGI — Self-Evolving Agent System
@@ -738,6 +741,14 @@ public final class AgentMain {
         agent.core().executor().register(new de.metis.kernel.action.VocabularyLearningAction(
                 "test", "test"));
         LOG.info("Speech actions registered: piper, whisper, mary, vosk, audio-in, audio-out, vocab-learn");
+
+        // ── Voice Loop Service (optional, controlled by voice-loop flag) ──
+        VoiceLoopService voiceLoop = null;
+        if (voiceLoopEnabled) {
+            voiceLoop = new VoiceLoopService(agent.core().goals());
+            voiceLoop.start();
+            LOG.info("Voice loop started (Vosk → Metis → MaryTTS)");
+        }
 
         // Inject Ollama mutation service if evolution enabled
         if (evolution) {
