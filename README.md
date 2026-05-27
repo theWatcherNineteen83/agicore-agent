@@ -212,7 +212,7 @@ URL: http://<host>:11735
 | 💬 Phase 2 | Konversation + Persona + Events + MQTT | ✅ 100% |
 | ⚡ Phase 2.5 | Hardware-Optimierung (GPU, Panama, TornadoVM) | ✅ done |
 | 👁️ Phase 3 | Wahrnehmung (HA, Kameras, ADS-B) | ⬜ |
-| 🎙️ Phase 4 | Sprachausgabe (TTS/STT) | ⬜ |
+| 🎙️ Phase 4 | Sprachausgabe (TTS/STT) | 🟡 90% | Java-native MaryTTS + Vosk, Piper + Whisper |
 | 🧠 Phase 5 | Eigenständigkeit + Selbstverbesserung | ⬜ |
 
 **Ziel:** EDI-ähnliche KI (Mass Effect 3) — eigenständig, per Text und Telegram ansprechbar, mit eigenem Wissen.

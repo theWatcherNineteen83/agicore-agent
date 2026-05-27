@@ -28,11 +28,13 @@
 - [ ] ADS-B Flugdaten
 - [x] Home Assistant Direktzugriff (states, services) ✅
 
-## Phase 4: Sprachausgabe 🟡 85%
+## Phase 4: Sprachausgabe 🟡 90%
 - [x] Piper TTS Action (neural, Deutsch, CLI) ✅
 - [x] MaryTTS Action (Java-native, de.dfki.mary:5.2.1 fat JAR) ✅
+- [x] MaryTTS bits1-hsmm deutsche Stimme (Java-17-Patch) ✅
 - [x] Whisper STT Action (neural, Deutsch, CLI) ✅
 - [x] Vosk STT Action (Java-native, com.alphacephei:vosk:0.3.45) ✅
+- [x] Vosk deutsches Modell downloaden (vosk-model-de-0.15, 92 MB) ✅
 - [x] Piper + Whisper CLI auf miniedi installiert ✅
 - [x] Audio-Input (Mikrofon → WAV) ✅
 - [x] Audio-Output (WAV → Lautsprecher) ✅
@@ -40,7 +42,8 @@
 - [x] Kalibrierung: Referenz-Audio (28s) + Hearing/Speech Benchmark ✅
 - [x] VocabularyLearningAction (Java, lernt aus Korrektur-Paaren) ✅
 - [x] Voice-Loop (Shell/tmux, Push-to-Talk) ✅
-- [x] Vosk deutsches Modell downloaden (vosk-model-de-0.15, 92 MB) ✅
+- [x] Wikipedia-Trainingsloop (9 Artikel, Wissen+Sprache) ✅
+- [x] MaryTTS XSLT-Patch PR #1122 an upstream ✅
 - [ ] Java Voice-Loop (MaryTTS + Vosk nativ integrieren)
 - [ ] Live-Test mit Georg (Mikrofon → Metis → Kopfhörer)
 

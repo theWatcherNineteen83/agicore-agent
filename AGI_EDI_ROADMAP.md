@@ -3,18 +3,18 @@
 **Ziel:** EDI-ähnliche KI (Mass Effect 3) — eigenständig, per Sprache und Text ansprechbar,
 mit eigenem Wissen, Persönlichkeit und der Fähigkeit, sich selbst zu verbessern.
 
-**Stand: 27.05.2026 (23 Commits heute)**
+**Stand: 27.05.2026 (26 Commits, Phase 4: 90%)**
 
 ---
 
-## Fortschritt gesamt: ~82%
+## Fortschritt gesamt: ~84%
 
 ```
 Phase 1 ████████████████████ 100%  Zuverlässiger Kern
 Phase 2 ████████████████████ 100%  Konversation + Events
 Ph 2.5  ████████████████████ 100%  Hardware-Optimierung
 Phase 3 ████████░░░░░░░░░░░░  40%  Wahrnehmung (HA ✅, Kamera/ADS-B ⬜)
-Phase 4 █████████████████░░░  85%  Sprachausgabe (Audio ✅, Java ✅, Test 🔜)
+Phase 4 ██████████████████░░  90%  Sprachausgabe (Java ✅, Vosk ✅, Wiki 🔄)
 Phase 5 ██████░░░░░░░░░░░░░░  30%  Eigenständigkeit
 ```
 
@@ -85,8 +85,11 @@ Phase 5 ██████░░░░░░░░░░░░░░  30%  Eigen
 | 4.11 | Kalibrierung | Referenz-Audio (28s) + Hearing/Speech Benchmark | ✅ |
 | 4.12 | VocabularyLearning | Java-Action: lernt aus STT-Korrekturen → Vosk-Grammatik | ✅ |
 | 4.13 | Vosk deutsches Modell | vosk-model-de downloaden (~92 MB) | ✅ |
-| 4.14 | Voice-Loop (Java) | Java-native kontinuierliche Sprachinteraktion | 🔜 |
-| 4.15 | Live-Test mit Georg | End-to-End: Mikrofon → Metis → Kopfhörer | 🔜 |
+| 4.14 | MaryTTS bits1 | Java-native deutsche Stimme (Java-17-Patch eingebaut) | ✅ |
+| 4.15 | MaryTTS XSLT-Patch | Pull Request #1122 an upstream (Metis AGI + DeepSeek R1 32B) | ✅ |
+| 4.16 | Wikipedia-Trainingsloop | 9 Artikel, Wissen+Sprache über Nacht lernen | ✅ |
+| 4.17 | Voice-Loop (Java) | Java-native kontinuierliche Sprachinteraktion | 🔜 |
+| 4.18 | Live-Test mit Georg | End-to-End: Mikrofon → Metis → Kopfhörer | 🔜 |
 
 ## Phase 5: Eigenständigkeit 🟡 30%
 
