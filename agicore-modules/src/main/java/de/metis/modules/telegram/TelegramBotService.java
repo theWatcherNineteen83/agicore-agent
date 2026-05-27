@@ -9,8 +9,12 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
+import java.io.IOException;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Logger;
 
@@ -239,7 +243,22 @@ public class TelegramBotService {
             }
             
             // Extract text from "text":"..."
+            // Also check for voice message ("voice":{"file_id":"..."})
             String text = null;
+            String voiceFileId = null;
+            
+            // Check for voice message first
+            int voiceIdx = json.indexOf("\"voice\":{", uidStart);
+            if (voiceIdx > 0) {
+                voiceFileId = extractJsonString(json.substring(voiceIdx, Math.min(voiceIdx + 200, json.length())), "file_id");
+                if (voiceFileId != null) {
+                    LOG.info("Voice message detected, file_id=" + voiceFileId);
+                    text = processVoiceMessage(voiceFileId);
+                }
+            }
+            
+            // Fallback: text message
+            if (text == null) {
             int textIdx = json.indexOf("\"text\":\"", uidStart);
             if (textIdx > 0) {
                 textIdx += "\"text\":\"".length();
@@ -263,6 +282,7 @@ public class TelegramBotService {
                 }
                 text = textBuf.toString();
             }
+            } // end text==null block
             
             // Extract first_name from "from":{"id":...,"first_name":"..."
             String firstName = null;
@@ -398,6 +418,123 @@ public class TelegramBotService {
             }
         }
         return result.toString();
+    }
+
+    /**
+     * Process a Telegram voice message: download OGG, convert to WAV, transcribe.
+     * @return transcribed text, or null on failure
+     */
+    private String processVoiceMessage(String fileId) {
+        try {
+            // 1. Get file path from Telegram
+            String filePath = getTelegramFilePath(fileId);
+            if (filePath == null) {
+                LOG.warning("Could not get file path for voice message " + fileId);
+                return null;
+            }
+            LOG.info("Voice file path: " + filePath);
+
+            // 2. Download voice file (.ogg Opus)
+            Path oggFile = Path.of("/tmp", "telegram-voice-" + fileId + ".ogg");
+            String downloadUrl = "https://api.telegram.org/file/bot" + token + "/" + filePath;
+            downloadFile(downloadUrl, oggFile);
+
+            if (!Files.exists(oggFile) || Files.size(oggFile) < 100) {
+                LOG.warning("Voice download failed or too small: " + oggFile);
+                return null;
+            }
+            LOG.info("Downloaded voice: " + Files.size(oggFile) + " bytes");
+
+            // 3. Convert OGG → 16kHz mono WAV (for Whisper)
+            Path wavFile = Path.of("/tmp", "telegram-voice-" + fileId + ".wav");
+            ProcessBuilder ffmpeg = new ProcessBuilder(
+                    "ffmpeg", "-y", "-i", oggFile.toString(),
+                    "-ar", "16000", "-ac", "1", "-sample_fmt", "s16",
+                    wavFile.toString()
+            );
+            ffmpeg.redirectError(ProcessBuilder.Redirect.DISCARD);
+            Process p = ffmpeg.start();
+            p.waitFor(10, java.util.concurrent.TimeUnit.SECONDS);
+
+            if (!Files.exists(wavFile)) {
+                LOG.warning("FFmpeg conversion failed");
+                return null;
+            }
+
+            // 4. Transcribe with Whisper
+            Path outDir = Path.of("/tmp", "telegram-transcribe");
+            Files.createDirectories(outDir);
+            ProcessBuilder whisper = new ProcessBuilder(
+                    "whisper", wavFile.toString(),
+                    "--model", "small", "--language", "de",
+                    "--output_dir", outDir.toString(),
+                    "--output_format", "txt"
+            );
+            Map<String,String> env = whisper.environment();
+            env.put("PATH", System.getenv("PATH") + ":/data/prometheus/.local/bin");
+            whisper.redirectError(ProcessBuilder.Redirect.DISCARD);
+            Process wp = whisper.start();
+            wp.waitFor(120, java.util.concurrent.TimeUnit.SECONDS);
+
+            // 5. Read transcription
+            String fileName = wavFile.getFileName().toString().replace(".wav", "");
+            Path txtFile = outDir.resolve(fileName + ".txt");
+            String text = "";
+            if (Files.exists(txtFile)) {
+                text = Files.readString(txtFile).trim();
+            } else {
+                // Try alternate naming
+                try (var stream = Files.list(outDir)) {
+                    text = stream.filter(f -> f.getFileName().toString().endsWith(".txt"))
+                            .findFirst()
+                            .map(f -> { try { return Files.readString(f).trim(); } catch (IOException e) { return ""; } })
+                            .orElse("");
+                }
+            }
+
+            // Cleanup temp files
+            try { Files.deleteIfExists(oggFile); } catch (IOException ignored) {}
+            try { Files.deleteIfExists(wavFile); } catch (IOException ignored) {}
+
+            if (text.isBlank()) {
+                LOG.info("Voice transcription: (silence)");
+                return null;
+            }
+
+            LOG.info("Voice transcription: \"" + text + "\"");
+            return "[Voice] " + text;
+
+        } catch (Exception e) {
+            LOG.warning("Voice processing error: " + e.getMessage());
+            return null;
+        }
+    }
+
+    private String getTelegramFilePath(String fileId) throws Exception {
+        String json = """
+                {"file_id":"%s"}
+                """.formatted(fileId);
+        HttpRequest req = HttpRequest.newBuilder()
+                .uri(URI.create(apiUrl + "/getFile"))
+                .timeout(HTTP_TIMEOUT)
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(json))
+                .build();
+        HttpResponse<String> resp = http.send(req, HttpResponse.BodyHandlers.ofString());
+        if (resp.statusCode() != 200) return null;
+        return extractJsonString(resp.body(), "file_path");
+    }
+
+    private void downloadFile(String url, Path dest) throws Exception {
+        HttpRequest req = HttpRequest.newBuilder()
+                .uri(URI.create(url))
+                .timeout(Duration.ofSeconds(30))
+                .GET()
+                .build();
+        HttpResponse<byte[]> resp = http.send(req, HttpResponse.BodyHandlers.ofByteArray());
+        if (resp.statusCode() == 200) {
+            Files.write(dest, resp.body());
+        }
     }
 
     /**
