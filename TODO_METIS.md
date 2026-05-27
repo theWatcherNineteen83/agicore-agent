@@ -34,9 +34,10 @@
 - [x] Whisper STT Action (neural, Deutsch, CLI) ✅
 - [x] Sphinx4 Action (Java-native evolvable stub) ✅
 - [ ] Piper + Whisper CLI auf miniedi installieren
-- [ ] Audio-Input (Mikrofon → WAV)
-- [ ] Audio-Output (WAV → Lautsprecher)
-- [ ] Voice-Loop (kontinuierliche Sprachinteraktion)
+- [x] Audio-Input (Mikrofon → WAV) ✅
+- [x] Audio-Output (WAV → Lautsprecher) ✅
+- [ ] Voice-Loop (kontinuierliche Sprachinteraktion) — vorbereitet
+- [ ] Mikrofon/Kopfhörer einstecken + testen
 
 ## Phase 5: Eigenständigkeit ⬜
 - [ ] Selbstständige Code-Generierung

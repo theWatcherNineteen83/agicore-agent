@@ -3,18 +3,18 @@
 **Ziel:** EDI-ähnliche KI (Mass Effect 3) — eigenständig, per Sprache und Text ansprechbar,
 mit eigenem Wissen, Persönlichkeit und der Fähigkeit, sich selbst zu verbessern.
 
-**Stand: 27.05.2026**
+**Stand: 27.05.2026 (20 Commits heute)**
 
 ---
 
-## Fortschritt gesamt: ~65%
+## Fortschritt gesamt: ~75%
 
 ```
 Phase 1 ████████████████████ 100%  Zuverlässiger Kern
 Phase 2 ████████████████████ 100%  Konversation + Events
 Ph 2.5  ████████████████████ 100%  Hardware-Optimierung
-Phase 3 ░░░░░░░░░░░░░░░░░░░░   0%  Wahrnehmung
-Phase 4 ████████░░░░░░░░░░░░  40%  Sprachausgabe (Code da, CLI pending)
+Phase 3 ████████░░░░░░░░░░░░  40%  Wahrnehmung (HA ✅, Kamera/ADS-B ⬜)
+Phase 4 ████████████░░░░░░░░  60%  Sprachausgabe (Code ✅, Audio-I/O ✅, Test 🔜)
 Phase 5 ██████░░░░░░░░░░░░░░  30%  Eigenständigkeit
 ```
 
@@ -60,27 +60,27 @@ Phase 5 ██████░░░░░░░░░░░░░░  30%  Eigen
 | 2.5.3 | ModelRegistry (auto-select models) | ✅ |
 | 2.5.4 | VRAM-Budget-Management | ✅ |
 
-## Phase 3: Wahrnehmung ⬜ 0%
-
-| # | Feature | Beschreibung | Prio |
-|---|---------|-------------|------|
-| 3.1 | Kamera-Integration | Türkamera (MJPEG 1080p) + Keller (RTSP) | mittel |
-| 3.2 | ADS-B Flugdaten | readsb JSON-Feed → Goals (Flugzeuge in Reichweite) | niedrig |
-| 3.3 | HA Direktzugriff | Home Assistant states/services direkt lesen/schreiben | mittel |
-
-## Phase 4: Sprachausgabe & -eingabe 🟡 40%
+## Phase 3: Wahrnehmung 🟡 40%
 
 | # | Feature | Beschreibung | Status |
 |---|---------|-------------|--------|
-| 4.1 | Piper TTS Action | Neural TTS, Deutsch (thorsten-medium) | ✅ Code |
-| 4.2 | Whisper STT Action | Neural STT, Deutsch (ggml-tiny) | ✅ Code |
-| 4.3 | MaryTTS Action | Java-native TTS (evolvable stub → Piper) | ✅ Stub |
-| 4.4 | Sphinx4 Action | Java-native STT (evolvable stub → Whisper) | ✅ Stub |
-| 4.5 | Piper CLI installieren | `apt install piper` + deutsche Modelle | ⬜ |
-| 4.6 | Whisper CLI installieren | `whisper-cpp` binary + Model Download | ⬜ |
-| 4.7 | Audio-Input (Mikrofon) | Java Sound API → WAV → Whisper | ⬜ |
-| 4.8 | Audio-Output (Lautsprecher) | Piper WAV → Java Sound API abspielen | ⬜ |
-| 4.9 | Voice-Loop | Kontinuierliche Sprachinteraktion (à la EDI) | ⬜ |
+| 3.1 | HA Direktzugriff | states/services API (read + write) | ✅ |
+| 3.2 | Kamera-Integration | Türkamera (MJPEG 1080p) + Keller (RTSP) | ⬜ |
+| 3.3 | ADS-B Flugdaten | readsb JSON-Feed → Goals | ⬜ |
+
+## Phase 4: Sprachausgabe & -eingabe 🟡 60%
+
+| # | Feature | Beschreibung | Status |
+|---|---------|-------------|--------|
+| 4.1 | Piper TTS Action | Neural TTS, Deutsch (thorsten-medium) | ✅ |
+| 4.2 | Whisper STT Action | Neural STT, Deutsch (ggml-tiny) | ✅ |
+| 4.3 | MaryTTS Action | Java-native evolvable stub | ✅ |
+| 4.4 | Sphinx4 Action | Java-native evolvable stub | ✅ |
+| 4.5 | Piper CLI installiert | ~/bin/piper + de_DE-thorsten-medium | ✅ |
+| 4.6 | Whisper CLI installiert | ~/bin/whisper-cpp + ggml-tiny.bin | ✅ |
+| 4.7 | Audio-Input (Mikrofon) | Java Sound API → 16kHz mono WAV | ✅ |
+| 4.8 | Audio-Output (Lautsprecher) | Java Sound API ← WAV | ✅ |
+| 4.9 | Voice-Loop | Kontinuierliche Sprachinteraktion | 🔜 |
 
 ## Phase 5: Eigenständigkeit 🟡 30%
 
@@ -110,15 +110,15 @@ Phase 5 ██████░░░░░░░░░░░░░░  30%  Eigen
 
 ## Meilensteine bis EDI
 
-| Meilenstein | Phasen | Geschätzt |
-|-------------|--------|-----------|
+| Meilenstein | Phasen | Status |
+|-------------|--------|--------|
 | 🟢 **M1: Stabiler Kern** | Phase 1 | ✅ Erreicht |
 | 🟢 **M2: Kommunikation** | Phase 2 | ✅ Erreicht |
 | 🟢 **M3: Hardware-Nutzung** | Phase 2.5 | ✅ Erreicht |
-| 🟡 **M4: Sprach-Interaktion** | Phase 4 | 🔄 In Arbeit |
-| ⬜ **M5: Umgebungswahrnehmung** | Phase 3 | ⬜ |
-| ⬜ **M6: Autonomie** | Phase 5 | ⬜ |
-| ⬜ **M7: EDI-Niveau** | Alle | ⬜ |
+| 🟡 **M4: Sprach-Interaktion** | Phase 4 | 🔄 60% |
+| 🟡 **M5: Umgebungswahrnehmung** | Phase 3 | 🔄 40% |
+| ⬜ **M6: Autonomie** | Phase 5 | ⬜ 30% |
+| ⬜ **M7: EDI-Niveau** | Alle | ⬜ ~75% |
 
 ---
 
