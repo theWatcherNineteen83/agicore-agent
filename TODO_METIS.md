@@ -1,14 +1,15 @@
-# TODO Metis — Stand 26.05.2026
+# TODO Metis — Stand 27.05.2026
 
-## Phase 1: Zuverlässiger Kern ✅
+## Phase 1: Zuverlässiger Kern ✅ (100%)
 - [x] format:json Ollama-Planner
 - [x] Response-Parsing (generate, chat, thinking)
 - [x] Model-Fallback-Chain
 - [x] Plan-Validierung + Safety-Gate
 - [x] Prompt-Optimierung + Few-Shot
 - [x] systemd-Service
+- [x] Prompt-Optimierung v2 (CoT, 10 Few-Shot, Failure-Avoidance, temp 0.3)
 
-## Phase 2: Konversations-KI ✅ (90%)
+## Phase 2: Konversations-KI ✅ (100%)
 - [x] EDI-Persona (Mass Effect 3)
 - [x] Chat-Speicher (SQLite conversation_messages)
 - [x] Multi-Turn-Kontext + /api/conversations
@@ -19,8 +20,8 @@
 - [x] Hardware-Profiling (hw-profile Action)
 - [x] Deep Netts Community Edition (neuronale Netze)
 - [x] KnowledgeReplyService (eigene Antworten aus Beliefs)
-- [ ] Proaktive Telegram-Meldungen (Wetter/HA → Nachricht)
-- [ ] TornadoVM GPU-Beschleunigung
+- [x] Proaktive Telegram-Meldungen (Wetter/HA/MQTT → Nachricht)
+- [ ] TornadoVM GPU-Beschleunigung (vorbereitet, nicht aktiv)
 
 ## Phase 3: Wahrnehmung ⬜
 - [ ] Kamera-Integration (Türkamera, Keller)
@@ -36,19 +37,28 @@
 - [ ] JNI/Panama-Bridge für GPU
 - [ ] Multi-Agent-Koordination
 
-## 🔴 Nächstes Todo-Fenster: Fitness-Signal (Claude-Review 26.05.)
+## 🔴 Nächstes Todo-Fenster: Buch-Abgleich & ReAct (27.05.)
 
-### Multidimensionales Fitness-Signal
-- [ ] Prediction-Accuracy (World-Model vs Beobachtung)
-- [ ] Surprise-Reduction über Zeit  
-- [ ] Resource-Efficiency (CPU/Heap pro Goal)
-- [ ] Goal-Completion-Rate nach Kategorie
-- [ ] Fitness visualisieren in /api/status
+### Aus GenerativeKI-Systeme-Entwickeln (Huyen Kap. 6):
+- [ ] **ReAct-Pattern:** Thought→Action→Observation-Zyklus statt Single-Action-Planning
+  - Huyen: "Das Verbinden von Schlussfolgern und Ausführen ist zum verbreiteten Pattern geworden"
+  - Aktuell: Metis plant Single-Action, kein expliziter Thought→Observation-Loop
+  - Umsetzung: Planner-Prompt um ReAct-Format erweitern (Thought vor Action, Observation nach Response)
+- [ ] **Planungs-Metriken systematisch tracken:** gültige Pläne, Tool-Fehler, Parameter-Fehler
+  - Huyen: "Ermitteln Sie seine Fehlerzustände und messen Sie, wie oft diese auftreten"
+  - Metis trackt aktuell nur llmCalls/llmFailures/fallbackUses
+- [ ] **Human-in-the-Loop für Write-Aktionen:** Approval-Gate bei riskanten Aktionen
+  - Huyen: "definieren, wie viel Automation ein Agent für jede Aktion besitzen darf"
+  - Metis hat keine Unterscheidung Read/Write mit Approval
 
-### Curiosity-Engine
-- [ ] Prediction-Error-getriebene Exploration (statt random Idle-Goals)
-- [ ] Wissenslücken-Erkennung ("was weiß ich nicht?")
-- [ ] Kompetenz-Hunger (Bereiche mit niedriger Success-Rate bevorzugen)
+## 27.05. Morgens — Prompt-Optimierung v2 ✅
+- [x] Chain-of-Thought (4-Schritt: ANALYZE→MATCH→CHECK→DECIDE)
+- [x] 10 Few-Shot-Beispiele (1 pro Action)
+- [x] Failure-Avoidance (0%→⚠️ AVOID)
+- [x] Temperature 0.1→0.3
+- [x] Primary-Modell: nemotron-cascade-2:30b
+- [x] Fallback-Chain: mistral-small3.1→nemotron→qwen3.6
+- [x] Deployed auf miniedi (metis-agent.jar 40f718f)
 
 ## 26.05. Abends — Runde 2 & 3 ✅
 - [x] MQTT-Topic-Filter (Wildcard → spezifische Topics)
