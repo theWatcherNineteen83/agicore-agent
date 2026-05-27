@@ -28,9 +28,15 @@
 - [ ] ADS-B Flugdaten
 - [ ] Home Assistant Direktzugriff (states, services)
 
-## Phase 4: Sprachausgabe ⬜
-- [ ] TTS (Text-to-Speech)
-- [ ] STT (Speech-to-Text)
+## Phase 4: Sprachausgabe 🟡 40%
+- [x] Piper TTS Action (neural, Deutsch, CLI) ✅
+- [x] MaryTTS Action (Java-native evolvable stub) ✅
+- [x] Whisper STT Action (neural, Deutsch, CLI) ✅
+- [x] Sphinx4 Action (Java-native evolvable stub) ✅
+- [ ] Piper + Whisper CLI auf miniedi installieren
+- [ ] Audio-Input (Mikrofon → WAV)
+- [ ] Audio-Output (WAV → Lautsprecher)
+- [ ] Voice-Loop (kontinuierliche Sprachinteraktion)
 
 ## Phase 5: Eigenständigkeit ⬜
 - [ ] Selbstständige Code-Generierung
