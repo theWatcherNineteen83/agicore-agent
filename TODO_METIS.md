@@ -40,13 +40,8 @@
 ## 🔴 Nächstes Todo-Fenster: Buch-Abgleich & ReAct (27.05.)
 
 ### Aus GenerativeKI-Systeme-Entwickeln (Huyen Kap. 6):
-- [ ] **ReAct-Pattern:** Thought→Action→Observation-Zyklus statt Single-Action-Planning
-  - Huyen: "Das Verbinden von Schlussfolgern und Ausführen ist zum verbreiteten Pattern geworden"
-  - Aktuell: Metis plant Single-Action, kein expliziter Thought→Observation-Loop
-  - Umsetzung: Planner-Prompt um ReAct-Format erweitern (Thought vor Action, Observation nach Response)
-- [ ] **Planungs-Metriken systematisch tracken:** gültige Pläne, Tool-Fehler, Parameter-Fehler
-  - Huyen: "Ermitteln Sie seine Fehlerzustände und messen Sie, wie oft diese auftreten"
-  - Metis trackt aktuell nur llmCalls/llmFailures/fallbackUses
+- [x] **ReAct-Pattern:** Thought→Action→Observation — Prompt um thought-Feld erweitert ✅
+- [x] **Planungs-Metriken:** totalPlans, validCount, emptyCount, actionUsage/Error → /api/status ✅
 - [ ] **Human-in-the-Loop für Write-Aktionen:** Approval-Gate bei riskanten Aktionen
   - Huyen: "definieren, wie viel Automation ein Agent für jede Aktion besitzen darf"
   - Metis hat keine Unterscheidung Read/Write mit Approval
