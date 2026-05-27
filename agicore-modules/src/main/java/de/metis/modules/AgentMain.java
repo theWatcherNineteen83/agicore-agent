@@ -27,6 +27,10 @@ import de.metis.modules.hardware.TornadoVmAction;
 import de.metis.modules.multiagent.AgentCoordinator;
 import de.metis.modules.CuriosityEngine;
 import de.metis.kernel.metrics.FitnessSignal;
+import de.metis.modules.speech.PiperTtsAction;
+import de.metis.modules.speech.WhisperSttAction;
+import de.metis.modules.speech.MaryTtsAction;
+import de.metis.modules.speech.SphinxSttAction;
 
 import java.io.*;
 import java.net.URI;
@@ -717,6 +721,14 @@ public final class AgentMain {
 
         // API-Explorer
         agent.core().executor().register(new ApiExplorerAction("http://localhost:8080"));
+
+        // ── Phase 4: Sprachausgabe & Spracherkennung ──
+        agent.core().executor().register(new PiperTtsAction("Hallo, ich bin Metis."));
+        agent.core().executor().register(new WhisperSttAction(Path.of("/tmp/metis-speech.wav")));
+        // Java-native evolvable stubs (delegate to Piper/Whisper for now)
+        agent.core().executor().register(new MaryTtsAction("Hallo Welt"));
+        agent.core().executor().register(new SphinxSttAction("/tmp/metis-speech.wav"));
+        LOG.info("Speech actions registered: piper, whisper (CLI) + mary, sphinx (evolvable stubs)");
 
         // Inject Ollama mutation service if evolution enabled
         if (evolution) {
