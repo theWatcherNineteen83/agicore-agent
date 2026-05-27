@@ -202,7 +202,7 @@ URL: http://<host>:11735
 - ✅ Hardware-Discovery — Ryzen 7 5700G, RX 7900 XTX, 64 GB RAM, AVX2
 - ✅ VRAM-Budget — Planning ~18 GB + Chat 9 GB = 27 GB (Ollama offloading)
 - ⬜ Project Panama FFM — GPU-Datentransfer ohne JNI
-- ⬜ TornadoVM (vorbereitet) — Java → GPU-Kernel-Kompilierung
+- ✅ TornadoVM — Java → GPU-Kernel-Kompilierung
 
 ### Roadmap
 
@@ -210,7 +210,7 @@ URL: http://<host>:11735
 |-------|------|--------|
 | 🔧 Phase 1 | Stabiler Kern (>85% Planner) | ✅ done |
 | 💬 Phase 2 | Konversation + Persona + Events + MQTT | ✅ 100% |
-| ⚡ Phase 2.5 | Hardware-Optimierung (GPU, Panama, TornadoVM) | 🔄 begonnen |
+| ⚡ Phase 2.5 | Hardware-Optimierung (GPU, Panama, TornadoVM) | ✅ done |
 | 👁️ Phase 3 | Wahrnehmung (HA, Kameras, ADS-B) | ⬜ |
 | 🎙️ Phase 4 | Sprachausgabe (TTS/STT) | ⬜ |
 | 🧠 Phase 5 | Eigenständigkeit + Selbstverbesserung | ⬜ |

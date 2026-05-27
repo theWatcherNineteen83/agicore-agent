@@ -21,7 +21,7 @@
 - [x] Deep Netts Community Edition (neuronale Netze)
 - [x] KnowledgeReplyService (eigene Antworten aus Beliefs)
 - [x] Proaktive Telegram-Meldungen (Wetter/HA/MQTT → Nachricht)
-- [ ] TornadoVM GPU-Beschleunigung (vorbereitet, nicht aktiv)
+- [x] TornadoVM GPU-Integration ✅
 
 ## Phase 3: Wahrnehmung ⬜
 - [ ] Kamera-Integration (Türkamera, Keller)
