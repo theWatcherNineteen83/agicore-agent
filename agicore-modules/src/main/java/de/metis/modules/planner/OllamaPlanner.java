@@ -80,6 +80,17 @@ public class OllamaPlanner implements Planner {
     private int modelFallbackUses = 0;  // count of model-level fallbacks within Tier 1
     private Instant lastLlmCall;
 
+    // ── Planning metrics (Huyen Kap. 6) ──────────────────────
+    private int totalPlansGenerated = 0;
+    private int validPlanCount = 0;
+    private int invalidPlanCount = 0;
+    private int emptyPlanCount = 0;  // planner returned nothing
+    private final Map<String, Integer> actionUsageCount = new ConcurrentHashMap<>();
+    private final Map<String, Integer> actionErrorCount = new ConcurrentHashMap<>();
+
+    // ── ReAct state ──────────────────────────────────────────
+    private String lastThought = null;
+
     private final HttpClient http = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(10))
             .build();
@@ -174,6 +185,8 @@ public class OllamaPlanner implements Planner {
     public List<String> plan(Goal goal, List<Experience> recentHistory,
                              List<ContentItem> broadcast, MetaCognition meta) {
 
+        totalPlansGenerated++;
+
         // ── Tier 1: LLM reasoning with Evaluator-Optimizer loop ──
         EvaluatedPlan bestPlan = planViaOllamaWithOptimizer(goal, recentHistory, broadcast, meta);
 
@@ -184,6 +197,9 @@ public class OllamaPlanner implements Planner {
                     + " iterations=" + bestPlan.iterations
                     + " for goal: " + goal.description());
             lastPlanConfidence = bestPlan.confidence;
+            lastThought = bestPlan.thought;
+            validPlanCount++;
+            actionUsageCount.merge(bestPlan.action, 1, Integer::sum);
             return List.of(bestPlan.action);
         }
 
@@ -191,6 +207,8 @@ public class OllamaPlanner implements Planner {
         String action = planViaOllama(goal, recentHistory, broadcast, meta);
 
         if (action != null && !action.isBlank() && availableActions.contains(action)) {
+            validPlanCount++;
+            actionUsageCount.merge(action, 1, Integer::sum);
             // Self-reflect: let the model critique its own decision
             String reflection = selfReflect(goal, action);
             if (reflection != null) {
@@ -205,6 +223,8 @@ public class OllamaPlanner implements Planner {
         fallbackUses++;
         String learned = planViaLearnedMapping(goal, broadcast);
         if (learned != null) {
+            validPlanCount++;
+            actionUsageCount.merge(learned, 1, Integer::sum);
             LOG.fine(() -> "Learned fallback: " + learned + " for goal: " + goal.description());
             return List.of(learned);
         }
@@ -212,10 +232,14 @@ public class OllamaPlanner implements Planner {
         // ── Tier 3: Keyword heuristic ──────────────────────────
         String keyword = planViaKeywords(goal, broadcast);
         if (keyword != null) {
+            validPlanCount++;
+            actionUsageCount.merge(keyword, 1, Integer::sum);
             LOG.fine(() -> "Keyword fallback: " + keyword + " for goal: " + goal.description());
             return List.of(keyword);
         }
 
+        // No plan found
+        emptyPlanCount++;
         return Collections.emptyList();
     }
 
@@ -378,18 +402,18 @@ public class OllamaPlanner implements Planner {
         sb.append("- self-analyze: inspect agent's own performance metrics and state\n");
         sb.append("- javasandbox: execute safe, sandboxed Java code experiments\n\n");
 
-        // ── Rich Few-Shot examples (one per action category) ──
+        // ── Rich Few-Shot examples with thought (ReAct format) ──
         sb.append("FEW-SHOT EXAMPLES:\n");
-        sb.append("Goal: Check system status → {\"action\":\"shell\",\"reasoning\":\"shell commands for system health check\",\"confidence\":0.90}\n");
-        sb.append("Goal: Verify if webserver is reachable → {\"action\":\"http\",\"reasoning\":\"HTTP GET to health endpoint\",\"confidence\":0.95}\n");
-        sb.append("Goal: Extract article text from a URL → {\"action\":\"webscrape\",\"reasoning\":\"webscrape extracts readable text from HTML\",\"confidence\":0.90}\n");
-        sb.append("Goal: List all files in /etc directory → {\"action\":\"filesystem-list\",\"reasoning\":\"directory listing via filesystem action\",\"confidence\":0.95}\n");
-        sb.append("Goal: Read the contents of config.json → {\"action\":\"filesystem-read\",\"reasoning\":\"read specific file by path\",\"confidence\":0.95}\n");
-        sb.append("Goal: Discover available REST endpoints → {\"action\":\"api-explore\",\"reasoning\":\"probe HTTP endpoints systematically\",\"confidence\":0.85}\n");
-        sb.append("Goal: Get detailed system resource overview → {\"action\":\"linux-explore-system\",\"reasoning\":\"deep system probe for resources\",\"confidence\":0.85}\n");
-        sb.append("Goal: What do I know about network configuration? → {\"action\":\"memory-query\",\"reasoning\":\"search agent's long-term knowledge base\",\"confidence\":0.80}\n");
-        sb.append("Goal: How well am I performing lately? → {\"action\":\"self-analyze\",\"reasoning\":\"self-analysis of performance metrics\",\"confidence\":0.85}\n");
-        sb.append("Goal: Run a Java math experiment safely → {\"action\":\"javasandbox\",\"reasoning\":\"sandboxed Java execution for safe code\",\"confidence\":0.90}\n\n");
+        sb.append("Goal: Check system status → {\"thought\":\"System health requires shell commands like uptime or free\",\"action\":\"shell\",\"reasoning\":\"shell commands for system health check\",\"confidence\":0.90}\n");
+        sb.append("Goal: Verify if webserver is reachable → {\"thought\":\"HTTP health check is the direct way to test reachability\",\"action\":\"http\",\"reasoning\":\"HTTP GET to health endpoint\",\"confidence\":0.95}\n");
+        sb.append("Goal: Extract article text from a URL → {\"thought\":\"Webscrape extracts readable text, better than raw HTTP\",\"action\":\"webscrape\",\"reasoning\":\"webscrape extracts readable text from HTML\",\"confidence\":0.90}\n");
+        sb.append("Goal: List all files in /etc directory → {\"thought\":\"Directory listing is a filesystem operation\",\"action\":\"filesystem-list\",\"reasoning\":\"directory listing via filesystem action\",\"confidence\":0.95}\n");
+        sb.append("Goal: Read the contents of config.json → {\"thought\":\"Reading a specific file by path needs filesystem-read\",\"action\":\"filesystem-read\",\"reasoning\":\"read specific file by path\",\"confidence\":0.95}\n");
+        sb.append("Goal: Discover available REST endpoints → {\"thought\":\"API exploration probes endpoints systematically, better than single HTTP call\",\"action\":\"api-explore\",\"reasoning\":\"probe HTTP endpoints systematically\",\"confidence\":0.85}\n");
+        sb.append("Goal: Get detailed system resource overview → {\"thought\":\"Deep system probe covers multiple resource dimensions\",\"action\":\"linux-explore-system\",\"reasoning\":\"deep system probe for resources\",\"confidence\":0.85}\n");
+        sb.append("Goal: What do I know about network configuration? → {\"thought\":\"This is a knowledge retrieval task, not an active probe\",\"action\":\"memory-query\",\"reasoning\":\"search agent's long-term knowledge base\",\"confidence\":0.80}\n");
+        sb.append("Goal: How well am I performing lately? → {\"thought\":\"Self-analysis inspects the agent's own metrics, not external systems\",\"action\":\"self-analyze\",\"reasoning\":\"self-analysis of performance metrics\",\"confidence\":0.85}\n");
+        sb.append("Goal: Run a Java math experiment safely → {\"thought\":\"Safe code execution needs sandbox, not raw shell\",\"action\":\"javasandbox\",\"reasoning\":\"sandboxed Java execution for safe code\",\"confidence\":0.90}\n\n");
 
         // ── Goal context ──
         sb.append("CURRENT GOAL:\n");
@@ -470,7 +494,7 @@ public class OllamaPlanner implements Planner {
         // ── Final instruction ──
         sb.append("DECISION: Based on the above analysis, which SINGLE action should execute NOW?\n");
         sb.append("Respond with ONLY this JSON (no markdown, no extra text):\n");
-        sb.append("{\"action\":\"<name>\",\"reasoning\":\"<one sentence why>\",\"confidence\":<0.0-1.0>}");
+        sb.append("{\"thought\":\"<your step-by-step reasoning>\",\"action\":\"<name>\",\"reasoning\":\"<one sentence why>\",\"confidence\":<0.0-1.0>}");
 
         return sb.toString();
     }
@@ -514,7 +538,7 @@ public class OllamaPlanner implements Planner {
 
             if (action != null && availableActions.contains(action)) {
                 if (best == null || confidence > best.confidence) {
-                    best = new EvaluatedPlan(action, confidence, iteration + 1);
+                    best = new EvaluatedPlan(action, lastThought, confidence, iteration + 1);
                 }
                 // If confidence is already high, stop optimizing
                 if (confidence >= 0.85) break;
@@ -589,7 +613,8 @@ public class OllamaPlanner implements Planner {
         return sb.toString();
     }
 
-    private record EvaluatedPlan(String action, double confidence, int iterations) {}
+    private record EvaluatedPlan(String action, String thought, double confidence, int iterations) {}
+    // … (planViaOllamaWithOptimizer method follows)
 
     /**
      * Extract the response text from Ollama's JSON wrapper.
@@ -690,11 +715,14 @@ public class OllamaPlanner implements Planner {
 
         try {
             String action = extractJsonStringField(json, "action");
+            String thought = extractJsonStringField(json, "thought");
             String reasoning = extractJsonStringField(json, "reasoning");
             double confidence = extractJsonDoubleField(json, "confidence");
 
             if (action != null) {
-                return new ParsedPlan(action, reasoning != null ? reasoning : "", confidence);
+                return new ParsedPlan(action,
+                        thought != null ? thought : "",
+                        reasoning != null ? reasoning : "", confidence);
             }
         } catch (Exception e) {
             LOG.fine("Failed to parse planning JSON: " + e.getMessage());
@@ -837,7 +865,11 @@ public class OllamaPlanner implements Planner {
         String action = plan.getFirst();
         String key = keyword + ":" + action;
         planningAttempts.merge(key, 1, Integer::sum);
-        if (result.success()) planningSuccess.merge(key, 1, Integer::sum);
+        if (result.success()) {
+            planningSuccess.merge(key, 1, Integer::sum);
+        } else {
+            actionErrorCount.merge(action, 1, Integer::sum);
+        }
     }
 
     // ── Utility ────────────────────────────────────────────────
@@ -902,6 +934,12 @@ public class OllamaPlanner implements Planner {
     public int modelFallbackUses() { return modelFallbackUses; }
     public Map<String, Integer> modelFallbackCounts() { return Map.copyOf(modelFallbackCounts); }
     public List<String> fallbackModelChain() { return List.copyOf(fallbackModels); }
+    public int totalPlansGenerated() { return totalPlansGenerated; }
+    public int validPlanCount() { return validPlanCount; }
+    public int emptyPlanCount() { return emptyPlanCount; }
+    public Map<String, Integer> actionUsageCount() { return Map.copyOf(actionUsageCount); }
+    public Map<String, Integer> actionErrorCount() { return Map.copyOf(actionErrorCount); }
+    public String lastThought() { return lastThought; }
     public Instant lastLlmCall() { return lastLlmCall; }
 
     /**
@@ -913,5 +951,5 @@ public class OllamaPlanner implements Planner {
 
     // ── Parsed plan record ──────────────────────────────────────
 
-    private record ParsedPlan(String action, String reasoning, double confidence) {}
+    private record ParsedPlan(String action, String thought, String reasoning, double confidence) {}
 }

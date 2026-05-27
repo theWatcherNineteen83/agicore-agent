@@ -560,11 +560,21 @@ public class MetisHttpServer {
                       "plannerFallbacks": %d,
                       "modelFallbackUses": %d,
                       "modelFallbackChain": %s,
-                      "modelFallbackCounts": %s,""",
+                      "modelFallbackCounts": %s,
+                      "totalPlansGenerated": %d,
+                      "validPlanCount": %d,
+                      "emptyPlanCount": %d,
+                      "actionUsageCount": %s,
+                      "actionErrorCount": %s,""",
                     op.llmCalls(), op.llmSuccessRate(), op.fallbackUses(),
                     op.modelFallbackUses(),
                     jsonList(op.fallbackModelChain()),
-                    jsonMap(op.modelFallbackCounts()));
+                    jsonMap(op.modelFallbackCounts()),
+                    op.totalPlansGenerated(),
+                    op.validPlanCount(),
+                    op.emptyPlanCount(),
+                    jsonMap(op.actionUsageCount()),
+                    jsonMap(op.actionErrorCount()));
         } else {
             plannerInfo = "";
         }
