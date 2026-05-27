@@ -31,6 +31,8 @@ import de.metis.modules.speech.PiperTtsAction;
 import de.metis.modules.speech.WhisperSttAction;
 import de.metis.modules.speech.MaryTtsAction;
 import de.metis.modules.speech.SphinxSttAction;
+import de.metis.modules.speech.AudioOutputAction;
+import de.metis.modules.speech.AudioInputAction;
 import de.metis.modules.home.HomeAssistantAction;
 
 import java.io.*;
@@ -729,7 +731,10 @@ public final class AgentMain {
         // Java-native evolvable stubs (delegate to Piper/Whisper for now)
         agent.core().executor().register(new MaryTtsAction("Hallo Welt"));
         agent.core().executor().register(new SphinxSttAction("/tmp/metis-speech.wav"));
-        LOG.info("Speech actions registered: piper, whisper (CLI) + mary, sphinx (evolvable stubs)");
+        // Audio I/O (Mikrofon + Lautsprecher)
+        agent.core().executor().register(new AudioInputAction(5));
+        agent.core().executor().register(new AudioOutputAction(Path.of("/tmp/test-piper.wav")));
+        LOG.info("Speech actions registered: piper, whisper, mary, sphinx, audio-in, audio-out");
 
         // Inject Ollama mutation service if evolution enabled
         if (evolution) {
