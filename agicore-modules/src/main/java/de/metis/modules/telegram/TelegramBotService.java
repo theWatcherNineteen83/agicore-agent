@@ -525,6 +525,74 @@ public class TelegramBotService {
         return extractJsonString(resp.body(), "file_path");
     }
 
+    // ── Voice Reply (TTS → sendVoice) ──
+
+    /** Send a voice reply via Piper TTS + Telegram sendVoice. */
+    public void sendVoiceReply(long chatId, String text) {
+        try {
+            Path wavFile = Files.createTempFile("metis-tts-", ".wav");
+            ProcessBuilder piper = new ProcessBuilder(
+                    "piper", "--model",
+                    "/usr/local/share/piper-voices/de_DE-thorsten-medium.onnx",
+                    "--output_file", wavFile.toString()
+            );
+            piper.redirectError(ProcessBuilder.Redirect.DISCARD);
+            Process pp = piper.start();
+            pp.getOutputStream().write(text.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            pp.getOutputStream().close();
+            pp.waitFor(30, java.util.concurrent.TimeUnit.SECONDS);
+
+            if (!Files.exists(wavFile) || Files.size(wavFile) < 1000) {
+                sendMessage(chatId, text); return;
+            }
+
+            Path oggFile = Files.createTempFile("metis-voice-", ".ogg");
+            new ProcessBuilder("ffmpeg", "-y", "-i", wavFile.toString(),
+                    "-c:a", "libopus", "-b:a", "32k", oggFile.toString())
+                    .redirectError(ProcessBuilder.Redirect.DISCARD)
+                    .start().waitFor(10, java.util.concurrent.TimeUnit.SECONDS);
+
+            if (Files.exists(oggFile) && Files.size(oggFile) > 100) {
+                sendTelegramVoice(chatId, oggFile);
+            } else {
+                sendMessage(chatId, text);
+            }
+            try { Files.deleteIfExists(wavFile); } catch (IOException ignored) {}
+            try { Files.deleteIfExists(oggFile); } catch (IOException ignored) {}
+        } catch (Exception e) {
+            LOG.warning("sendVoiceReply error: " + e.getMessage());
+            sendMessage(chatId, text);
+        }
+    }
+
+    private void sendTelegramVoice(long chatId, Path oggFile) throws Exception {
+        String boundary = "MetisBoundary" + System.currentTimeMillis();
+        var bos = new java.io.ByteArrayOutputStream();
+        bos.write(("--" + boundary + "\r\n").getBytes());
+        bos.write("Content-Disposition: form-data; name=\"chat_id\"\r\n\r\n".getBytes());
+        bos.write((chatId + "\r\n").getBytes());
+        bos.write(("--" + boundary + "\r\n").getBytes());
+        bos.write("Content-Disposition: form-data; name=\"voice\"; filename=\"reply.ogg\"\r\n".getBytes());
+        bos.write("Content-Type: audio/ogg\r\n\r\n".getBytes());
+        bos.write(Files.readAllBytes(oggFile));
+        bos.write(("\r\n--" + boundary + "--\r\n").getBytes());
+
+        HttpRequest req = HttpRequest.newBuilder()
+                .uri(URI.create(apiUrl + "/sendVoice"))
+                .timeout(Duration.ofSeconds(30))
+                .header("Content-Type", "multipart/form-data; boundary=" + boundary)
+                .POST(HttpRequest.BodyPublishers.ofByteArray(bos.toByteArray()))
+                .build();
+        HttpResponse<String> resp = http.send(req, HttpResponse.BodyHandlers.ofString());
+        if (resp.statusCode() != 200) {
+            LOG.warning("sendVoice failed: " + resp.statusCode());
+            throw new IOException("Telegram sendVoice returned " + resp.statusCode());
+        }
+        LOG.info(() -> "Voice reply sent (" + safeSize(oggFile) + " bytes)");
+    }
+
+    private static long safeSize(Path p) { try { return Files.size(p); } catch (IOException e) { return -1; } }
+
     private void downloadFile(String url, Path dest) throws Exception {
         HttpRequest req = HttpRequest.newBuilder()
                 .uri(URI.create(url))
