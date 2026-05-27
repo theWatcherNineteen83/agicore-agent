@@ -31,6 +31,7 @@ import de.metis.modules.speech.PiperTtsAction;
 import de.metis.modules.speech.WhisperSttAction;
 import de.metis.modules.speech.MaryTtsAction;
 import de.metis.modules.speech.SphinxSttAction;
+import de.metis.modules.home.HomeAssistantAction;
 
 import java.io.*;
 import java.net.URI;
@@ -902,6 +903,13 @@ public final class AgentMain {
             ha.start(agent);
             eventTriggers.add(ha);
             LOG.info("HA event trigger active — " + ha.description());
+
+            // Phase 3: HA Direktzugriff — states lesen + services aufrufen
+            agent.core().executor().register(
+                    HomeAssistantAction.getState(haUrl, haToken, "sun.sun"));
+            agent.core().executor().register(
+                    HomeAssistantAction.callService(haUrl, haToken, "light", "toggle", "light.example"));
+            LOG.info("HA direct access actions registered (ha-state, ha-call)");
         }
         if (mqttBroker != null && !mqttBroker.isBlank()) {
             var topics = List.of(
