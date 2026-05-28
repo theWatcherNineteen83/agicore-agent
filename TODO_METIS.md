@@ -35,14 +35,19 @@
 | Guardrails (Input+Output) | 🟡 SafetyGate + Action-Whitelist, kein Output-Validator |
 | Inferenz-Optimierung | 🟡 Prompt-Caching (keep_alive), keine Quantisierung/Distillation |
 
-### 🔴 Gap-Analyse — Was fehlt für Produktionsreife?
-1. **RAG mit Vector DB** — Beliefs → Embeddings → Semantic Search (Huyen Kap.6)
+### 🔴 Gap-Analyse — Was fehlt für Produktionsreife? (Stand 28.05. 19:45)
+1. **RAG mit Vector DB** ✅ — Phase 5: RAG Advanced (OllamaEmbedding + HybridSearch BM25+Cosinus + PersistentVectorIndex)
 2. **LLM-as-Judge** — Selbstbewertung für Qualitäts-Scoring (Huyen Kap.3)
 3. **Output-Validierung** — JSON-Schema, Factual-Check, Toxicity (Huyen Kap.10)
 4. **A/B-Testing** — Prompt-Varianten in Produktion vergleichen
 5. **Lost-in-the-Middle** — Kontext-Management für lange Sessions
 6. **Human-in-the-Loop verfeinern** — Read/Write-Differenzierung im Approval-Gate
 7. **Data Flywheel** — User-Korrekturen → automatisch Trainingsdaten verbessern
+
+### 🟢 Phase 6 — Was kommt als Nächstes?
+- **Priorität 1:** Lost-in-the-Middle (Kontext-Pruning für lange Sessions, Huyen Kap.6)
+- **Priorität 2:** Output-Validierung (JSON-Schema-Validierung + Toxicity-Check)
+- **Priorität 3:** LLM-as-Judge (Selbstbewertung für Qualitätsscoring)
 
 ---
 
@@ -107,7 +112,7 @@
 - [x] Multi-Agent-Koordination ✅
 - [x] RAG Advanced ✅ (DocumentChunker 3 Strategien, PersistentVectorIndex binary, HybridSearch BM25+Cosinus, WorldModel-Integration via enableRagAdvanced())
 
-## 🔴 Nächstes Todo-Fenster: Buch-Abgleich & ReAct (27.05.)
+## 🔴 Nächstes Todo-Fenster: Phase 6 — Lost-in-the-Middle (28.05.)
 
 ### Aus GenerativeKI-Systeme-Entwickeln (Huyen Kap. 6):
 - [x] **ReAct-Pattern:** Thought→Action→Observation — Prompt um thought-Feld erweitert ✅
