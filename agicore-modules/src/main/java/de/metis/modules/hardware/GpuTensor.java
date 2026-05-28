@@ -24,7 +24,7 @@ public class GpuTensor implements AutoCloseable {
     private final OpenCLNative cl;
     private final MemorySegment queue;
     private final MemorySegment buffer;     // cl_mem
-    private final MemorySegment hostMem;    // mapped host pointer
+    private MemorySegment hostMem;    // mapped host pointer (reassigned on sync)
     private final long sizeBytes;
     private final long elementCount;
     private boolean mapped;
@@ -50,8 +50,10 @@ public class GpuTensor implements AutoCloseable {
                 sizeBytes, MemorySegment.NULL);
 
         // Map buffer to host memory immediately
-        this.hostMem = cl.mapBuffer(queue, buffer, true,
+        var rawMem = cl.mapBuffer(queue, buffer, true,
                 OpenCLNative.CL_MEM_READ_WRITE, 0, sizeBytes);
+        // Panama FFM: reinterpret the void* with known size
+        this.hostMem = rawMem.reinterpret(sizeBytes);
         this.mapped = true;
 
         LOG.fine(() -> "GpuTensor: " + elementCount + " floats (" + sizeBytes + " bytes)");
@@ -99,13 +101,11 @@ public class GpuTensor implements AutoCloseable {
             cl.unmapBuffer(queue, buffer, hostMem);
             mapped = false;
         }
-        this.mapped = true;
-        // Re-map
-        var newMem = cl.mapBuffer(queue, buffer, true,
+        // Re-map with correct size
+        var rawMem = cl.mapBuffer(queue, buffer, true,
                 OpenCLNative.CL_MEM_READ_WRITE, 0, sizeBytes);
-        // hostMem becomes stale after unmap, but we keep the reference
-        // In a production system, we'd use the new mapped pointer
-        // For now, re-mapping refreshes the data
+        this.hostMem = rawMem.reinterpret(sizeBytes);
+        this.mapped = true;
         cl.finish(queue);
     }
 

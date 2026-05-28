@@ -24,8 +24,8 @@ public class OpenCLNative {
 
     private static final Logger LOG = Logger.getLogger(OpenCLNative.class.getName());
 
-    // OpenCL shared library
-    private static final String LIB_NAME = "OpenCL";
+    // OpenCL shared library (full path for dlopen)
+    private static final String LIB_NAME = "/opt/rocm/lib/libOpenCL.so";
 
     // Panama arenas and linker
     private final Arena arena;
