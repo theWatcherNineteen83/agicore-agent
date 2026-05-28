@@ -51,7 +51,10 @@ public class VocabularyLearningAction implements Action {
 
     @Override public String name() { return NAME; }
     @Override public String category() { return "write"; }
-    @Override public boolean requiresApproval() { return false; }
+    @Override
+    public ApprovalLevel approvalLevel() {
+        return ApprovalLevel.NOTIFY; // safe write: vocabulary DB, reversible
+    }
 
     @Override
     public ActionResult execute() {

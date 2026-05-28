@@ -36,7 +36,10 @@ public class GpuInferenceAction implements Action {
 
     @Override public String name() { return NAME; }
     @Override public String category() { return "write"; }
-    @Override public boolean requiresApproval() { return true; }
+    @Override
+    public ApprovalLevel approvalLevel() {
+        return ApprovalLevel.CONFIRM; // GPU resource-intensive write
+    }
 
     @Override
     public ActionResult execute() {

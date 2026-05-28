@@ -86,8 +86,8 @@ public class CodeGenerationAction implements Action {
     }
 
     @Override
-    public boolean requiresApproval() {
-        return true; // writes to source tree — needs human approval
+    public ApprovalLevel approvalLevel() {
+        return ApprovalLevel.FORBIDDEN; // modifies source tree — always needs human approval
     }
 
     @Override
@@ -216,7 +216,7 @@ public class CodeGenerationAction implements Action {
                 public interface Action {
                     String name();           // action label, e.g. "system-monitor"
                     default String category() { return "read"; }  // "read" or "write"
-                    default boolean requiresApproval() { return "write".equals(category()); }
+                    default ApprovalLevel approvalLevel() { return "write".equals(category()) ? ApprovalLevel.CONFIRM : ApprovalLevel.AUTO; }
                     ActionResult execute();  // execute and return result
                 }
                 ```

@@ -57,9 +57,26 @@ public class ActionExecutor {
      *
      * @param name the action's registered name
      * @return true if the action requires approval, false otherwise
+     * @deprecated use {@link #getApprovalLevel(String)} instead
      */
+    @Deprecated
     public boolean requiresApproval(String name) {
+        Action.ApprovalLevel level = getApprovalLevel(name);
+        return level == Action.ApprovalLevel.CONFIRM || level == Action.ApprovalLevel.FORBIDDEN;
+    }
+
+    /**
+     * Get the approval level for a named action.
+     * <p>
+     * Returns {@link Action.ApprovalLevel#CONFIRM} for unknown actions
+     * (safety-first: unknown = requires confirmation).
+     *
+     * @param name the action's registered name
+     * @return the approval level, never null
+     */
+    public Action.ApprovalLevel getApprovalLevel(String name) {
         Action action = registry.get(name);
-        return action != null && action.requiresApproval();
+        if (action == null) return Action.ApprovalLevel.CONFIRM;
+        return action.approvalLevel();
     }
 }

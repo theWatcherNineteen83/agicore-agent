@@ -51,8 +51,8 @@ public class CameraSnapshotAction implements Action {
     }
 
     @Override
-    public boolean requiresApproval() {
-        return false; // read-only observation
+    public ApprovalLevel approvalLevel() {
+        return ApprovalLevel.AUTO; // read-only observation
     }
 
     @Override

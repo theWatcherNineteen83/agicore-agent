@@ -48,7 +48,6 @@ public class VoskListenAction implements Action {
 
     @Override public String name() { return NAME; }
     @Override public String category() { return "read"; }
-    @Override public boolean requiresApproval() { return false; }
 
     @Override
     public ActionResult execute() {

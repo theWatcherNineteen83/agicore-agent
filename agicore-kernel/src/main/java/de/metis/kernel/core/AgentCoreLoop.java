@@ -2,6 +2,7 @@ package de.metis.kernel.core;
 
 import de.metis.kernel.evolution.EvolutionManager;
 import de.metis.kernel.evolution.FitnessFunction;
+import de.metis.kernel.action.Action;
 import de.metis.kernel.action.ActionExecutor;
 import de.metis.kernel.action.ActionResult;
 import de.metis.kernel.goal.Goal;
@@ -74,7 +75,16 @@ public class AgentCoreLoop {
     private final EvolutionManager evolutionManager;
     /** Trigger evolution check every N ticks. */
     private static final int EVOLUTION_CHECK_INTERVAL = 100;
-    /** Enable human-in-the-loop approval for write-category actions. */
+    /**
+     * Maximum auto-approval level. Actions at or below this level
+     * execute automatically; actions above require human approval.
+     * <p>
+     * Default: NOTIFY (AUTO + NOTIFY auto-execute, CONFIRM + FORBIDDEN blocked)
+     */
+    private Action.ApprovalLevel maxAutoApprovalLevel = Action.ApprovalLevel.NOTIFY;
+
+    /** @deprecated use {@link #setMaxAutoApprovalLevel(Action.ApprovalLevel)} */
+    @Deprecated
     private boolean requireApprovalForWrite = true;
 
     private long tickCount = 0;
@@ -196,14 +206,26 @@ public class AgentCoreLoop {
 
         String actionName = plan.getFirst();
 
-        // ── Human-in-the-Loop: Approval-Gate für Write-Aktionen ──
-        if (requireApprovalForWrite && executor.requiresApproval(actionName)) {
-            LOG.warning(() -> "⛔ Write action blocked (requires human approval): " + actionName
-                    + " for goal: " + currentGoal.description());
+        // ── Human-in-the-Loop: Tiered Approval-Gate (Huyen Kap.6) ──
+        // Read vs. Write Differenzierung: vier Approval-Level statt binär
+        Action.ApprovalLevel level = executor.getApprovalLevel(actionName);
+        if (level.ordinal() > maxAutoApprovalLevel.ordinal()) {
+            String reason = switch (level) {
+                case CONFIRM -> "requires human confirmation";
+                case FORBIDDEN -> "FORBIDDEN — never auto-executed";
+                default -> "above auto-approval threshold";
+            };
+            String emoji = level == Action.ApprovalLevel.FORBIDDEN ? "🚫" : "⛔";
+            LOG.warning(() -> emoji + " " + level + " action blocked (" + reason + "): "
+                    + actionName + " for goal: " + currentGoal.description());
             goals.recordOutcome(currentGoal, false);
             goals.complete(currentGoal.id());
             metrics.recordTick(currentGoal, null, meta);
-            return ActionResult.fail(actionName, "Blocked: requires human approval", java.time.Instant.now());
+            return ActionResult.fail(actionName, "Blocked: " + reason, java.time.Instant.now());
+        }
+        if (level == Action.ApprovalLevel.NOTIFY) {
+            LOG.info(() -> "📝 Auto-executing NOTIFY action: " + actionName
+                    + " (maxAuto=" + maxAutoApprovalLevel + ")");
         }
 
         // ── EXECUTE ──────────────────────────────────────────────
@@ -405,8 +427,30 @@ public class AgentCoreLoop {
     public GoalManager goals() { return goals; }
     public Planner planner() { return planner; }
     public ActionExecutor executor() { return executor; }
-    public void setRequireApprovalForWrite(boolean require) { this.requireApprovalForWrite = require; }
+    /** @deprecated use {@link #setMaxAutoApprovalLevel(Action.ApprovalLevel)} */
+    @Deprecated
+    public void setRequireApprovalForWrite(boolean require) {
+        this.requireApprovalForWrite = require;
+        this.maxAutoApprovalLevel = require ? Action.ApprovalLevel.NOTIFY : Action.ApprovalLevel.FORBIDDEN;
+    }
+    /** @deprecated use {@link #getMaxAutoApprovalLevel()} */
+    @Deprecated
     public boolean isRequireApprovalForWrite() { return requireApprovalForWrite; }
+
+    /**
+     * Set the maximum auto-approval level.
+     * Actions at or below this level execute automatically.
+     * <p>
+     * Example: {@link Action.ApprovalLevel#AUTO} means only read-only actions
+     * auto-execute; all writes need confirmation.
+     */
+    public void setMaxAutoApprovalLevel(Action.ApprovalLevel level) {
+        this.maxAutoApprovalLevel = level;
+        this.requireApprovalForWrite = (level == Action.ApprovalLevel.FORBIDDEN);
+    }
+
+    /** @return the maximum auto-approval level */
+    public Action.ApprovalLevel getMaxAutoApprovalLevel() { return maxAutoApprovalLevel; }
     public MetaCognition meta() { return meta; }
     public CausalModel causalModel() { return causalModel; }
     public ShortTermMemory stm() { return stm; }

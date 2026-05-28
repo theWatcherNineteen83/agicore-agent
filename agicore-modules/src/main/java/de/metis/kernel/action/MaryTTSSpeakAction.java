@@ -38,7 +38,10 @@ public class MaryTTSSpeakAction implements Action {
 
     @Override public String name() { return NAME; }
     @Override public String category() { return "write"; }
-    @Override public boolean requiresApproval() { return false; }
+    @Override
+    public ApprovalLevel approvalLevel() {
+        return ApprovalLevel.NOTIFY; // safe write: audio output only, reversible
+    }
 
     @Override
     public ActionResult execute() {
