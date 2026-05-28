@@ -33,7 +33,7 @@ public class MetisHttpServer {
 
     private static final Logger LOG = Logger.getLogger(MetisHttpServer.class.getName());
 
-    private final HttpServer server;
+    private HttpServer server;  // non-final: retry bind on restart
     private final Agent agent;
     private final int port;
     private final List<ChatMessage> conversationHistory = new ArrayList<>();
@@ -47,7 +47,26 @@ public class MetisHttpServer {
     public MetisHttpServer(Agent agent, int port) throws IOException {
         this.agent = agent;
         this.port = port;
-        this.server = HttpServer.create(new InetSocketAddress(port), 0);
+
+        // Retry bind with backoff (systemd restart: old port may be in TIME_WAIT)
+        IOException lastEx = null;
+        for (int attempt = 0; attempt < 5; attempt++) {
+            try {
+                this.server = HttpServer.create(new InetSocketAddress(port), 0);
+                lastEx = null;
+                break;
+            } catch (IOException e) {
+                lastEx = e;
+                if (attempt < 4) {
+                    LOG.warning("Port " + port + " in use, retry " + (attempt + 1) + "/5...");
+                    try { Thread.sleep(2000); } catch (InterruptedException ignored) {}
+                }
+            }
+        }
+        if (lastEx != null) {
+            this.server = null;
+            throw lastEx;
+        }
         this.server.setExecutor(Executors.newVirtualThreadPerTaskExecutor());
 
         server.createContext("/api/tags", this::handleTags);
