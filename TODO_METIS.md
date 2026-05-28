@@ -49,11 +49,11 @@
 10. **Watchdog-Skeleton** ✅ — WatchdogMain + Config + pom.xml (2ca60d8)
     → ⚠️ Deployment + Integration mit Eval-Harness noch ausstehend
 
-### 🟢 Phase 6 — Was kommt als Nächstes? (Stand 28.05. 23:45)
+### 🟢 Phase 6 — Was kommt als Nächstes? (Stand 28.05. 23:50)
 - **Priorität 1:** Re-Embedding auf miniedi ausführen (Code ✅, Execution ⬜)
 - **Priorität 2:** Watchdog auf miniedi deployen + mit Eval-Harness integrieren
-- **Priorität 3:** A/B-Testing Framework
-- **Priorität 4:** Data Flywheel
+- **Priorität 3:** Data Flywheel (User-Korrekturen → Trainingsdaten)
+- **Priorität 4:** Eval-Datensatz erstellen + Modell-Prune (8 Reasoner → 2-3)
 
 ---
 
@@ -119,14 +119,14 @@
 - [x] Multi-Agent-Koordination ✅
 - [x] RAG Advanced ✅ (DocumentChunker 3 Strategien, PersistentVectorIndex binary, HybridSearch BM25+Cosinus, WorldModel-Integration via enableRagAdvanced())
 
-## Phase 6: Produktionsreife 🟡 67% (28.05.)
+## Phase 6: Produktionsreife 🟡 83% (28.05. 23:50)
 
 ### Gap-Analyse → Implementierung:
 - [x] **Lost-in-the-Middle** ✅ (8426162) — Primacy/Recency Context Windowing (Huyen Kap.6)
 - [x] **OutputValidator** ✅ (ae66cdd) — JSON-Schema + Toxicity + Injection-Check (Huyen Kap.10)
 - [x] **LLM-as-Judge** ✅ (0116022) — Selbstbewertung 4-Dimensionen, Safety Gates (Huyen Kap.3)
 - [x] **Human-in-the-Loop** ✅ (b40e965) — Vierstufiges Approval-Gate: AUTO/NOTIFY/CONFIRM/FORBIDDEN
-- [ ] A/B-Testing — Prompt-Varianten in Produktion vergleichen
+- [x] **A/B-Testing** ✅ (ffb25ba) — ABTestService (~500 lines), Z-test Statistik, Traffic-Split 50/50, Auto-Promote, OllamaPlanner-Integration
 - [ ] Data Flywheel — User-Korrekturen → Trainingsdaten
 - [x] **Embedding-Migration-Code** ✅ (ReEmbeddingMigration + nomic-embed Fix) — ⚠️ Ausführung auf miniedi pending
 - [ ] Modell-Prune via Eval-Harness (8 Reasoner → 2-3 beste) — Eval-Harness-Code ✅, Eval-Datensatz ⬜
