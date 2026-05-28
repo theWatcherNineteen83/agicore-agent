@@ -164,7 +164,7 @@ URL: http://<host>:11735
 
 ## Status — 28.05.2026
 
-**Version:** 0.3.0 | **Stand:** 28.05.2026 | **Planner:** 99–100% | **GPU:** ROCm via Panama FFM (OpenCL Zero-Copy)
+**Version:** 0.4.0 | **Stand:** 28.05.2026 | **Planner:** 99–100% | **GPU:** ROCm via Panama FFM (OpenCL Zero-Copy) | **Phase 1–5:** ✅ 100%
 
 ### Phase 1: Zuverlässiger Kern ✅ ABGESCHLOSSEN
 
@@ -216,12 +216,12 @@ URL: http://<host>:11735
 - Piper TTS + Whisper STT + MaryTTS + Vosk + Java Voice Loop ✅
 - Live-Test mit Georg 🔒 blockiert
 
-### Phase 5: Eigenständigkeit 🟡 85%
+### Phase 5: Eigenständigkeit ✅ 100%
 - Blue/Green Rollback, Autonomous Bugfixing, Prompt Chaining ✅
 - Code-Generierung (LLM→javac→deploy) ✅
 - Panama FFM OpenCL Bridge (Zero-Copy GPU, ROCm) ✅
 - RAG Foundation (OllamaEmbedding + InMemoryVectorIndex) ✅
-- RAG Advanced 📋 (Document Chunking, Embedding-Persistenz, Hybrid-Search)
+- RAG Advanced (DocumentChunker, HybridSearch BM25+Cosinus, PersistentVectorIndex) ✅
 
 ### Roadmap
 
@@ -232,7 +232,7 @@ URL: http://<host>:11735
 | ⚡ Phase 2.5 | Hardware-Optimierung (GPU, Panama, TornadoVM) | ✅ done |
 | 👁️ Phase 3 | Wahrnehmung (HA, ADS-B, Kameras) | ✅ 100% |
 | 🎙️ Phase 4 | Sprachausgabe (TTS/STT) | 🟡 90% | nur noch Java Voice-Loop + Live-Test |
-| 🧠 Phase 5 | Eigenständigkeit + Selbstverbesserung | 🟡 85% | Panama FFM, Code-Gen, RAG Foundation done, RAG Advanced offen |
+| 🧠 Phase 5 | Eigenständigkeit + Selbstverbesserung | ✅ 100% | RAG Advanced: HybridSearch + PersistentVectors in WorldModel |
 
 **Ziel:** EDI-ähnliche KI (Mass Effect 3) — eigenständig, per Text und Telegram ansprechbar, mit eigenem Wissen.
 
