@@ -211,7 +211,7 @@ URL: http://<host>:11735
 | 🔧 Phase 1 | Stabiler Kern (>85% Planner) | ✅ done |
 | 💬 Phase 2 | Konversation + Persona + Events + MQTT | ✅ 100% |
 | ⚡ Phase 2.5 | Hardware-Optimierung (GPU, Panama, TornadoVM) | ✅ done |
-| 👁️ Phase 3 | Wahrnehmung (HA, Kameras, ADS-B) | ⬜ |
+| 👁️ Phase 3 | Wahrnehmung (HA ✅, ADS-B ✅, Kameras ⬜) | 🟡 33% |
 | 🎙️ Phase 4 | Sprachausgabe (TTS/STT) | 🟡 90% | Java-native MaryTTS + Vosk, Piper + Whisper |
 | 🧠 Phase 5 | Eigenständigkeit + Selbstverbesserung | ⬜ |
 

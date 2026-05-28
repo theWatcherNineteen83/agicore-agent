@@ -19,6 +19,7 @@ import de.metis.modules.events.EventTrigger;
 import de.metis.modules.events.WeatherPollingTrigger;
 import de.metis.modules.events.HAEventPoller;
 import de.metis.modules.events.MqttEventService;
+import de.metis.modules.events.AdsbPollingTrigger;
 import de.metis.modules.events.ProactiveNotificationService;
 import de.metis.modules.hardware.HardwareDiscovery;
 import de.metis.modules.hardware.HardwareProfileAction;
@@ -948,6 +949,12 @@ public final class AgentMain {
             eventTriggers.add(mqtt);
             LOG.info("MQTT event trigger active — " + mqtt.description());
         }
+
+        // Phase 3: ADS-B flight tracking (readsb JSON API)
+        var adsb = new AdsbPollingTrigger();
+        adsb.start(agent);
+        eventTriggers.add(adsb);
+        LOG.info("ADS-B event trigger active — " + adsb.description());
 
         // Build the runtime, wiring in the HTTP server for evolution control
         final MetisHttpServer api = httpServer;

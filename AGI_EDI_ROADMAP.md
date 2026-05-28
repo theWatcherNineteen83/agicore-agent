@@ -66,7 +66,7 @@ Phase 5 ██████░░░░░░░░░░░░░░  30%  Eigen
 |---|---------|-------------|--------|
 | 3.1 | HA Direktzugriff | states/services API (read + write) | ✅ |
 | 3.2 | Kamera-Integration | Türkamera (MJPEG 1080p) + Keller (RTSP) | ⬜ |
-| 3.3 | ADS-B Flugdaten | readsb JSON-Feed → Goals | ⬜ |
+| 3.3 | ADS-B Flugdaten | readsb JSON-Feed → Goals | ✅ |
 
 ## Phase 4: Sprachausgabe & -eingabe 🟡 80%
 
@@ -125,7 +125,7 @@ Phase 5 ██████░░░░░░░░░░░░░░  30%  Eigen
 | 🟢 **M2: Kommunikation** | Phase 2 | ✅ Erreicht |
 | 🟢 **M3: Hardware-Nutzung** | Phase 2.5 | ✅ Erreicht |
 | 🟡 **M4: Sprach-Interaktion** | Phase 4 | 🔄 60% |
-| 🟡 **M5: Umgebungswahrnehmung** | Phase 3 | 🔄 40% |
+| 🟡 **M5: Umgebungswahrnehmung** | Phase 3 | 🔄 50% |
 | ⬜ **M6: Autonomie** | Phase 5 | ⬜ 30% |
 | ⬜ **M7: EDI-Niveau** | Alle | ⬜ ~75% |
 

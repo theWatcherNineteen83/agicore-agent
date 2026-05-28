@@ -23,9 +23,9 @@
 - [x] Proaktive Telegram-Meldungen (Wetter/HA/MQTT → Nachricht)
 - [x] TornadoVM GPU-Integration ✅
 
-## Phase 3: Wahrnehmung ⬜
+## Phase 3: Wahrnehmung 🟡 33%
 - [ ] Kamera-Integration (Türkamera, Keller)
-- [ ] ADS-B Flugdaten
+- [x] ADS-B Flugdaten ✅ (readsb JSON → Beliefs + Goals, 60s Polling)
 - [x] Home Assistant Direktzugriff (states, services) ✅
 
 ## Phase 4: Sprachausgabe 🟡 90%
