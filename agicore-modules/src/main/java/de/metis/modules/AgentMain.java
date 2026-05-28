@@ -35,6 +35,7 @@ import de.metis.modules.speech.SphinxSttAction;
 import de.metis.modules.speech.AudioOutputAction;
 import de.metis.modules.speech.AudioInputAction;
 import de.metis.modules.speech.VoiceLoopService;
+import de.metis.modules.speech.WikipediaTrainingService;
 import de.metis.modules.home.HomeAssistantAction;
 
 import java.io.*;
@@ -1034,6 +1035,16 @@ public final class AgentMain {
         adsb.start(agent);
         eventTriggers.add(adsb);
         LOG.info("ADS-B event trigger active — " + adsb.description());
+
+        // Phase 4: Wikipedia Training (Artikel lesen + Sprachtraining)
+        Path wikiDir = Path.of("/data/prometheus/wiki_de");
+        if (Files.isDirectory(wikiDir)) {
+            var wikiTrainer = new WikipediaTrainingService(wikiDir, agent.goals());
+            wikiTrainer.start();
+            LOG.info("Wikipedia training active — " + wikiDir);
+        } else {
+            LOG.info("Wikipedia training skipped — " + wikiDir + " not found");
+        }
 
         // Build the runtime, wiring in the HTTP server for evolution control
         final MetisHttpServer api = httpServer;
