@@ -64,13 +64,13 @@ public class ModelRegistry {
             "laguna"            // general code
     );
 
-    /** Embedding-capable models (small, good vector representations). */
+    /** Embedding-capable models (small, good vector representations). Prefer dedicated embedding models. */
     private static final List<String> EMBEDDING_FAMILIES = List.of(
-            "llama3.2",         // proven embeddings, small
-            "llama3.1",         // older but works
-            "nomic-embed",      // dedicated embedding model
+            "nomic-embed",      // dedicated embedding model, 768d, 0.3 GB — BEST
             "mxbai-embed",      // dedicated embedding model
-            "all-minilm"        // dedicated embedding model
+            "all-minilm",        // dedicated embedding model
+            "llama3.2",         // general purpose, 3072d — fallback
+            "llama3.1"          // older fallback
     );
 
     // ── Size ranges (in GB) ─────────────────────────────────────────────
@@ -85,7 +85,7 @@ public class ModelRegistry {
 
     private static final String DEFAULT_PLANNING = "mistral-small3.1:24b";
     private static final String DEFAULT_MUTATION = "deepseek-r1:32b";
-    private static final String DEFAULT_EMBEDDING = "llama3.2:3b";
+    private static final String DEFAULT_EMBEDDING = "nomic-embed-text";
 
     /**
      * Create registry connected to an Ollama instance.

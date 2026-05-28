@@ -12,7 +12,8 @@ import java.util.logging.Logger;
 /**
  * Calls Ollama's embedding API to vectorize text.
  * <p>
- * Uses llama3.2:3b on miniedi:11434 (3072-dim embeddings).
+ * Uses nomic-embed-text (768-dim) or falls back to llama3.2:3b (3072-dim).
+ * Model is resolved via ModelRegistry; dimension is auto-detected on first call.
  * Results are cached to avoid redundant API calls.
  */
 public class OllamaEmbeddingService {
@@ -20,17 +21,47 @@ public class OllamaEmbeddingService {
     private static final Logger LOG = Logger.getLogger(OllamaEmbeddingService.class.getName());
 
     private static final String OLLAMA_URL = "http://192.168.22.204:11434/api/embeddings";
-    private static final String MODEL = "llama3.2:3b"; // 3072-dim embeddings
+    private static final String DEFAULT_MODEL = "nomic-embed-text"; // 768-dim, preferred
+    private static final String FALLBACK_MODEL = "llama3.2:3b";     // 3072-dim, legacy
     private static final Duration TIMEOUT = Duration.ofSeconds(30);
 
     private final HttpClient http = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(10))
             .build();
 
+    private final String model;
+    private int embeddingDimension = -1; // auto-detected on first call
+
     /** Simple cache to avoid re-embedding the same text. */
     private final Map<String, double[]> cache = new ConcurrentHashMap<>();
     private int embedCount = 0;
     private int cacheHits = 0;
+
+    /**
+     * Create with default model (nomic-embed-text).
+     */
+    public OllamaEmbeddingService() {
+        this(DEFAULT_MODEL);
+    }
+
+    /**
+     * Create with a specific model. Use {@link #withModelRegistry(ModelRegistry)} for auto-selection.
+     */
+    public OllamaEmbeddingService(String model) {
+        this.model = model != null ? model : DEFAULT_MODEL;
+    }
+
+    /**
+     * Factory method: auto-select best embedding model from registry.
+     */
+    public static OllamaEmbeddingService withModelRegistry(ModelRegistry registry) {
+        String model = registry.embeddingModel();
+        LOG.info("EmbeddingService using model from registry: " + model);
+        return new OllamaEmbeddingService(model);
+    }
+
+    public String model() { return model; }
+    public int embeddingDimension() { return embeddingDimension; }
 
     /**
      * Generate an embedding vector for the given text.
@@ -52,7 +83,7 @@ public class OllamaEmbeddingService {
         try {
             String jsonBody = String.format("""
                     {"model": "%s", "prompt": %s}
-                    """, MODEL, escapeJson(key));
+                    """, model, escapeJson(key));
 
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(OLLAMA_URL))
@@ -70,6 +101,10 @@ public class OllamaEmbeddingService {
 
             double[] vector = parseEmbedding(response.body());
             if (vector.length > 0) {
+                if (embeddingDimension < 0) {
+                    embeddingDimension = vector.length;
+                    LOG.info("Embedding dimension detected: " + embeddingDimension + " (model: " + model + ")");
+                }
                 cache.put(key, vector);
                 embedCount++;
                 LOG.fine(() -> "Embedded " + vector.length + " dims for: " + key.substring(0, Math.min(50, key.length())));

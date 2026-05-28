@@ -15,6 +15,7 @@
     <modules>
         <module>agicore-kernel</module>
         <module>agicore-modules</module>
+        <module>agicore-watchdog</module>
     </modules>
 
     <properties>
