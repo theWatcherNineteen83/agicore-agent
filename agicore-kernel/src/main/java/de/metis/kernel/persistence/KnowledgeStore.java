@@ -365,15 +365,46 @@ public class KnowledgeStore implements AutoCloseable {
         return messages;
     }
 
-    /** Summarize conversation history for context injection. */
+    /**
+     * Summarize conversation history for context injection.
+     * Uses primacy/recency windowing to avoid "lost in the middle" (Huyen Kap.6):
+     * keeps first 2 exchanges (primacy) + last N exchanges (recency),
+     * marks omitted middle messages.
+     */
     public String conversationSummary(String sessionId, int maxMessages) {
-        List<ChatMessage> msgs = loadConversation(sessionId, maxMessages);
+        // Load extra messages to have headroom for windowing
+        List<ChatMessage> msgs = loadConversation(sessionId, maxMessages * 2);
         if (msgs.isEmpty()) return "(new conversation)";
+
+        // Short conversations: no windowing needed
+        if (msgs.size() <= maxMessages) {
+            return formatMessages(msgs);
+        }
+
+        // Primacy/recency windowing: keep first 4 + last maxMessages
+        int keepHead = Math.min(4, msgs.size() / 3);
+        int keepTail = Math.min(maxMessages, msgs.size() - keepHead);
+        int omitted = msgs.size() - keepHead - keepTail;
+
+        List<ChatMessage> windowed = new ArrayList<>();
+        for (int i = 0; i < keepHead; i++) windowed.add(msgs.get(i));
+        if (omitted > 0) {
+            windowed.add(new ChatMessage(sessionId, "system",
+                    "[" + omitted + " earlier messages omitted to stay in context window]",
+                    Instant.now().toString()));
+        }
+        for (int i = msgs.size() - keepTail; i < msgs.size(); i++) windowed.add(msgs.get(i));
+
+        return formatMessages(windowed);
+    }
+
+    /** Format chat messages into a compact string for context injection. */
+    private String formatMessages(List<ChatMessage> msgs) {
         StringBuilder sb = new StringBuilder();
         for (var msg : msgs) {
             sb.append(msg.role()).append(": ").append(msg.content());
-            if (msg.content().length() > 100) {
-                sb.setLength(sb.length() - msg.content().length() + 100);
+            if (msg.content().length() > 120) {
+                sb.setLength(sb.length() - msg.content().length() + 120);
                 sb.append("...");
             }
             sb.append("\n");
