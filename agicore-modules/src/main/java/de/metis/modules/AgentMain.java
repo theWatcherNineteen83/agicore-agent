@@ -20,6 +20,7 @@ import de.metis.modules.events.WeatherPollingTrigger;
 import de.metis.modules.events.HAEventPoller;
 import de.metis.modules.events.MqttEventService;
 import de.metis.modules.events.AdsbPollingTrigger;
+import de.metis.modules.events.WebcamPollingTrigger;
 import de.metis.modules.events.CameraPollingTrigger;
 import de.metis.modules.events.CameraPollingTrigger.CameraConfig;
 import de.metis.modules.action.CameraSnapshotAction;
@@ -1044,6 +1045,12 @@ public final class AgentMain {
         adsb.start(agent);
         eventTriggers.add(adsb);
         LOG.info("ADS-B event trigger active — " + adsb.description());
+
+        // Phase 3: Webcam Coburg Marktplatz (public bergfex webcam)
+        var webcam = new WebcamPollingTrigger();
+        webcam.start(agent);
+        eventTriggers.add(webcam);
+        LOG.info("Webcam event trigger active — " + webcam.description());
 
         // Phase 3.2: Camera polling (Türkamera + Keller)
         var cameraPolling = new CameraPollingTrigger(List.of(
