@@ -40,12 +40,12 @@
 2. **LLM-as-Judge** — Selbstbewertung für Qualitäts-Scoring (Huyen Kap.3)
 3. **Output-Validierung** — JSON-Schema, Factual-Check, Toxicity (Huyen Kap.10)
 4. **A/B-Testing** — Prompt-Varianten in Produktion vergleichen
-5. **Lost-in-the-Middle** — Kontext-Management für lange Sessions
+5. **Lost-in-the-Middle** ✅ — Phase 6: Primacy/Recency Context Windowing (8426162)
 6. **Human-in-the-Loop verfeinern** — Read/Write-Differenzierung im Approval-Gate
 7. **Data Flywheel** — User-Korrekturen → automatisch Trainingsdaten verbessern
 
-### 🟢 Phase 6 — Was kommt als Nächstes?
-- **Priorität 1:** Lost-in-the-Middle (Kontext-Pruning für lange Sessions, Huyen Kap.6)
+### 🟢 Phase 6 — Was kommt als Nächstes? (Stand 28.05. 19:50)
+- **Priorität 1:** Lost-in-the-Middle ✅ — Primacy/Recency Context Windowing (8426162)
 - **Priorität 2:** Output-Validierung (JSON-Schema-Validierung + Toxicity-Check)
 - **Priorität 3:** LLM-as-Judge (Selbstbewertung für Qualitätsscoring)
 
