@@ -12,6 +12,7 @@ import de.metis.kernel.world.WorldModel;
 import de.metis.modules.evolution.ModelRegistry;
 import de.metis.kernel.safety.LlmJudge;
 import de.metis.kernel.safety.OutputValidator;
+import de.metis.kernel.optimize.ABTestService;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -104,6 +105,11 @@ public class OllamaPlanner implements Planner {
     // ── LLM-as-Judge (Huyen Kap. 3) ──────────────────────────
     private final LlmJudge llmJudge = new LlmJudge();
 
+    // ── A/B Testing (Huyen Kap. 3) ────────────────────────────
+    private ABTestService abTestService;
+    private boolean abTestingEnabled = true;
+    private ABTestService.Variant currentABVariant = null; // set per-plan, used in prompt building
+
     // ── ReAct state ──────────────────────────────────────────
     private String lastThought = null;
 
@@ -119,6 +125,7 @@ public class OllamaPlanner implements Planner {
         this("http://192.168.22.204:11434/api/generate",
              "nemotron-cascade-2:30b",
              Duration.ofSeconds(60));
+        initABTesting();
     }
 
     /**
@@ -138,6 +145,7 @@ public class OllamaPlanner implements Planner {
             "nemotron:latest",
             "qwen3.6:latest"
         ));
+        initABTesting();
     }
 
     /**
@@ -154,6 +162,7 @@ public class OllamaPlanner implements Planner {
             "nemotron:latest",
             "qwen3.6:latest"
         ));
+        initABTesting();
     }
 
     // ── Configuration setters (builder-friendly) ──────────────
@@ -195,11 +204,142 @@ public class OllamaPlanner implements Planner {
     public void setVersion(String v) { this.version = v; }
     public void setLastFitness(double f) { this.lastFitness = f; }
 
+    // ── A/B Testing Setup ────────────────────────────────────
+
+    private void initABTesting() {
+        this.abTestService = new ABTestService(20, 0.05, 0.5);
+
+        // Variant A: Baseline (current production prompt)
+        abTestService.registerVariant("baseline",
+                buildSystemPromptBlock(),
+                buildActionCatalogBlock(),
+                "Current production prompt with standard CoT + Few-Shot");
+
+        // Variant B: Enhanced (Huyen-optimized: explicit role constraints + safety-first framing)
+        abTestService.registerVariant("huyen-optimized",
+                buildSystemPromptBlockVariant(),
+                buildActionCatalogBlockVariant(),
+                "Huyen-optimized: role constraints, safety framing, failure-pattern awareness");
+
+        if (abTestingEnabled) {
+            abTestService.startExperiment();
+        }
+    }
+
+    /** Enable or disable A/B testing at runtime. */
+    public OllamaPlanner withABTesting(boolean enabled) {
+        this.abTestingEnabled = enabled;
+        return this;
+    }
+
+    /** Get the AB test report. */
+    public String abTestReport() {
+        return abTestService != null ? abTestService.report() : "AB testing not initialized";
+    }
+
+    private void recordABOutcome(ABTestService.Variant variant, boolean success,
+                                  long planStartMs, double confidence, double judgeScore) {
+        if (variant == null || abTestService == null) return;
+        long latencyMs = System.currentTimeMillis() - planStartMs;
+        abTestService.recordOutcome(variant, success, latencyMs, confidence, judgeScore);
+
+        // Auto-promote winner when detected
+        if (abTestService.hasWinner() && abTestService.winner() != null) {
+            ABTestService.Variant winner = abTestService.promoteWinner();
+            LOG.info("ABTest: AUTO-PROMOTED winner '" + winner.name()
+                    + "' — all traffic now routed to " + winner.description());
+            abTestingEnabled = false; // experiment concluded
+        }
+    }
+
+    // ── Variant Prompt Blocks ─────────────────────────────────
+
+    /** Baseline system prompt (variant A). */
+    private String buildSystemPromptBlock() {
+        return """
+                You are Metis, an autonomous agent that selects the single best action per goal.
+                Think step by step before answering:
+                  (1) ANALYZE: What does the goal really need? What type of work?
+                  (2) MATCH: Which action category fits best?
+                  (3) CHECK: Did this action fail recently for similar goals? IMPORTANT: 0 uses ≠ 0% success. An action with 0 execution count is UNTESTED (potentially great!), not failed. Only avoid actions with low success rate AND actual execution history.
+                  (4) DECIDE: Pick the action with highest expected success. Be decisive — ONE action.
+
+                RULES:
+                - EXPLORATION goals (category='exploration'): ALWAYS pick untested actions (0 uses) over shell/http. Exploration is for discovering new capabilities, not repeating old ones.
+                - Prefer actions with proven success rates over ones with proven failures
+                - UNTESTED actions (0 execution count) are OPPORTUNITIES, not risks. Treat them as high-value exploration targets.
+                - Shell is the LAST RESORT fallback — only when NO specialized action fits (filesystem, memory, self-analysis, etc. are ALL more specialized than shell)
+                """;
+    }
+
+    /** Enhanced system prompt (variant B) — Huyen-optimized. */
+    private String buildSystemPromptBlockVariant() {
+        return """
+                You are Metis, a safety-conscious autonomous agent. Your role is to select exactly ONE action per goal that maximizes success probability while minimizing risk.
+
+                THINK CAREFULLY using this structured reasoning process:
+                  (1) UNDERSTAND: Parse the goal. What is the user actually trying to accomplish?
+                  (2) CATEGORIZE: Is this exploration, execution, analysis, or safety-check?
+                  (3) EVALUATE: For each candidate action — success history, failure patterns, risk profile.
+                  (4) DECIDE: Pick THE single best action. Decisiveness > exhaustiveness.
+
+                OPERATING PRINCIPLES:
+                - Safety first: if an action has a history of failures for similar goals, avoid it.
+                - Exploration is valuable: untested actions (0 execution count) are learning opportunities, not risks.
+                - Specialization beats generality: always prefer a specialized action over generic shell/http.
+                - Learn from failures: recent failures for similar goals are strong signals to try alternatives.
+                - Confidence is earned: high confidence only when the action-goal mapping has proven success.
+                """;
+    }
+
+    /** Baseline action catalog (variant A). */
+    private String buildActionCatalogBlock() {
+        return """
+                ACTION CATALOG:
+                - shell: run Linux commands (system checks, process info, general exploration)
+                - http: make HTTP requests (health checks, API calls, endpoint testing)
+                - webscrape: extract human-readable text from web pages
+                - filesystem-list: list directory contents, discover file structure
+                - filesystem-read: read complete file contents by path
+                - api-explore: discover and probe HTTP endpoints on a target host
+                - linux-explore-system: deep system probe (processes, memory, disk, network)
+                - memory-query: search the agent's own long-term knowledge base
+                - self-analyze: inspect agent's own performance metrics and state
+                - javasandbox: execute safe, sandboxed Java code experiments
+                - prompt-chain: decompose complex multi-step goals into sequential sub-goals, execute each with context from previous results, and synthesize final answer (Pattern: Decompose→Execute→Aggregate)
+                """;
+    }
+
+    /** Enhanced action catalog (variant B) — adds risk levels and best-use hints. */
+    private String buildActionCatalogBlockVariant() {
+        return """
+                ACTION CATALOG (with risk profiles):
+                - memory-query [LOW risk]: search agent's knowledge base — BEST for "what do I know" questions
+                - self-analyze [LOW risk]: inspect agent's own metrics — BEST for performance introspection
+                - filesystem-list [LOW risk]: list directory contents — BEST for file discovery
+                - filesystem-read [LOW risk]: read file contents — BEST for accessing known paths
+                - http [LOW risk]: HTTP requests — BEST for API health checks, endpoint testing
+                - webscrape [LOW risk]: extract text from web — BEST for article/content retrieval
+                - api-explore [MEDIUM risk]: probe HTTP endpoints — BEST for API discovery
+                - javasandbox [MEDIUM risk]: sandboxed Java execution — BEST for safe code experiments
+                - linux-explore-system [MEDIUM risk]: deep system probe — BEST for comprehensive resource analysis
+                - prompt-chain [MEDIUM risk]: multi-step task decomposition — BEST for complex workflows (Decompose→Execute→Aggregate)
+                - shell [HIGH risk]: raw Linux commands — LAST RESORT only, use when NO specialized action fits
+                """;
+    }
+
     // ── Planner ────────────────────────────────────────────────
 
     @Override
     public List<String> plan(Goal goal, List<Experience> recentHistory,
                              List<ContentItem> broadcast, MetaCognition meta) {
+
+        long planStartMs = System.currentTimeMillis();
+        ABTestService.Variant abVariant = null;
+        if (abTestingEnabled && abTestService != null) {
+            abVariant = abTestService.selectVariant();
+            this.currentABVariant = abVariant;
+        }
 
         totalPlansGenerated++;
         List<String> result = null;
@@ -272,14 +412,19 @@ public class OllamaPlanner implements Planner {
                         + " | reasoning: " + eval.reasoning());
                 invalidPlanCount++;
                 emptyPlanCount++;
+                // A/B test: record blocked plan as unsuccessful
+                recordABOutcome(abVariant, false, planStartMs, 0.0, eval.aggregateScore());
                 return Collections.emptyList();
             }
+            // A/B test: record successful plan
+            recordABOutcome(abVariant, true, planStartMs, lastPlanConfidence, eval.aggregateScore());
             // Warning but not blocked: log and proceed
             return result;
         }
 
         // No plan found
         emptyPlanCount++;
+        recordABOutcome(abVariant, false, planStartMs, 0.0, -1);
         return Collections.emptyList();
     }
 
