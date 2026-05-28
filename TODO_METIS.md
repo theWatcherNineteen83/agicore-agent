@@ -1,4 +1,4 @@
-# TODO Metis — Stand 28.05.2026 14:15
+# TODO Metis — Stand 28.05.2026 16:45
 
 ## 📚 Buch-Abgleich 28.05. — Prompting-Kurz&Gut + GenKI-Systeme
 
@@ -97,13 +97,15 @@
 - [x] Java Voice-Loop (MaryTTS + Vosk nativ, VoiceLoopService) ✅
 - [ ] Live-Test mit Georg (Mikrofon → Metis → Kopfhörer)
 
-## Phase 5: Eigenständigkeit 🟡 55%
+## Phase 5: Eigenständigkeit 🟡 85%
 - [x] Blue/Green Rollback ✅ (RollbackManager, Auto-Rollback bei >10 failures)
 - [x] Autonomous Bugfixing ✅ (BugfixingAgent, Pattern-Detection, Auto-Fix)
 - [x] Prompt Chaining ✅ (PromptChainingService, Decompose→Execute→Aggregate, 3bbcdf2)
-- [ ] Selbstständige Code-Generierung (LLM→javac→Test→Eval)
-- [ ] JNI/Panama-Bridge für GPU
+- [x] Selbstständige Code-Generierung ✅ (CodeGenerationAction, LLM→javac→deploy, 5423a08)
+- [x] JNI/Panama-Bridge für GPU ✅ (OpenCLNative via Panama FFM, GpuTensor Zero-Copy, OpenCLBridge High-Level, 8edac15 + 3bffa1c)
+- [x] RAG Foundation ✅ (OllamaEmbeddingService + InMemoryVectorIndex + WorldModel.query semantic search)
 - [x] Multi-Agent-Koordination ✅
+- [ ] RAG Advanced: Document Chunking + Embedding-Persistenz + Hybrid-Search
 
 ## 🔴 Nächstes Todo-Fenster: Buch-Abgleich & ReAct (27.05.)
 

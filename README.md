@@ -164,7 +164,7 @@ URL: http://<host>:11735
 
 ## Status — 28.05.2026
 
-**Version:** 0.3.0 | **Stand:** 28.05.2026 | **Planner:** 99–100% | **GPU:** ROCm-accelerated
+**Version:** 0.3.0 | **Stand:** 28.05.2026 | **Planner:** 99–100% | **GPU:** ROCm via Panama FFM (OpenCL Zero-Copy)
 
 ### Phase 1: Zuverlässiger Kern ✅ ABGESCHLOSSEN
 
@@ -201,8 +201,8 @@ URL: http://<host>:11735
 
 - ✅ Hardware-Discovery — Ryzen 7 5700G, RX 7900 XTX, 64 GB RAM, AVX2
 - ✅ VRAM-Budget — Planning ~18 GB + Chat 9 GB = 27 GB (Ollama offloading)
-- ⬜ Project Panama FFM — GPU-Datentransfer ohne JNI
 - ✅ TornadoVM — Java → GPU-Kernel-Kompilierung
+- ✅ Project Panama FFM — OpenCL Zero-Copy GPU (ROCm, kein JNI)
 
 ### Phase 3: Wahrnehmung ✅ 100%
 
@@ -211,6 +211,17 @@ URL: http://<host>:11735
 - ✅ **Kamera-Integration** — CameraSnapshotAction (ffmpeg, RTSP + MJPEG), CameraPollingTrigger (5min, Motion-Detection)
   - Türkamera: MJPEG 1080p `http://192.168.22.161:9081/snapshot`
   - Keller: Annke H.265 720p `rtsp://192.168.22.148/H265/ch1/main/av_stream`
+
+### Phase 4: Sprachausgabe 🟡 90%
+- Piper TTS + Whisper STT + MaryTTS + Vosk + Java Voice Loop ✅
+- Live-Test mit Georg 🔒 blockiert
+
+### Phase 5: Eigenständigkeit 🟡 85%
+- Blue/Green Rollback, Autonomous Bugfixing, Prompt Chaining ✅
+- Code-Generierung (LLM→javac→deploy) ✅
+- Panama FFM OpenCL Bridge (Zero-Copy GPU, ROCm) ✅
+- RAG Foundation (OllamaEmbedding + InMemoryVectorIndex) ✅
+- RAG Advanced 📋 (Document Chunking, Embedding-Persistenz, Hybrid-Search)
 
 ### Roadmap
 
@@ -221,7 +232,7 @@ URL: http://<host>:11735
 | ⚡ Phase 2.5 | Hardware-Optimierung (GPU, Panama, TornadoVM) | ✅ done |
 | 👁️ Phase 3 | Wahrnehmung (HA, ADS-B, Kameras) | ✅ 100% |
 | 🎙️ Phase 4 | Sprachausgabe (TTS/STT) | 🟡 90% | nur noch Java Voice-Loop + Live-Test |
-| 🧠 Phase 5 | Eigenständigkeit + Selbstverbesserung | 🟡 40% | Blue/Green, Bugfixing, Multi-Agent done |
+| 🧠 Phase 5 | Eigenständigkeit + Selbstverbesserung | 🟡 85% | Panama FFM, Code-Gen, RAG Foundation done, RAG Advanced offen |
 
 **Ziel:** EDI-ähnliche KI (Mass Effect 3) — eigenständig, per Text und Telegram ansprechbar, mit eigenem Wissen.
 
