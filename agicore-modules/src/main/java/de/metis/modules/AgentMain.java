@@ -689,7 +689,7 @@ public final class AgentMain {
         boolean evolution = false;
         boolean kernelEvolution = false;
         boolean requireApproval = true;
-        boolean voiceLoopEnabled = false;
+        boolean voiceLoopEnabled = true;  // always-on for voice interaction
         int maxTicks = 0;
         int apiPort = 0;  // 0 = disabled
         String planningModel = null;

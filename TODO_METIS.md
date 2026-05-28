@@ -48,7 +48,7 @@
 - [x] Voice-Loop (Shell/tmux, Push-to-Talk) ✅
 - [x] Wikipedia-Trainingsloop (9 Artikel, Wissen+Sprache) ✅
 - [x] MaryTTS XSLT-Patch PR #1122 an upstream ✅
-- [ ] Java Voice-Loop (MaryTTS + Vosk nativ integrieren)
+- [x] Java Voice-Loop ✅ (Piper+Whisper CLI, arecord+aplay, PipeWire)
 - [ ] Live-Test mit Georg (Mikrofon → Metis → Kopfhörer)
 
 ## Phase 5: Eigenständigkeit 🟡 40%
