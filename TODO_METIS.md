@@ -97,7 +97,7 @@
 - [x] Java Voice-Loop (MaryTTS + Vosk nativ, VoiceLoopService) ✅
 - [ ] Live-Test mit Georg (Mikrofon → Metis → Kopfhörer)
 
-## Phase 5: Eigenständigkeit 🟡 85%
+## Phase 5: Eigenständigkeit ✅ 100%
 - [x] Blue/Green Rollback ✅ (RollbackManager, Auto-Rollback bei >10 failures)
 - [x] Autonomous Bugfixing ✅ (BugfixingAgent, Pattern-Detection, Auto-Fix)
 - [x] Prompt Chaining ✅ (PromptChainingService, Decompose→Execute→Aggregate, 3bbcdf2)
@@ -105,7 +105,7 @@
 - [x] JNI/Panama-Bridge für GPU ✅ (OpenCLNative via Panama FFM, GpuTensor Zero-Copy, OpenCLBridge High-Level, 8edac15 + 3bffa1c)
 - [x] RAG Foundation ✅ (OllamaEmbeddingService + InMemoryVectorIndex + WorldModel.query semantic search)
 - [x] Multi-Agent-Koordination ✅
-- [ ] RAG Advanced: Document Chunking + Embedding-Persistenz + Hybrid-Search
+- [x] RAG Advanced ✅ (DocumentChunker 3 Strategien, PersistentVectorIndex binary, HybridSearch BM25+Cosinus, WorldModel-Integration via enableRagAdvanced())
 
 ## 🔴 Nächstes Todo-Fenster: Buch-Abgleich & ReAct (27.05.)
 

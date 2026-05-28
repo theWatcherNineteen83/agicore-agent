@@ -144,6 +144,7 @@ public final class AgentMain {
             running.set(false);
             try {
                 persistState();
+                agent.worldModel().saveEmbeddings();
                 printSummary();
             } catch (Exception e) {
                 LOG.warning("Shutdown persist failed: " + e.getMessage());
@@ -911,6 +912,10 @@ public final class AgentMain {
         // Wire embedding provider for semantic belief search
         var embedSvc = new OllamaEmbeddingService();
         agent.worldModel().setEmbeddingProvider(embedSvc::embed);
+
+        // Enable RAG Advanced: persistent embeddings + hybrid keyword/semantic search
+        var vectorsPath = dbPath.resolveSibling("metis-vectors.bin");
+        agent.worldModel().enableRagAdvanced(vectorsPath);
 
         // Not needed here — fitness + curiosity created below for the main agent
 

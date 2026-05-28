@@ -3,9 +3,11 @@ package de.metis.kernel.world;
 import de.metis.kernel.workspace.ContentItem;
 import de.metis.kernel.persistence.KnowledgeStore;
 import de.metis.kernel.embedding.EmbeddingProvider;
-import de.metis.kernel.embedding.VectorIndex;
 import de.metis.kernel.embedding.InMemoryVectorIndex;
+import de.metis.kernel.rag.HybridSearchService;
+import de.metis.kernel.rag.PersistentVectorIndex;
 
+import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
@@ -27,14 +29,16 @@ import java.util.logging.Logger;
  * <b>Content generation:</b> the world model produces content items for
  * the Global Workspace, competing with memory, goals, and self-model.
  */
-public class WorldModel {
+public class WorldModel implements AutoCloseable {
 
     private static final Logger LOG = Logger.getLogger(WorldModel.class.getName());
 
     private final Map<String, Belief> beliefs = new ConcurrentHashMap<>();
     private KnowledgeStore knowledgeStore = null;
     private EmbeddingProvider embeddingProvider = null;
-    private VectorIndex beliefIndex = new InMemoryVectorIndex(); // semantic search
+    private PersistentVectorIndex persistentIndex = null;
+    private HybridSearchService hybridSearch = null;
+    private boolean ragAdvancedEnabled = false;
 
     /** Enable SQLite persistence for beliefs. */
     public void setKnowledgeStore(KnowledgeStore store) {
@@ -46,17 +50,64 @@ public class WorldModel {
         this.embeddingProvider = provider;
     }
 
-    /** Index a belief's embedding for semantic search. */
+    /**
+     * Enable RAG Advanced: persistent embeddings + hybrid keyword/semantic search.
+     * Call after setEmbeddingProvider().
+     *
+     * @param storagePath path to persist embedding vectors (e.g., data/belief-vectors.bin)
+     */
+    public void enableRagAdvanced(Path storagePath) {
+        if (embeddingProvider == null) {
+            LOG.warning("RAG Advanced requires EmbeddingProvider — call setEmbeddingProvider() first");
+            return;
+        }
+        var inMemory = new InMemoryVectorIndex();
+        this.persistentIndex = new PersistentVectorIndex(inMemory, storagePath, false);
+        int loaded = persistentIndex.load();
+        this.hybridSearch = new HybridSearchService(embeddingProvider, persistentIndex);
+        this.ragAdvancedEnabled = true;
+        LOG.info("RAG Advanced enabled: " + loaded + " vectors loaded from " + storagePath
+                + ", hybrid search active (alpha=" + hybridSearch.getAlpha() + ")");
+    }
+
+    /** Check if RAG Advanced is active. */
+    public boolean isRagAdvancedEnabled() {
+        return ragAdvancedEnabled;
+    }
+
+    /** Get the HybridSearchService (for tuning alpha, stats). */
+    public HybridSearchService hybridSearch() {
+        return hybridSearch;
+    }
+
+    /** Save embedding vectors to disk. */
+    public void saveEmbeddings() {
+        if (persistentIndex != null) {
+            persistentIndex.save();
+        }
+    }
+
+    @Override
+    public void close() {
+        saveEmbeddings();
+    }
+
+    /** Index a belief's embedding for semantic search (RAG Advanced or basic). */
     private void indexBelief(Belief belief) {
-        if (embeddingProvider != null) {
-            try {
-                double[] vec = embeddingProvider.embed(belief.statement());
-                if (vec != null && vec.length > 0) {
-                    beliefIndex.insert(belief.statement(), vec);
-                }
-            } catch (Exception e) {
-                LOG.fine("Embedding failed for belief, using substring fallback: " + e.getMessage());
+        if (embeddingProvider == null) return;
+        try {
+            double[] vec = embeddingProvider.embed(belief.statement());
+            if (vec == null || vec.length == 0) return;
+
+            if (ragAdvancedEnabled && hybridSearch != null && persistentIndex != null) {
+                // RAG Advanced: hybrid search + persistence
+                hybridSearch.index(belief.statement(), belief.statement());
+            } else if (persistentIndex != null) {
+                // Persistence-only mode (no hybrid)
+                persistentIndex.insert(belief.statement(), vec);
             }
+        } catch (Exception e) {
+            LOG.fine("Embedding failed for belief: " + e.getMessage());
         }
     }
 
@@ -117,15 +168,36 @@ public class WorldModel {
 
     /**
      * Query beliefs relevant to a goal or context string.
-     * Uses embedding-based semantic search if available, falls back to substring match.
+     * Uses RAG Advanced hybrid search (keyword + semantic) if enabled,
+     * falls back to semantic-only, then substring match.
      */
     public List<Belief> query(String context, int maxResults) {
-        // ── Semantic search (embedding-based) ──────────────────
-        if (embeddingProvider != null) {
+        // ── RAG Advanced: hybrid keyword + semantic search ─────
+        if (ragAdvancedEnabled && hybridSearch != null && hybridSearch.vectorSize() > 0) {
+            try {
+                var scored = hybridSearch.search(context, maxResults);
+                if (!scored.isEmpty()) {
+                    List<Belief> results = new ArrayList<>();
+                    for (var s : scored) {
+                        Belief b = beliefs.get(s.key());
+                        if (b != null) results.add(b);
+                        if (results.size() >= maxResults) break;
+                    }
+                    LOG.fine(() -> "Hybrid query: '" + context + "' → " + results.size()
+                            + " beliefs (α=" + String.format("%.1f", hybridSearch.getAlpha()) + ")");
+                    return results;
+                }
+            } catch (Exception e) {
+                LOG.fine("Hybrid search failed, falling back: " + e.getMessage());
+            }
+        }
+
+        // ── Semantic-only search (persistent or in-memory index) ──
+        if (embeddingProvider != null && persistentIndex != null && persistentIndex.size() > 0) {
             try {
                 double[] queryVec = embeddingProvider.embed(context);
                 if (queryVec != null && queryVec.length > 0) {
-                    List<String> keys = beliefIndex.search(queryVec, maxResults * 2);
+                    List<String> keys = persistentIndex.search(queryVec, maxResults * 2);
                     List<Belief> results = new ArrayList<>();
                     for (String key : keys) {
                         Belief b = beliefs.get(key);
@@ -138,7 +210,7 @@ public class WorldModel {
                     }
                 }
             } catch (Exception e) {
-                LOG.fine("Semantic search failed, falling back to substring: " + e.getMessage());
+                LOG.fine("Semantic search failed: " + e.getMessage());
             }
         }
 
