@@ -65,9 +65,6 @@ public class VoiceLoopService {
     // ── Main Loop: Listen → Understand → Think → Speak ──────────
 
     private void runLoop() {
-        // Welcome message
-        new MaryTTSSpeakAction("Metis Sprachassistent bereit.", "bits1-hsmm").execute();
-
         while (running.get()) {
             try {
                 // 1. LISTEN via Vosk (Java-native, microphone)
@@ -81,30 +78,43 @@ public class VoiceLoopService {
                     heard = "";
                 }
 
-                // Skip silence / empty
-                if (heard.isEmpty() || "(silence)".equalsIgnoreCase(heard)) {
+                // Clean up Vosk output: remove "partial :" prefix from incremental results
+                String cleanHeard = heard;
+                if (cleanHeard.toLowerCase().startsWith("partial :")) {
+                    cleanHeard = cleanHeard.substring("partial :".length()).trim();
+                } else if (cleanHeard.toLowerCase().startsWith("partial")) {
+                    cleanHeard = cleanHeard.substring("partial".length()).trim();
+                }
+
+                // Skip empty after cleaning, noise patterns, our own voice
+                if (cleanHeard.isEmpty() || "(silence)".equalsIgnoreCase(cleanHeard)
+                        || cleanHeard.startsWith("Metis")  // don't echo TTS output
+                        || cleanHeard.equals(":")
+                        || cleanHeard.matches("^[^a-zA-ZäöüßÄÖÜ]*$")  // no actual letters
+                        || cleanHeard.length() < 2) {
                     Thread.sleep(500);
                     continue;
                 }
 
-                LOG.info(() -> "Heard: \"" + heard + "\"");
+                // Minimal filter: only skip self-echo
+                final String recognized = cleanHeard;
+                LOG.info(() -> "Heard: \"" + recognized + "\"");
 
-                // 2. UNDERSTAND + THINK: Submit as Goal to Metis
-                goals.add(new Goal(
-                        "Voice input: " + heard,
-                        "voice",
-                        80,  // high priority for voice interaction
-                        0.9,
-                        1
-                ));
+                // 2. Submit as Goal (no TTS response to avoid feedback loop)
+                if (recognized.toLowerCase().contains("wetter")
+                        || recognized.toLowerCase().contains("metis")
+                        || recognized.length() > 10) {
+                    goals.add(new Goal(
+                            "Voice input: " + recognized,
+                            "voice",
+                            80,
+                            0.9,
+                            1
+                    ));
+                    conversationCount++;
+                }
 
-                conversationCount++;
-
-                // 3. Wait briefly for Metis to process
                 Thread.sleep(1500);
-
-                // 4. SPEAK response via MaryTTS (Java-native)
-                new MaryTTSSpeakAction("Verstanden: " + heard, "bits1-hsmm").execute();
 
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
@@ -112,7 +122,7 @@ public class VoiceLoopService {
             } catch (Exception e) {
                 LOG.warning("Voice loop error: " + e.getMessage());
                 if (running.get()) {
-                    try { Thread.sleep(1000); } catch (InterruptedException ignored) { break; }
+                    try { Thread.sleep(2000); } catch (InterruptedException ignored) { break; }
                 }
             }
         }

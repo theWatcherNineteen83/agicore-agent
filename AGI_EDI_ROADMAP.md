@@ -3,19 +3,19 @@
 **Ziel:** EDI-ähnliche KI (Mass Effect 3) — eigenständig, per Sprache und Text ansprechbar,
 mit eigenem Wissen, Persönlichkeit und der Fähigkeit, sich selbst zu verbessern.
 
-**Stand: 27.05.2026 (26 Commits, Phase 4: 90%)**
+**Stand: 28.05.2026 (33 Commits, Phase 5: 55%)**
 
 ---
 
-## Fortschritt gesamt: ~84%
+## Fortschritt gesamt: ~88%
 
 ```
 Phase 1 ████████████████████ 100%  Zuverlässiger Kern
 Phase 2 ████████████████████ 100%  Konversation + Events
-Ph 2.5  ████████████████████ 100%  Hardware-Optimierung
-Phase 3 ████████░░░░░░░░░░░░  40%  Wahrnehmung (HA ✅, Kamera/ADS-B ⬜)
-Phase 4 ██████████████████░░  90%  Sprachausgabe (Java ✅, Vosk ✅, Wiki 🔄)
-Phase 5 ██████░░░░░░░░░░░░░░  30%  Eigenständigkeit
+Ph 2.5  ████████████████████ 100%  Prompt-Caching + Latenz-Tracking
+Phase 3 ████████████░░░░░░░░  67%  Wahrnehmung (HA ✅, ADS-B ✅, Webcam ✅, Kamera 🟡)
+Phase 4 ██████████████████░░  95%  Sprachausgabe (Java Voice Loop ✅, Wiki 29/29 ✅)
+Phase 5 ███████████░░░░░░░░░  55%  Eigenständigkeit (Panama ✅, Rollback ✅, Bugfix ✅)
 ```
 
 ---

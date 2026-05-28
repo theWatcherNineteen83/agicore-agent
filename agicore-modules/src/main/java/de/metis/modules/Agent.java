@@ -9,6 +9,7 @@ import de.metis.kernel.action.WikipediaAction;
 import de.metis.kernel.action.VoskListenAction;
 import de.metis.modules.action.CameraSnapshotAction;
 import de.metis.kernel.action.CodeGenerationAction;
+import de.metis.kernel.action.RAGAction;
 import de.metis.kernel.core.AgentCoreLoop;
 import de.metis.kernel.evolution.EvolutionManager;
 import de.metis.kernel.goal.Goal;
@@ -127,6 +128,14 @@ public class Agent {
         public Builder registerCodeGeneration(String specification, String ollamaUrl, String model, java.nio.file.Path targetDir, Duration timeout) {
             executor.register(new CodeGenerationAction(specification, ollamaUrl, model, targetDir, timeout)); return this;
         }
+
+        /** Register a RAG action: ingest documents or search indexed knowledge. */
+        public Builder registerRAG(String mode, String documentId, String content,
+                                   de.metis.kernel.embedding.EmbeddingProvider embeddingProvider,
+                                   Path storagePath) {
+            executor.register(new RAGAction(embeddingProvider, storagePath, mode, documentId, content)); return this;
+        }
+
         public Builder workspaceCapacity(int capacity) {
             this.workspace = new GlobalWorkspace(new AttentionBuffer(capacity)); return this;
         }
