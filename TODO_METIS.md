@@ -1,4 +1,50 @@
-# TODO Metis — Stand 27.05.2026
+# TODO Metis — Stand 28.05.2026 14:15
+
+## 📚 Buch-Abgleich 28.05. — Prompting-Kurz&Gut + GenKI-Systeme
+
+### Prompting-Kurz&Gut (Rheinwerk 2026) vs Metis
+| Best Practice | Metis-Status |
+|---|---|
+| Klar & präzise formulieren | ✅ OllamaPlanner-Prompt mit Constraints |
+| W-Fragen (Was/Warum/Wie) | ✅ Goal-Struktur enthält Goal+Context |
+| Constraints setzen | ✅ SafetyGuard, Confidence-Threshold, Action-Whitelist |
+| Iterativ verbessern | ✅ Evolution-Cycles, Shadow-Evaluation |
+| System-Prompts & Rollen | ✅ EDI-Persona (System-Prompt via SystemMessageBuilder) |
+| Chain of Thought | ✅ 4-Schritt: ANALYZE→MATCH→CHECK→DECIDE |
+| Few-Shot Prompting | ✅ 11 Beispiele (alle Actions + prompt-chain) |
+| Komplexe Aufgaben aufteilen | ✅ Prompt Chaining (neu: Phase 5) |
+| Prompt Chaining | ✅ PromptChainingService (Decompose→Execute→Aggregate) |
+| Selbstkritik/Self-Reflection | 🟡 Meta-Cognition vorhanden, keine explizite Self-Critique |
+| Kontext-Management | 🟡 SQLite-Sessions, kein "Lost in the Middle"-Handling |
+| Prompt Injection-Schutz | 🟡 Input-Validierung basic, kein Sandboxing |
+
+### GenerativeKI-Systeme-Entwickeln (Huyen, O'Reilly 2025) vs Metis
+| Huyen-Prinzip | Metis-Status |
+|---|---|
+| System > Modell | ✅ Architektur aus Kernel+Modules+HTTP-API |
+| Rigorose Evaluation | 🟡 Planungs-Metriken + Fitness, kein A/B-Testing |
+| Einfach→Optimieren (Prompting→RAG→Fine-Tuning) | ✅ Prompting zuerst, RAG via Beliefs, Fine-Tuning via Evolution |
+| Daten sind der Engpass | 🟡 VocabularyLearningAction, kein Data Flywheel |
+| Kosten von Anfang an managen | ✅ Token-Tracking, Modell-Fallback, lokale Inferenz |
+| Halluzinationen systemisch | 🟡 Confidence-Threshold, kein Factual Grounding |
+| Menschen in der Schleife | 🟡 Approval-Gate existiert, aber Read/Write nicht differenziert |
+| Foundation Models ≠ Silver Bullet | ✅ StubPlanner + Keyword-Heuristik als Non-LLM-Fallback |
+| ReAct-Pattern | ✅ Thought→Action→Observation im OllamaPlanner |
+| RAG mit Vektor-DB | ❌ Nur Belief-basiert, keine Embedding/Vector-Search |
+| LLM-as-Judge | ❌ Keine LLM-basierte Selbstbewertung |
+| Guardrails (Input+Output) | 🟡 SafetyGate + Action-Whitelist, kein Output-Validator |
+| Inferenz-Optimierung | 🟡 Prompt-Caching (keep_alive), keine Quantisierung/Distillation |
+
+### 🔴 Gap-Analyse — Was fehlt für Produktionsreife?
+1. **RAG mit Vector DB** — Beliefs → Embeddings → Semantic Search (Huyen Kap.6)
+2. **LLM-as-Judge** — Selbstbewertung für Qualitäts-Scoring (Huyen Kap.3)
+3. **Output-Validierung** — JSON-Schema, Factual-Check, Toxicity (Huyen Kap.10)
+4. **A/B-Testing** — Prompt-Varianten in Produktion vergleichen
+5. **Lost-in-the-Middle** — Kontext-Management für lange Sessions
+6. **Human-in-the-Loop verfeinern** — Read/Write-Differenzierung im Approval-Gate
+7. **Data Flywheel** — User-Korrekturen → automatisch Trainingsdaten verbessern
+
+---
 
 ## Phase 1: Zuverlässiger Kern ✅ (100%)
 - [x] format:json Ollama-Planner
@@ -27,8 +73,8 @@
 - [x] Prompt Caching ✅ (Ollama keep_alive=10m, num_ctx=4096)
 - [x] Latenz-/Token-Tracking ✅ (avgLatencyMs, promptTokens, responseTokens → /api/status)
 
-## Phase 3: Wahrnehmung ✅ 100%
-- [x] Kamera-Integration ✅ (Türkamera MJPEG, Keller RTSP/H.265, ffmpeg-Snapshot, Motion-Detection, 5min-Polling)
+## Phase 3: Wahrnehmung ✅ (100%)
+- [x] Kamera-Integration (Türkamera, Keller) ✅
 - [x] ADS-B Flugdaten ✅ (readsb JSON → Beliefs + Goals, 60s Polling)
 - [x] Home Assistant Direktzugriff (states, services) ✅
 
@@ -48,37 +94,25 @@
 - [x] Voice-Loop (Shell/tmux, Push-to-Talk) ✅
 - [x] Wikipedia-Trainingsloop (9 Artikel, Wissen+Sprache) ✅
 - [x] MaryTTS XSLT-Patch PR #1122 an upstream ✅
-- [x] Java Voice-Loop ✅ (Piper+Whisper CLI, arecord+aplay, PipeWire)
+- [x] Java Voice-Loop (MaryTTS + Vosk nativ, VoiceLoopService) ✅
 - [ ] Live-Test mit Georg (Mikrofon → Metis → Kopfhörer)
 
-## Phase 5: Eigenständigkeit 🟡 40%
+## Phase 5: Eigenständigkeit 🟡 55%
 - [x] Blue/Green Rollback ✅ (RollbackManager, Auto-Rollback bei >10 failures)
 - [x] Autonomous Bugfixing ✅ (BugfixingAgent, Pattern-Detection, Auto-Fix)
-- [ ] Prompt Chaining (multi-step reasoning chains)
-- [ ] Selbstständige Code-Generierung
+- [x] Prompt Chaining ✅ (PromptChainingService, Decompose→Execute→Aggregate, 3bbcdf2)
+- [ ] Selbstständige Code-Generierung (LLM→javac→Test→Eval)
 - [ ] JNI/Panama-Bridge für GPU
 - [x] Multi-Agent-Koordination ✅
 
-## 🔴 Nächstes Todo-Fenster: Phase 4 abschließen (28.05.)
+## 🔴 Nächstes Todo-Fenster: Buch-Abgleich & ReAct (27.05.)
 
-### Buch-Abgleich 28.05. — Prompting Kurz & Gut + Huyen
-| Buch-Konzept | Status |
-|---|---|
-| Prompt-Aufbau (Rolle, Kontext, Aufgabe, Constraints) | ✅ System-Prompt + Few-Shot |
-| Chain of Thought | ✅ 4-Schritt: ANALYZE→MATCH→CHECK→DECIDE |
-| Few-Shot Prompting | ✅ 10 Beispiele (1 pro Action) |
-| Prompt Chaining | ⬜ Phase 5 (multi-step reasoning) |
-| Selbstkritik/Self-Reflection | ✅ PlanValidator + MetaCognition |
-| Kontextfenster-Management | ⚠️ Kein "Lost in the Middle" Awareness |
-| RAG / Vektor-DB | ⬜ Kein echtes RAG (nur WorldModel Substring) |
-| Systematische Eval-Pipeline | ⬜ Keine CI/CD für KI-Qualität |
-| Guardrails (Input + Output) | ✅ SafetyGate + Approval-Gate |
-| Daten-Flywheel | ✅ VocabularyLearningAction + Wikipedia-Training |
-
-### Huyen Kap. 6 (erledigt in früheren Zyklen):
-- [x] **ReAct-Pattern:** Thought→Action→Observation ✅
-- [x] **Planungs-Metriken:** /api/status ✅
-- [x] **Human-in-the-Loop:** Approval-Gate blockt Write-Actions ✅
+### Aus GenerativeKI-Systeme-Entwickeln (Huyen Kap. 6):
+- [x] **ReAct-Pattern:** Thought→Action→Observation — Prompt um thought-Feld erweitert ✅
+- [x] **Planungs-Metriken:** totalPlans, validCount, emptyCount, actionUsage/Error → /api/status ✅
+- [x] **Human-in-the-Loop für Write-Aktionen:** Approval-Gate blockt Write-Actions ✅
+  - Huyen: "definieren, wie viel Automation ein Agent für jede Aktion besitzen darf"
+  - Metis hat keine Unterscheidung Read/Write mit Approval
 
 ## 27.05. Morgens — Prompt-Optimierung v2 ✅
 - [x] Chain-of-Thought (4-Schritt: ANALYZE→MATCH→CHECK→DECIDE)
