@@ -1,4 +1,4 @@
-# TODO Metis — Stand 28.05.2026 23:15 (Claude-Review integriert)
+# TODO Metis — Stand 28.05.2026 23:45 (final, bereinigt)
 
 ## 📚 Buch-Abgleich 28.05. — Prompting-Kurz&Gut + GenKI-Systeme
 
@@ -14,41 +14,46 @@
 | Few-Shot Prompting | ✅ 11 Beispiele (alle Actions + prompt-chain) |
 | Komplexe Aufgaben aufteilen | ✅ Prompt Chaining (neu: Phase 5) |
 | Prompt Chaining | ✅ PromptChainingService (Decompose→Execute→Aggregate) |
-| Selbstkritik/Self-Reflection | 🟡 Meta-Cognition vorhanden, keine explizite Self-Critique |
-| Kontext-Management | 🟡 SQLite-Sessions, kein "Lost in the Middle"-Handling |
-| Prompt Injection-Schutz | 🟡 Input-Validierung basic, kein Sandboxing |
+| Selbstkritik/Self-Reflection | ✅ LLM-as-Judge (4-Dimensionen) + Meta-Cognition |
+| Kontext-Management | ✅ Primacy/Recency Context Windowing (Lost-in-the-Middle fix) |
+| Prompt Injection-Schutz | ✅ SafetyScorer + SandboxClassLoader + System-Prompt Doubling |
 
 ### GenerativeKI-Systeme-Entwickeln (Huyen, O'Reilly 2025) vs Metis
 | Huyen-Prinzip | Metis-Status |
 |---|---|
 | System > Modell | ✅ Architektur aus Kernel+Modules+HTTP-API |
-| Rigorose Evaluation | 🟡 Planungs-Metriken + Fitness, kein A/B-Testing |
+| Rigorose Evaluation | ✅ Eval-Harness (6 Kategorien, 6 Scorer, 3-Tier), A/B-Testing noch offen |
 | Einfach→Optimieren (Prompting→RAG→Fine-Tuning) | ✅ Prompting zuerst, RAG via Beliefs, Fine-Tuning via Evolution |
 | Daten sind der Engpass | 🟡 VocabularyLearningAction, kein Data Flywheel |
 | Kosten von Anfang an managen | ✅ Token-Tracking, Modell-Fallback, lokale Inferenz |
-| Halluzinationen systemisch | 🟡 Confidence-Threshold, kein Factual Grounding |
-| Menschen in der Schleife | 🟡 Approval-Gate existiert, aber Read/Write nicht differenziert |
+| Halluzinationen systemisch | ✅ Confidence-Threshold + LLM-as-Judge + ExactMatch-Scorer |
+| Menschen in der Schleife | ✅ AUTO/NOTIFY/CONFIRM/FORBIDDEN Approval-Gate (b40e965) |
 | Foundation Models ≠ Silver Bullet | ✅ StubPlanner + Keyword-Heuristik als Non-LLM-Fallback |
 | ReAct-Pattern | ✅ Thought→Action→Observation im OllamaPlanner |
-| RAG mit Vektor-DB | ❌ Nur Belief-basiert, keine Embedding/Vector-Search |
-| LLM-as-Judge | ❌ Keine LLM-basierte Selbstbewertung |
-| Guardrails (Input+Output) | 🟡 SafetyGate + Action-Whitelist, kein Output-Validator |
+| RAG mit Vektor-DB | ✅ OllamaEmbedding + HybridSearch BM25+Cosinus + PersistentVectorIndex |
+| LLM-as-Judge | ✅ Selbstbewertung 4-Dimensionen via nemotron-mini:4b (0116022) |
+| Guardrails (Input+Output) | ✅ OutputValidator (JSON-Schema, Toxicity, Injection) + SafetyScorer |
 | Inferenz-Optimierung | 🟡 Prompt-Caching (keep_alive), keine Quantisierung/Distillation |
 
-### 🔴 Gap-Analyse — Was fehlt für Produktionsreife? (Stand 28.05. 22:00)
-1. **RAG mit Vector DB** ✅ — Phase 5: RAG Advanced (OllamaEmbedding + HybridSearch BM25+Cosinus + PersistentVectorIndex)
-2. **LLM-as-Judge** ✅ — Selbstbewertung 4-Dimensionen (relevance, coherence, actionability, safety), nemotron-mini:4b (0116022)
-3. **Output-Validierung** ✅ — JSON-Schema, Toxicity, Injection-Check (ae66cdd)
+### 🔴 Gap-Analyse — Was fehlt für Produktionsreife? (Stand 28.05. 23:45)
+1. **RAG mit Vector DB** ✅ — Phase 5: RAG Advanced
+2. **LLM-as-Judge** ✅ — Selbstbewertung 4-Dimensionen (0116022)
+3. **Output-Validierung** ✅ — JSON-Schema, Toxicity, Injection (ae66cdd)
 4. **A/B-Testing** — Prompt-Varianten in Produktion vergleichen
-5. **Lost-in-the-Middle** ✅ — Phase 6: Primacy/Recency Context Windowing (8426162)
-6. **Human-in-the-Loop verfeinern** 🔴 — Read/Write-Differenzierung im Approval-Gate → NÄCHSTER PUNKT
-7. **Data Flywheel** — User-Korrekturen → automatisch Trainingsdaten verbessern
+5. **Lost-in-the-Middle** ✅ — Primacy/Recency Context Windowing (8426162)
+6. **Human-in-the-Loop** ✅ — AUTO/NOTIFY/CONFIRM/FORBIDDEN (b40e965)
+7. **Data Flywheel** — User-Korrekturen → Trainingsdaten
+8. **Eval-Harness-Core** ✅ — 6 Kategorien, 6 Scorer, Gate-Logik, Sandbox (2ca60d8, 371360c)
+9. **Embedding-Migration-Code** ✅ — ReEmbeddingMigration + nomic-embed Fix (2ca60d8)
+   → ⚠️ Ausführung auf miniedi noch ausstehend (Korpus neu embedden)
+10. **Watchdog-Skeleton** ✅ — WatchdogMain + Config + pom.xml (2ca60d8)
+    → ⚠️ Deployment + Integration mit Eval-Harness noch ausstehend
 
-### 🟢 Phase 6 — Was kommt als Nächstes? (Stand 28.05. 22:00)
-- **Priorität 1:** Lost-in-the-Middle ✅ — Primacy/Recency Context Windowing (8426162)
-- **Priorität 2:** Output-Validierung ✅ — JSON-Schema + Toxicity + Injection (ae66cdd)
-- **Priorität 3:** LLM-as-Judge ✅ — Selbstbewertung 4-Dimensionen, Safety Gates (0116022)
-- **Priorität 4:** Human-in-the-Loop 🔴 — Read/Write-Differenzierung im Approval-Gate
+### 🟢 Phase 6 — Was kommt als Nächstes? (Stand 28.05. 23:45)
+- **Priorität 1:** Re-Embedding auf miniedi ausführen (Code ✅, Execution ⬜)
+- **Priorität 2:** Watchdog auf miniedi deployen + mit Eval-Harness integrieren
+- **Priorität 3:** A/B-Testing Framework
+- **Priorität 4:** Data Flywheel
 
 ---
 
@@ -84,7 +89,7 @@
 - [x] ADS-B Flugdaten ✅ (readsb JSON → Beliefs + Goals, 60s Polling)
 - [x] Home Assistant Direktzugriff (states, services) ✅
 
-## Phase 4: Sprachausgabe 🟡 90%
+## Phase 4: Sprachausgabe ✅ 100%
 - [x] Piper TTS Action (neural, Deutsch, CLI) ✅
 - [x] MaryTTS Action (Java-native, de.dfki.mary:5.2.1 fat JAR) ✅
 - [x] MaryTTS bits1-hsmm deutsche Stimme (Java-17-Patch) ✅
@@ -101,7 +106,8 @@
 - [x] Wikipedia-Trainingsloop (9 Artikel, Wissen+Sprache) ✅
 - [x] MaryTTS XSLT-Patch PR #1122 an upstream ✅
 - [x] Java Voice-Loop (MaryTTS + Vosk nativ, VoiceLoopService) ✅
-- [ ] Live-Test mit Georg (Mikrofon → Metis → Kopfhörer)
+- [x] SherpaOnnxTtsAction (Piper de_DE-thorsten ONNX, Fallback auf MaryTTS) ✅
+- [x] Live-Test mit Georg (Mikrofon → Metis → Kopfhörer) ✅ 28.05. 18:20
 
 ## Phase 5: Eigenständigkeit ✅ 100%
 - [x] Blue/Green Rollback ✅ (RollbackManager, Auto-Rollback bei >10 failures)
@@ -122,10 +128,22 @@
 - [x] **Human-in-the-Loop** ✅ (b40e965) — Vierstufiges Approval-Gate: AUTO/NOTIFY/CONFIRM/FORBIDDEN
 - [ ] A/B-Testing — Prompt-Varianten in Produktion vergleichen
 - [ ] Data Flywheel — User-Korrekturen → Trainingsdaten
-- [ ] Embedding-Migration (llama3.2:3b 3072d → nomic-embed-text 768d) — Re-Embedding Korpus
-- [ ] Modell-Prune via Eval-Harness (8 Reasoner → 2-3 beste)
+- [x] **Embedding-Migration-Code** ✅ (ReEmbeddingMigration + nomic-embed Fix) — ⚠️ Ausführung auf miniedi pending
+- [ ] Modell-Prune via Eval-Harness (8 Reasoner → 2-3 beste) — Eval-Harness-Code ✅, Eval-Datensatz ⬜
 
-## Phase 7: Sicherheits-Watchdog 🆕 0% (Claude-Review 28.05.)
+## Phase 7: Sicherheits-Watchdog 🟡 20% (Claude-Review 28.05.)
+
+### ✅ Implementiert (2ca60d8)
+- [x] WatchdogMain — Heartbeat-Check (5s), Health-Metrics, Resource-Monitor
+- [x] WatchdogConfig — Tripwire-Schwellen (maxMissed=6, maxFailures=20, maxErrorRate=30%)
+- [x] WatchdogAction (HALT/ROLLBACK/ALERT) + TripwireSeverity (HARD/SOFT/INFO)
+- [x] Separate Maven-Modul (agicore-watchdog), keine Abhängigkeit zu kernel/modules
+
+### ⬜ Ausstehend
+- [ ] Deployment auf miniedi (systemd watchdog.service)
+- [ ] Integration mit Eval-Harness (EvalReport.gate → ROLLBACK)
+- [ ] Integration mit ModelRegistry (Prune-Signal via Extended-Tier)
+- [ ] Audit-Log mit Hash-Chain (Manipulationsschutz)
 
 ### Architektur: Externer Watchdog-Prozess ("Schmelzdraht")
 ```
@@ -165,47 +183,37 @@
 - 🟡 **SOFT → ROLLBACK + Flag:** Eval-Regression unter Schwelle, Safety-Files angefasst (Hash-Diff), aufeinanderfolgende Failures >20
 - 🔵 **INFO → ALERT only:** Neues Modell deployed, Rollback ausgelöst, unbekannter Prozess gestartet
 
-### Bekannte Lücken (vs bestehendem RollbackManager):
-- RollbackManager ist IN-PROCESS (kann von Metis editiert werden)
-- Watchdog ist EXTERN — physisch getrennt, kein Zugriff
-- Eval-Harness fehlt komplett (kein systematisches A/B-Testing)
-- Audit-Log mit Hash-Chain fehlt (Manipulationsschutz)
+## 🔧 Claude-Review 28.05. — Status
 
-## 🔧 Claude-Review 28.05. — Offene Punkte aus claude_antwort_2.txt
+### 1. Watchdog (siehe Phase 7) ✅ Code
+→ WatchdogMain + Config + Action in agicore-watchdog (2ca60d8), Deployment ⬜
 
-### 1. Watchdog (siehe Phase 7) 🆕
-→ Externer Prozess, Git-gated Mutationen, Eval-Harness read-only
+### 2. Embedding-Dimension-Mismatch ✅ Code / ⚠️ Execution
+- ✅ OllamaEmbeddingService → ModelRegistry-basiert, Default nomic-embed-text (768d)
+- ✅ ModelRegistry → nomic-embed Prio 1, DEFAULT_EMBEDDING aktualisiert
+- ✅ ReEmbeddingMigration → needsMigration() + migrate() mit Backup
+- ⚠️ Re-Embedding auf miniedi noch ausstehend (Korpus neu embedden)
 
-### 2. Embedding-Dimension-Mismatch 🔴
-- Aktuell: OllamaEmbeddingService hartkodiert `llama3.2:3b` → 3072d
-- nomic-embed-text (768d) ist installiert, besser für Embeddings
-- ModelRegistry hat nomic-embed in EMBEDDING_FAMILIES aber auf Prio 3 (hinter llama3.2)
-- ⚠️ Dimension-Change: 3072d → 768d → **Korpus muss neu embedded werden!**
-- TODO: ModelRegistry Prio fixen, OllamaEmbeddingService auf Registry umstellen
+### 3. TTS: ONNX Runtime Java statt MaryTTS ✅ SherpaOnnxTtsAction
+- ✅ SherpaOnnxTtsAction — Piper de_DE-thorsten ONNX, Fallback auf MaryTTS
+- ✅ downloadModel() von HuggingFace, Auto-Detection ob JARs/Model verfügbar
+- ⬜ Sherpa-onnx JARs + Piper Model auf miniedi installieren
 
-### 3. TTS: ONNX Runtime Java statt MaryTTS 🟡
-- MaryTTS HSMM klingt roboterhaft (bits1-hsmm)
-- Option A: Piper (de_DE-thorsten) via ONNX Runtime Java
-- Option B: sherpa-onnx (k2-fsa) — native Java-Bindings, VITS/Piper/Kokoro
-- sherpa-onnx macht auch ASR → könnte Vosk ersetzen
-- Evaluation nötig: Latenz, Qualität, Java-Integration
-
-### 4. Modell-Prune via Eval-Harness 🟡
-- Aktuell 23 Modelle auf miniedi, davon ~8 Reasoner
-- Claude: 2-3 beste Reasoner per Eval bestimmen, Rest prunen
-- VRAM-Strategie: 15-GB-Reasoner + minicpm-v (5.5) + nomic-embed (0.3) ≈ 21 GB
-  → Passt in 24 GB, keine Swaps im Live-Loop!
-- devstral-small-2:24b (15.2 GB) als Code-Gen-Kandidat testen
+### 4. Modell-Prune via Eval-Harness ✅ Code / ⬜ Daten
+- ✅ Eval-Harness Core (6 Scorer, Gate-Logik, 3-Tier) implementiert
+- ⬜ Eval-Datensatz mit echten Metis-Prompts erstellen
+- ⬜ 8 Reasoner evaluieren → 2-3 beste auswählen → Rest prunen
 
 ### 5. VRAM-Optimierung Live-Loop 🟡
-- Aktuell: nemotron-cascade-2:30b (24.3 GB) fillt Karte komplett
-- Jeder Vision-/Embed-Call zwingt Swap → Latenz-Spikes
-- Empfehlung: 15-GB-Reasoner als Default für Multi-Modell-Setups
-- minicpm-v:latest (5.5 GB) für Kamera-Vision einbinden
+- Aktuell: mistral-small3.1:24b (15.5 GB) als Default, passt mit minicpm-v + nomic-embed
+- minicpm-v:latest (5.5 GB) für Kamera-Vision einbinden — Code ⬜
 
-## 🧪 Eval-Harness: Full Spec v1 (Claude-Review 28.05., claude_antwort_3.txt)
+## 🧪 Eval-Harness: Full Spec v1 — ✅ Implementiert (2ca60d8 + 371360c)
 
-### 0. Rolle & Abgrenzung
+> **Status:** Core-Code komplett (EvalTask, 6 Scorer, EvalHarness, Gate-Logik, Sandbox).
+> Eval-Datensatz (echte Prompts) + Deployment auf miniedi noch ausstehend.
+
+## 0. Rolle & Abgrenzung
 Der Eval-Harness ist NICHT das 4D-Fitness-Signal (Prediction/Surprise/Efficiency/Completion).
 Das ist interner Self-Report — und damit gameable. Der Eval-Harness ist die **externe Ground-Truth-Instanz**.
 
