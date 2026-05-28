@@ -13,6 +13,7 @@ import de.metis.modules.evolution.ModelRegistry;
 import de.metis.kernel.safety.LlmJudge;
 import de.metis.kernel.safety.OutputValidator;
 import de.metis.kernel.optimize.ABTestService;
+import de.metis.kernel.optimize.DataFlywheelService;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -110,6 +111,10 @@ public class OllamaPlanner implements Planner {
     private boolean abTestingEnabled = true;
     private ABTestService.Variant currentABVariant = null; // set per-plan, used in prompt building
 
+    // ── Data Flywheel (Huyen Kap. 7) ─────────────────────────
+    private DataFlywheelService flywheelService;
+    private boolean flywheelEnabled = true;
+
     // ── ReAct state ──────────────────────────────────────────
     private String lastThought = null;
 
@@ -126,6 +131,7 @@ public class OllamaPlanner implements Planner {
              "nemotron-cascade-2:30b",
              Duration.ofSeconds(60));
         initABTesting();
+        initFlywheel();
     }
 
     /**
@@ -146,6 +152,7 @@ public class OllamaPlanner implements Planner {
             "qwen3.6:latest"
         ));
         initABTesting();
+        initFlywheel();
     }
 
     /**
@@ -208,6 +215,28 @@ public class OllamaPlanner implements Planner {
 
     private void initABTesting() {
         this.abTestService = new ABTestService(20, 0.05, 0.5);
+        registerABVariants();
+        if (abTestingEnabled) {
+            abTestService.startExperiment();
+        }
+    }
+
+    private void initFlywheel() {
+        this.flywheelService = new DataFlywheelService();
+    }
+
+    /** Enable or disable data flywheel recording. */
+    public OllamaPlanner withFlywheel(boolean enabled) {
+        this.flywheelEnabled = enabled;
+        return this;
+    }
+
+    /** Access the flywheel service (for stats, generation). */
+    public DataFlywheelService flywheel() {
+        return flywheelService;
+    }
+
+    private void registerABVariants() {
 
         // Variant A: Baseline (current production prompt)
         abTestService.registerVariant("baseline",
