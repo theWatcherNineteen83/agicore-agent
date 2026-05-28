@@ -35,7 +35,7 @@ public class VoskListenAction implements Action {
 
     public VoskListenAction(int durationSeconds) {
         this(durationSeconds, System.getProperty("vosk.model.path",
-                "/data/prometheus/vosk-model-de"));
+                "/data/prometheus/vosk-model-de/vosk-model-small-de-0.15"));
     }
 
     public VoskListenAction(int durationSeconds, String modelPath) {

@@ -1,5 +1,7 @@
 package de.metis.modules.speech;
 
+import de.metis.kernel.action.MaryTTSSpeakAction;
+import de.metis.kernel.action.VoskListenAction;
 import de.metis.kernel.goal.Goal;
 import de.metis.kernel.goal.GoalManager;
 
@@ -12,32 +14,18 @@ import java.util.logging.Logger;
 /**
  * Continuous voice interaction loop: Listen → Understand → Think → Speak.
  * <p>
- * Uses Piper (TTS) + Whisper (STT) via CLI for reliability. Microphone input
- * via ALSA/arecord. Submits recognized speech as Goals to Metis' cognitive
- * engine, and speaks Metis' responses via Piper TTS.
+ * Uses Vosk (Java-native, com.alphacephei:vosk:0.3.45) for speech recognition
+ * and MaryTTS (Java-native, de.dfki.mary:marytts-runtime:5.2.1) for speech
+ * synthesis. Recognized text is submitted as Goals to Metis' cognitive engine.
  * <p>
- * Stack: arecord → Whisper CLI → Metis Goal → Piper CLI → aplay
+ * Stack: VoskListenAction → Metis Goal → MaryTTSSpeakAction
  * <p>
  * Runs as a daemon thread. Start/stop via {@link #start()} / {@link #stop()}.
  */
 public class VoiceLoopService {
 
     private static final Logger LOG = Logger.getLogger(VoiceLoopService.class.getName());
-
-    // Audio configuration
     private static final int LISTEN_SECONDS = 4;
-    private static final int LISTEN_SAMPLE_RATE = 16000;
-    private static final Path RECORDING = Path.of("/tmp/metis-voice/live.wav");
-    private static final Path TTS_OUTPUT = Path.of("/tmp/metis-voice/response.wav");
-    private static final String AUDIO_DEVICE = "pipewire";  // Alias für ALSA→PipeWire
-
-    // CLI paths (verified on miniedi)
-    private static final String ARECORD_BIN = "arecord";
-    private static final String PIPER_BIN = "/usr/local/bin/piper";
-    private static final String PIPER_MODEL = "/home/prometheus/piper-voices/de_DE-thorsten-medium.onnx";
-    private static final String WHISPER_BIN = "/home/prometheus/.local/bin/whisper";
-    private static final String WHISPER_MODEL = "small";  // small für bessere Genauigkeit
-    private static final String APLAY_BIN = "aplay";
 
     private final GoalManager goals;
     private final AtomicBoolean running = new AtomicBoolean(false);
@@ -58,7 +46,7 @@ public class VoiceLoopService {
         loopThread = new Thread(this::runLoop, "metis-voice-loop");
         loopThread.setDaemon(true);
         loopThread.start();
-        LOG.info("VoiceLoopService started — Piper+Whisper CLI, listen=" + LISTEN_SECONDS + "s");
+        LOG.info("VoiceLoopService started — MaryTTS + Vosk (Java-native), listen=" + LISTEN_SECONDS + "s");
     }
 
     /** Stop the voice loop. */
@@ -77,21 +65,24 @@ public class VoiceLoopService {
     // ── Main Loop: Listen → Understand → Think → Speak ──────────
 
     private void runLoop() {
-        try {
-            Files.createDirectories(RECORDING.getParent());
-        } catch (IOException e) {
-            LOG.severe("Cannot create voice directory: " + e.getMessage());
-            return;
-        }
-
         // Welcome message
-        speak("Metis Sprachassistent bereit.");
+        new MaryTTSSpeakAction("Metis Sprachassistent bereit.", "bits1-hsmm").execute();
 
         while (running.get()) {
             try {
-                // 1. LISTEN: Record microphone → Whisper STT
-                String heard = listen();
-                if (heard.isEmpty()) {
+                // 1. LISTEN via Vosk (Java-native, microphone)
+                var listenAction = new VoskListenAction(LISTEN_SECONDS);
+                var result = listenAction.execute();
+
+                final String heard;
+                if (result.success() && result.body() != null) {
+                    heard = result.body().trim();
+                } else {
+                    heard = "";
+                }
+
+                // Skip silence / empty
+                if (heard.isEmpty() || "(silence)".equalsIgnoreCase(heard)) {
                     Thread.sleep(500);
                     continue;
                 }
@@ -102,20 +93,18 @@ public class VoiceLoopService {
                 goals.add(new Goal(
                         "Voice input: " + heard,
                         "voice",
-                        80,  // high priority for voice
+                        80,  // high priority for voice interaction
                         0.9,
                         1
                 ));
 
                 conversationCount++;
 
-                // 3. SPEAK: acknowledge (evolvable: Metis will respond via its own planning)
-                // Wait briefly for Metis to process
+                // 3. Wait briefly for Metis to process
                 Thread.sleep(1500);
 
-                // For now: simple echo. Metis can override via goal completion hooks.
-                String response = "Verstanden: " + heard;
-                speak(response);
+                // 4. SPEAK response via MaryTTS (Java-native)
+                new MaryTTSSpeakAction("Verstanden: " + heard, "bits1-hsmm").execute();
 
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
@@ -126,86 +115,6 @@ public class VoiceLoopService {
                     try { Thread.sleep(1000); } catch (InterruptedException ignored) { break; }
                 }
             }
-        }
-    }
-
-    // ── Speech-to-Text: arecord → Whisper ──────────────────────
-
-    private String listen() throws IOException, InterruptedException {
-        // 1. Record audio via arecord
-        ProcessBuilder recPb = new ProcessBuilder(
-                ARECORD_BIN,
-                "-D", AUDIO_DEVICE,
-                "-d", String.valueOf(LISTEN_SECONDS),
-                "-f", "S16_LE",
-                "-r", String.valueOf(LISTEN_SAMPLE_RATE),
-                "-c", "1",
-                RECORDING.toString()
-        );
-        recPb.redirectError(ProcessBuilder.Redirect.DISCARD);
-        Process rec = recPb.start();
-        boolean recOk = rec.waitFor(LISTEN_SECONDS + 5, TimeUnit.SECONDS);
-
-        if (!recOk || !Files.exists(RECORDING) || Files.size(RECORDING) < 1000) {
-            return "";
-        }
-
-        // 2. Transcribe via Whisper CLI
-        return transcribeWhisper();
-    }
-
-    private String transcribeWhisper() throws IOException, InterruptedException {
-        ProcessBuilder pb = new ProcessBuilder(
-                WHISPER_BIN, RECORDING.toString(),
-                "--model", WHISPER_MODEL,
-                "--language", "de",
-                "--output_dir", RECORDING.getParent().toString(),
-                "--output_format", "txt"
-        );
-        pb.redirectError(ProcessBuilder.Redirect.DISCARD);
-        Process p = pb.start();
-        p.waitFor(60, TimeUnit.SECONDS);
-
-        // Whisper output: <recording-path>.txt
-        Path transcriptFile = Path.of(RECORDING.getParent().toString(),
-                RECORDING.getFileName().toString() + ".txt");
-        if (Files.exists(transcriptFile)) {
-            String text = Files.readString(transcriptFile).trim();
-            return text;
-        }
-
-        return "";
-    }
-
-    // ── Text-to-Speech: Piper → aplay ─────────────────────────
-
-    public void speak(String text) {
-        try {
-            // 1. Generate audio via Piper
-            ProcessBuilder ttsPb = new ProcessBuilder(
-                    PIPER_BIN,
-                    "--model", PIPER_MODEL,
-                    "--output_file", TTS_OUTPUT.toString()
-            );
-            ttsPb.redirectError(ProcessBuilder.Redirect.DISCARD);
-            Process ttsProc = ttsPb.start();
-            ttsProc.getOutputStream().write(text.getBytes(java.nio.charset.StandardCharsets.UTF_8));
-            ttsProc.getOutputStream().close();
-
-            boolean ttsOk = ttsProc.waitFor(30, TimeUnit.SECONDS);
-            if (!ttsOk || ttsProc.exitValue() != 0) {
-                LOG.warning("Piper TTS failed");
-                return;
-            }
-
-            // 2. Play audio via aplay
-            ProcessBuilder playPb = new ProcessBuilder(APLAY_BIN, "-D", AUDIO_DEVICE, TTS_OUTPUT.toString());
-            playPb.redirectError(ProcessBuilder.Redirect.DISCARD);
-            Process playProc = playPb.start();
-            playProc.waitFor(30, TimeUnit.SECONDS);
-
-        } catch (IOException | InterruptedException e) {
-            LOG.warning("TTS speak error: " + e.getMessage());
         }
     }
 }

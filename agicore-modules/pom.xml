@@ -26,6 +26,33 @@
             <groupId>com.deepnetts</groupId>
             <artifactId>deepnetts-core</artifactId>
             <version>1.13.2</version>
+            <exclusions>
+                <!-- Exclude uralt log4j 2.7 — wir setzen 2.17.2 via direkte dependency -->
+                <exclusion>
+                    <groupId>org.apache.logging.log4j</groupId>
+                    <artifactId>log4j-api</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.apache.logging.log4j</groupId>
+                    <artifactId>log4j-core</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <!-- Log4j 2.17.2 (kompatibel mit MaryTTS log4j-1.2-api) -->
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-api</artifactId>
+            <version>2.17.2</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-core</artifactId>
+            <version>2.17.2</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-1.2-api</artifactId>
+            <version>2.17.2</version>
         </dependency>
         <!-- Eclipse Paho MQTT Client -->
         <dependency>
@@ -49,6 +76,29 @@
                     <artifactId>Jampack</artifactId>
                 </exclusion>
             </exclusions>
+        </dependency>
+        <!-- MaryTTS German voice: bits1-hsmm (installed to local repo from lib/) -->
+        <dependency>
+            <groupId>de.dfki.mary</groupId>
+            <artifactId>voice-bits1-hsmm</artifactId>
+            <version>5.2</version>
+            <exclusions>
+                <!-- voice POM verlangt 5.2, aber mlt repo hat nur 5.2.1 → wir setzen selbst -->
+                <exclusion>
+                    <groupId>de.dfki.mary</groupId>
+                    <artifactId>marytts-runtime</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>de.dfki.mary</groupId>
+                    <artifactId>marytts-lang-de</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <!-- marytts-lang-de 5.2.1 für bits1 Stimme -->
+        <dependency>
+            <groupId>de.dfki.mary</groupId>
+            <artifactId>marytts-lang-de</artifactId>
+            <version>5.2.1</version>
         </dependency>
         <!-- Vosk: Offline Speech Recognition with Java bindings -->
         <dependency>
@@ -92,6 +142,7 @@
                         <goals><goal>shade</goal></goals>
                         <configuration>
                             <transformers>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
                                     <mainClass>de.metis.modules.AgentMain</mainClass>
                                 </transformer>
