@@ -223,6 +223,17 @@ URL: http://<host>:11735
 - RAG Foundation (OllamaEmbedding + InMemoryVectorIndex) ✅
 - RAG Advanced (DocumentChunker, HybridSearch BM25+Cosinus, PersistentVectorIndex) ✅
 
+### Phase 6: Produktionsreife 🟡 57% (28.05.)
+
+| Feature | Status | Commit |
+|---------|--------|--------|
+| Lost-in-the-Middle (Context Windowing) | ✅ | 8426162 |
+| OutputValidator (JSON-Schema, Toxicity, Injection) | ✅ | ae66cdd |
+| LLM-as-Judge (Selbstbewertung, 4-Dimensionen) | ✅ | 0116022 |
+| Human-in-the-Loop (Read/Write-Gate) | 🔴 | — |
+| A/B-Testing (Prompt-Varianten) | ⬜ | — |
+| Data Flywheel (User-Korrekturen) | ⬜ | — |
+
 ### Roadmap
 
 | Phase | Ziel | Status |
@@ -231,8 +242,9 @@ URL: http://<host>:11735
 | 💬 Phase 2 | Konversation + Persona + Events + MQTT | ✅ 100% |
 | ⚡ Phase 2.5 | Hardware-Optimierung (GPU, Panama, TornadoVM) | ✅ done |
 | 👁️ Phase 3 | Wahrnehmung (HA, ADS-B, Kameras) | ✅ 100% |
-| 🎙️ Phase 4 | Sprachausgabe (TTS/STT) | 🟡 90% | nur noch Java Voice-Loop + Live-Test |
-| 🧠 Phase 5 | Eigenständigkeit + Selbstverbesserung | ✅ 100% | RAG Advanced: HybridSearch + PersistentVectors in WorldModel |
+| 🎙️ Phase 4 | Sprachausgabe (TTS/STT) | 🟡 90% |
+| 🧠 Phase 5 | Eigenständigkeit + Selbstverbesserung | ✅ 100% |
+| 🛡️ Phase 6 | Produktionsreife (Guardrails, Eval) | 🟡 57% |
 
 **Ziel:** EDI-ähnliche KI (Mass Effect 3) — eigenständig, per Text und Telegram ansprechbar, mit eigenem Wissen.
 

@@ -35,19 +35,20 @@
 | Guardrails (Input+Output) | 🟡 SafetyGate + Action-Whitelist, kein Output-Validator |
 | Inferenz-Optimierung | 🟡 Prompt-Caching (keep_alive), keine Quantisierung/Distillation |
 
-### 🔴 Gap-Analyse — Was fehlt für Produktionsreife? (Stand 28.05. 19:45)
+### 🔴 Gap-Analyse — Was fehlt für Produktionsreife? (Stand 28.05. 22:00)
 1. **RAG mit Vector DB** ✅ — Phase 5: RAG Advanced (OllamaEmbedding + HybridSearch BM25+Cosinus + PersistentVectorIndex)
-2. **LLM-as-Judge** — Selbstbewertung für Qualitäts-Scoring (Huyen Kap.3)
-3. **Output-Validierung** — JSON-Schema, Factual-Check, Toxicity (Huyen Kap.10)
+2. **LLM-as-Judge** ✅ — Selbstbewertung 4-Dimensionen (relevance, coherence, actionability, safety), nemotron-mini:4b (0116022)
+3. **Output-Validierung** ✅ — JSON-Schema, Toxicity, Injection-Check (ae66cdd)
 4. **A/B-Testing** — Prompt-Varianten in Produktion vergleichen
 5. **Lost-in-the-Middle** ✅ — Phase 6: Primacy/Recency Context Windowing (8426162)
-6. **Human-in-the-Loop verfeinern** — Read/Write-Differenzierung im Approval-Gate
+6. **Human-in-the-Loop verfeinern** 🔴 — Read/Write-Differenzierung im Approval-Gate → NÄCHSTER PUNKT
 7. **Data Flywheel** — User-Korrekturen → automatisch Trainingsdaten verbessern
 
-### 🟢 Phase 6 — Was kommt als Nächstes? (Stand 28.05. 19:50)
+### 🟢 Phase 6 — Was kommt als Nächstes? (Stand 28.05. 22:00)
 - **Priorität 1:** Lost-in-the-Middle ✅ — Primacy/Recency Context Windowing (8426162)
-- **Priorität 2:** Output-Validierung (JSON-Schema-Validierung + Toxicity-Check)
-- **Priorität 3:** LLM-as-Judge (Selbstbewertung für Qualitätsscoring)
+- **Priorität 2:** Output-Validierung ✅ — JSON-Schema + Toxicity + Injection (ae66cdd)
+- **Priorität 3:** LLM-as-Judge ✅ — Selbstbewertung 4-Dimensionen, Safety Gates (0116022)
+- **Priorität 4:** Human-in-the-Loop 🔴 — Read/Write-Differenzierung im Approval-Gate
 
 ---
 
@@ -112,14 +113,15 @@
 - [x] Multi-Agent-Koordination ✅
 - [x] RAG Advanced ✅ (DocumentChunker 3 Strategien, PersistentVectorIndex binary, HybridSearch BM25+Cosinus, WorldModel-Integration via enableRagAdvanced())
 
-## 🔴 Nächstes Todo-Fenster: Phase 6 — Lost-in-the-Middle (28.05.)
+## Phase 6: Produktionsreife 🟡 (28.05.)
 
-### Aus GenerativeKI-Systeme-Entwickeln (Huyen Kap. 6):
-- [x] **ReAct-Pattern:** Thought→Action→Observation — Prompt um thought-Feld erweitert ✅
-- [x] **Planungs-Metriken:** totalPlans, validCount, emptyCount, actionUsage/Error → /api/status ✅
-- [x] **Human-in-the-Loop für Write-Aktionen:** Approval-Gate blockt Write-Actions ✅
-  - Huyen: "definieren, wie viel Automation ein Agent für jede Aktion besitzen darf"
-  - Metis hat keine Unterscheidung Read/Write mit Approval
+### Gap-Analyse → Implementierung:
+- [x] **Lost-in-the-Middle** ✅ (8426162) — Primacy/Recency Context Windowing (Huyen Kap.6)
+- [x] **OutputValidator** ✅ (ae66cdd) — JSON-Schema + Toxicity + Injection-Check (Huyen Kap.10)
+- [x] **LLM-as-Judge** ✅ (0116022) — Selbstbewertung 4-Dimensionen, Safety Gates (Huyen Kap.3)
+- [ ] Human-in-the-Loop verfeinern 🔴 — Read/Write-Differenzierung im Approval-Gate
+- [ ] A/B-Testing — Prompt-Varianten in Produktion vergleichen
+- [ ] Data Flywheel — User-Korrekturen → Trainingsdaten
 
 ## 27.05. Morgens — Prompt-Optimierung v2 ✅
 - [x] Chain-of-Thought (4-Schritt: ANALYZE→MATCH→CHECK→DECIDE)
