@@ -7,6 +7,7 @@ import de.metis.kernel.action.ShellCommandAction;
 import de.metis.kernel.action.VocabularyLearningAction;
 import de.metis.kernel.action.WikipediaAction;
 import de.metis.kernel.action.VoskListenAction;
+import de.metis.modules.action.CameraSnapshotAction;
 import de.metis.kernel.core.AgentCoreLoop;
 import de.metis.kernel.evolution.EvolutionManager;
 import de.metis.kernel.goal.Goal;
@@ -116,6 +117,8 @@ public class Agent {
         public Builder registerLearnVocabulary(String heard, String correct) { executor.register(new VocabularyLearningAction(heard, correct)); return this; }
         public Builder registerWikipedia(String topic) { executor.register(new WikipediaAction(topic)); return this; }
         public Builder registerWikipedia(String topic, String mode, Path dir) { executor.register(new WikipediaAction(topic, mode, dir)); return this; }
+        public Builder registerCameraSnapshot(String cameraName, String source) { executor.register(new CameraSnapshotAction(cameraName, source)); return this; }
+        public Builder registerCameraSnapshot(String cameraName, String source, java.nio.file.Path dir) { executor.register(new CameraSnapshotAction(cameraName, source, dir)); return this; }
         public Builder workspaceCapacity(int capacity) {
             this.workspace = new GlobalWorkspace(new AttentionBuffer(capacity)); return this;
         }

@@ -162,9 +162,9 @@ URL: http://<host>:11735
 | `GET /api/evolution/status` | Evolution-Status |
 | `GET /api/evolution/pause` / `resume` | Evolution pausieren/fortsetzen |
 
-## Status — 27.05.2026
+## Status — 28.05.2026
 
-**Version:** 0.2.0-evolution | **Planner:** 99–100% LLM-Erfolgsrate | **GPU:** ROCm-accelerated
+**Version:** 0.3.0 | **Stand:** 28.05.2026 | **Planner:** 99–100% | **GPU:** ROCm-accelerated
 
 ### Phase 1: Zuverlässiger Kern ✅ ABGESCHLOSSEN
 
@@ -197,12 +197,20 @@ URL: http://<host>:11735
 - ✅ Kausale Schicht — CausalModel (Pearl Do-Calculus)
 - ✅ MQTT-Topic-Filter — Wildcard → spezifische Topics
 
-### Phase 2.5: Hardware-Optimierung 🔄
+### Phase 2.5: Hardware-Optimierung ✅
 
 - ✅ Hardware-Discovery — Ryzen 7 5700G, RX 7900 XTX, 64 GB RAM, AVX2
 - ✅ VRAM-Budget — Planning ~18 GB + Chat 9 GB = 27 GB (Ollama offloading)
 - ⬜ Project Panama FFM — GPU-Datentransfer ohne JNI
 - ✅ TornadoVM — Java → GPU-Kernel-Kompilierung
+
+### Phase 3: Wahrnehmung ✅ 100%
+
+- ✅ Home Assistant — states + services via REST API
+- ✅ ADS-B Flugdaten — readsb JSON → Beliefs + Goals (60s Polling)
+- ✅ **Kamera-Integration** — CameraSnapshotAction (ffmpeg, RTSP + MJPEG), CameraPollingTrigger (5min, Motion-Detection)
+  - Türkamera: MJPEG 1080p `http://192.168.22.161:9081/snapshot`
+  - Keller: Annke H.265 720p `rtsp://192.168.22.148/H265/ch1/main/av_stream`
 
 ### Roadmap
 
@@ -211,9 +219,9 @@ URL: http://<host>:11735
 | 🔧 Phase 1 | Stabiler Kern (>85% Planner) | ✅ done |
 | 💬 Phase 2 | Konversation + Persona + Events + MQTT | ✅ 100% |
 | ⚡ Phase 2.5 | Hardware-Optimierung (GPU, Panama, TornadoVM) | ✅ done |
-| 👁️ Phase 3 | Wahrnehmung (HA ✅, ADS-B ✅, Kameras ⬜) | 🟡 33% |
-| 🎙️ Phase 4 | Sprachausgabe (TTS/STT) | 🟡 90% | Java-native MaryTTS + Vosk, Piper + Whisper |
-| 🧠 Phase 5 | Eigenständigkeit + Selbstverbesserung | ⬜ |
+| 👁️ Phase 3 | Wahrnehmung (HA, ADS-B, Kameras) | ✅ 100% |
+| 🎙️ Phase 4 | Sprachausgabe (TTS/STT) | 🟡 90% | nur noch Java Voice-Loop + Live-Test |
+| 🧠 Phase 5 | Eigenständigkeit + Selbstverbesserung | 🟡 40% | Blue/Green, Bugfixing, Multi-Agent done |
 
 **Ziel:** EDI-ähnliche KI (Mass Effect 3) — eigenständig, per Text und Telegram ansprechbar, mit eigenem Wissen.
 

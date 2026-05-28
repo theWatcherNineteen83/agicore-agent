@@ -20,6 +20,9 @@ import de.metis.modules.events.WeatherPollingTrigger;
 import de.metis.modules.events.HAEventPoller;
 import de.metis.modules.events.MqttEventService;
 import de.metis.modules.events.AdsbPollingTrigger;
+import de.metis.modules.events.CameraPollingTrigger;
+import de.metis.modules.events.CameraPollingTrigger.CameraConfig;
+import de.metis.modules.action.CameraSnapshotAction;
 import de.metis.modules.events.ProactiveNotificationService;
 import de.metis.modules.hardware.HardwareDiscovery;
 import de.metis.modules.hardware.HardwareProfileAction;
@@ -824,7 +827,13 @@ public final class AgentMain {
         // Wikipedia self-service — reads articles from local dump
         agent.core().executor().register(new de.metis.kernel.action.WikipediaAction(
                 "Künstliche Intelligenz"));
-        LOG.info("Speech/Knowledge actions registered: piper, whisper, mary, vosk, audio-in, audio-out, vocab-learn, wikipedia");
+
+        // ── Phase 3.2: Kamera-Integration ──
+        agent.core().executor().register(new CameraSnapshotAction(
+                "tuerkamera", "http://192.168.22.161:9081/snapshot"));
+        agent.core().executor().register(new CameraSnapshotAction(
+                "keller", "rtsp://3insicht:w1rB3obachtenEuc@192.168.22.148/H265/ch1/main/av_stream"));
+        LOG.info("Camera actions registered: camera-snapshot-tuerkamera, camera-snapshot-keller");
 
         // ── Voice Loop Service (optional, controlled by voice-loop flag) ──
         VoiceLoopService voiceLoop = null;
@@ -1035,6 +1044,15 @@ public final class AgentMain {
         adsb.start(agent);
         eventTriggers.add(adsb);
         LOG.info("ADS-B event trigger active — " + adsb.description());
+
+        // Phase 3.2: Camera polling (Türkamera + Keller)
+        var cameraPolling = new CameraPollingTrigger(List.of(
+                new CameraConfig("tuerkamera", "http://192.168.22.161:9081/snapshot", "Türkamera 1080p MJPEG"),
+                new CameraConfig("keller", "rtsp://3insicht:w1rB3obachtenEuc@192.168.22.148/H265/ch1/main/av_stream", "Keller Annke 720p H.265")
+        ));
+        cameraPolling.start(agent);
+        eventTriggers.add(cameraPolling);
+        LOG.info("Camera event trigger active — " + cameraPolling.description());
 
         // Phase 4: Wikipedia Training (Artikel lesen + Sprachtraining)
         Path wikiDir = Path.of("/data/prometheus/wiki_de");

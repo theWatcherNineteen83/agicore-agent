@@ -27,8 +27,8 @@
 - [x] Prompt Caching ✅ (Ollama keep_alive=10m, num_ctx=4096)
 - [x] Latenz-/Token-Tracking ✅ (avgLatencyMs, promptTokens, responseTokens → /api/status)
 
-## Phase 3: Wahrnehmung 🟡 33%
-- [ ] Kamera-Integration (Türkamera, Keller)
+## Phase 3: Wahrnehmung ✅ 100%
+- [x] Kamera-Integration ✅ (Türkamera MJPEG, Keller RTSP/H.265, ffmpeg-Snapshot, Motion-Detection, 5min-Polling)
 - [x] ADS-B Flugdaten ✅ (readsb JSON → Beliefs + Goals, 60s Polling)
 - [x] Home Assistant Direktzugriff (states, services) ✅
 
@@ -59,14 +59,26 @@
 - [ ] JNI/Panama-Bridge für GPU
 - [x] Multi-Agent-Koordination ✅
 
-## 🔴 Nächstes Todo-Fenster: Buch-Abgleich & ReAct (27.05.)
+## 🔴 Nächstes Todo-Fenster: Phase 4 abschließen (28.05.)
 
-### Aus GenerativeKI-Systeme-Entwickeln (Huyen Kap. 6):
-- [x] **ReAct-Pattern:** Thought→Action→Observation — Prompt um thought-Feld erweitert ✅
-- [x] **Planungs-Metriken:** totalPlans, validCount, emptyCount, actionUsage/Error → /api/status ✅
-- [x] **Human-in-the-Loop für Write-Aktionen:** Approval-Gate blockt Write-Actions ✅
-  - Huyen: "definieren, wie viel Automation ein Agent für jede Aktion besitzen darf"
-  - Metis hat keine Unterscheidung Read/Write mit Approval
+### Buch-Abgleich 28.05. — Prompting Kurz & Gut + Huyen
+| Buch-Konzept | Status |
+|---|---|
+| Prompt-Aufbau (Rolle, Kontext, Aufgabe, Constraints) | ✅ System-Prompt + Few-Shot |
+| Chain of Thought | ✅ 4-Schritt: ANALYZE→MATCH→CHECK→DECIDE |
+| Few-Shot Prompting | ✅ 10 Beispiele (1 pro Action) |
+| Prompt Chaining | ⬜ Phase 5 (multi-step reasoning) |
+| Selbstkritik/Self-Reflection | ✅ PlanValidator + MetaCognition |
+| Kontextfenster-Management | ⚠️ Kein "Lost in the Middle" Awareness |
+| RAG / Vektor-DB | ⬜ Kein echtes RAG (nur WorldModel Substring) |
+| Systematische Eval-Pipeline | ⬜ Keine CI/CD für KI-Qualität |
+| Guardrails (Input + Output) | ✅ SafetyGate + Approval-Gate |
+| Daten-Flywheel | ✅ VocabularyLearningAction + Wikipedia-Training |
+
+### Huyen Kap. 6 (erledigt in früheren Zyklen):
+- [x] **ReAct-Pattern:** Thought→Action→Observation ✅
+- [x] **Planungs-Metriken:** /api/status ✅
+- [x] **Human-in-the-Loop:** Approval-Gate blockt Write-Actions ✅
 
 ## 27.05. Morgens — Prompt-Optimierung v2 ✅
 - [x] Chain-of-Thought (4-Schritt: ANALYZE→MATCH→CHECK→DECIDE)
