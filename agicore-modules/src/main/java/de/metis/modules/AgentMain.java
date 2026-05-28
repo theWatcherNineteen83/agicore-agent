@@ -234,14 +234,21 @@ public final class AgentMain {
         if (goals.activeCount() >= 20) return; // don't flood
 
         var exec = agent.core().executor();
-        var wm = agent.worldModel();
 
-        // Curiosity-driven: pick an unexplored action
+        // Bugfix: Statt wm.query() (Substring-Match findet falsche Beliefs)
+        // → echten Action-Execution-Counter aus dem Planner verwenden.
+        // "Unexplored" = Action wurde NIE direkt ausgeführt (nicht: Name taucht als
+        // Substring in irgendeinem Belief auf — das war das alte Verhalten).
         Set<String> available = exec.availableActions();
+        Map<String, Integer> actionUsage = Map.of();
+        if (agent.planner() instanceof de.metis.modules.planner.OllamaPlanner op) {
+            actionUsage = op.actionUsageCount();
+        }
+
         List<String> unexplored = new ArrayList<>();
         for (String action : available) {
-            var beliefs = wm.query(action, 3);
-            if (beliefs.isEmpty() || beliefs.stream().allMatch(b -> b.confidence() < 0.5)) {
+            int uses = actionUsage.getOrDefault(action, 0);
+            if (uses == 0) {
                 unexplored.add(action);
             }
         }

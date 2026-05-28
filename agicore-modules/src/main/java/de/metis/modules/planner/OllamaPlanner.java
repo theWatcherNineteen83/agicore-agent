@@ -380,14 +380,14 @@ public class OllamaPlanner implements Planner {
         sb.append("Think step by step before answering:\n");
         sb.append("  (1) ANALYZE: What does the goal really need? What type of work?\n");
         sb.append("  (2) MATCH: Which action category fits best?\n");
-        sb.append("  (3) CHECK: Did this action fail recently for similar goals? If action has 0% learned success → avoid it.\n");
+        sb.append("  (3) CHECK: Did this action fail recently for similar goals? IMPORTANT: 0 uses ≠ 0% success. An action with 0 execution count is UNTESTED (potentially great!), not failed. Only avoid actions with low success rate AND actual execution history.\n");
         sb.append("  (4) DECIDE: Pick the action with highest expected success. Be decisive — ONE action.\n\n");
 
         sb.append("RULES:\n");
-        sb.append("- Prefer actions with proven success rates over untested ones\n");
-        sb.append("- If an action has 0% success or recently failed for similar goals → STRONGLY prefer alternatives\n");
-        sb.append("- Shell is the default fallback only when no specialized action fits\n");
-        sb.append("- Be decisive: return exactly ONE action, no hedging\n\n");
+        sb.append("- EXPLORATION goals (category='exploration'): ALWAYS pick untested actions (0 uses) over shell/http. Exploration is for discovering new capabilities, not repeating old ones.\n");
+        sb.append("- Prefer actions with proven success rates over ones with proven failures\n");
+        sb.append("- UNTESTED actions (0 execution count) are OPPORTUNITIES, not risks. Treat them as high-value exploration targets.\n");
+        sb.append("- Shell is the LAST RESORT fallback — only when NO specialized action fits (filesystem, memory, self-analysis, etc. are ALL more specialized than shell)\n");
 
         // ── Action catalog ──
         sb.append("ACTION CATALOG:\n");
@@ -471,7 +471,7 @@ public class OllamaPlanner implements Planner {
         sb.append("Observations: ").append(meta.observationCount()).append("\n\n");
 
         // ── Learned success rates ──
-        sb.append("LEARNED ACTION SUCCESS RATES (warning: avoid actions with 0%!):\n");
+        sb.append("LEARNED ACTION SUCCESS RATES (0 uses = untested opportunity, not a risk):\n");
         if (planningAttempts.isEmpty()) {
             sb.append("(no learned data yet — use examples above as guide)\n");
         } else {
@@ -484,9 +484,28 @@ public class OllamaPlanner implements Planner {
                     sb.append("- ").append(key)
                             .append(": ").append(String.format("%.0f%%", rate * 100))
                             .append(" (").append(succ).append("/").append(att).append(")");
-                    if (rate == 0.0) sb.append(" ⚠️ AVOID");
+                    // Bugfix: Only flag as AVOID if action has actual failures (rate==0 AND attempts>0)
+                    // A 0-count action is untested, not failed — listed separately below
+                    if (rate == 0.0 && att > 0) sb.append(" ⚠️ AVOID (proven failure)");
                     sb.append("\n");
                 }
+            }
+
+            // Show untested actions as OPPORTUNITIES
+            List<String> untested = new ArrayList<>();
+            for (String actionName : availableActions) {
+                boolean hasHistory = false;
+                for (String key : planningAttempts.keySet()) {
+                    if (key.endsWith(":" + actionName) && planningAttempts.get(key) > 0) {
+                        hasHistory = true;
+                        break;
+                    }
+                }
+                if (!hasHistory) untested.add(actionName);
+            }
+            if (!untested.isEmpty()) {
+                sb.append("UNTESTED ACTIONS (0 uses — excellent exploration targets!): ");
+                sb.append(String.join(", ", untested)).append("\n");
             }
         }
         sb.append("\n");
