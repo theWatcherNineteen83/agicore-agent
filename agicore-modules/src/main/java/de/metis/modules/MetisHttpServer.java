@@ -13,6 +13,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Logger;
 
 import de.metis.kernel.persistence.KnowledgeStore;
+import de.metis.kernel.safety.OutputValidator;
 import de.metis.modules.persona.Persona;
 import de.metis.modules.multiagent.AgentCoordinator;
 
@@ -39,6 +40,7 @@ public class MetisHttpServer {
     private final List<ChatMessage> conversationHistory = new ArrayList<>();
     private static final int MAX_HISTORY = 50;
     private final AtomicBoolean evolutionPaused = new AtomicBoolean(false);
+    private final OutputValidator outputValidator = new OutputValidator();
     private KnowledgeStore knowledgeStore; // set via setter for conversation persistence
     private AgentCoordinator coordinator;
     private RollbackManager rollbackManager;  // Phase 5: Blue/Green
@@ -196,6 +198,16 @@ public class MetisHttpServer {
                 response = buildEdiResponse(userMessage, result.body(), startMs, conversationContext);
             } else {
                 response = buildEdiIntrospective(userMessage, conversationContext);
+            }
+
+            // Phase 6: Validate output content (Huyen Kap. 10 — Output Guardrails)
+            OutputValidator.ValidationResult validation = outputValidator.validateContent(response, "chat");
+            if (!validation.valid()) {
+                LOG.warning("Chat response blocked by validator: " + validation.reason());
+                response = "I can't respond to that. (Output filtered: " + validation.reason() + ")";
+                outputValidator.recordValidation(false);
+            } else {
+                outputValidator.recordValidation(true);
             }
         } catch (Exception e) {
             response = "I encountered an error: " + e.getMessage();
@@ -629,6 +641,8 @@ public class MetisHttpServer {
                   %s
                   "plannerType": "%s",
                   "worldModelAvgConfidence": %.3f,
+                  "validatorOutputs": %d,
+                  "validatorBlocked": %d,
                   %s
                   %s
                 }
@@ -645,6 +659,8 @@ public class MetisHttpServer {
                 plannerInfo,
                 planner.getClass().getSimpleName(),
                 wm.averageConfidence(),
+                outputValidator.validatedOutputs(),
+                outputValidator.blockedOutputs(),
                 rollbackManager != null ? rollbackManager.healthJson() + "," : "",
                 bugfixingAgent != null ? bugfixingAgent.healthJson() : ""
         );

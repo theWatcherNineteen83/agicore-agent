@@ -10,6 +10,7 @@ import de.metis.kernel.world.Belief;
 import de.metis.kernel.world.WorldModel;
 
 import de.metis.modules.evolution.ModelRegistry;
+import de.metis.kernel.safety.OutputValidator;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -95,6 +96,9 @@ public class OllamaPlanner implements Planner {
     private int emptyPlanCount = 0;  // planner returned nothing
     private final Map<String, Integer> actionUsageCount = new ConcurrentHashMap<>();
     private final Map<String, Integer> actionErrorCount = new ConcurrentHashMap<>();
+
+    // ── Output validation (Huyen Kap. 10) ────────────────────
+    private final OutputValidator outputValidator = new OutputValidator();
 
     // ── ReAct state ──────────────────────────────────────────
     private String lastThought = null;
@@ -359,18 +363,40 @@ public class OllamaPlanner implements Planner {
             // Parse JSON from response
             ParsedPlan plan = parsePlanResponse(responseText);
             if (plan != null && plan.action != null && !plan.action.isBlank()) {
-                LOG.fine(() -> "LLM plan (" + modelName + "): action=" + plan.action
-                        + " confidence=" + String.format("%.2f", plan.confidence)
-                        + " reason=" + plan.reasoning);
-                return plan.action.trim().toLowerCase();
+                // Phase 6: Output validation (Huyen Kap. 10 — Guardrails)
+                OutputValidator.ValidationResult validation = outputValidator
+                        .validatePlannerOutput(plan.action, plan.thought,
+                                plan.confidence, responseText);
+                if (!validation.valid()) {
+                    LOG.warning("Planner output blocked by validator (" + modelName
+                            + "): " + validation.reason());
+                    outputValidator.recordValidation(false);
+                    // Don't return invalid — let fallback chain continue
+                } else {
+                    outputValidator.recordValidation(true);
+                    LOG.fine(() -> "LLM plan (" + modelName + "): action=" + plan.action
+                            + " confidence=" + String.format("%.2f", plan.confidence)
+                            + " reason=" + plan.reasoning);
+                    return plan.action.trim().toLowerCase();
+                }
             }
 
             // If format:json returned valid JSON but parsePlanResponse didn't find action,
             // try parsing the raw response as the JSON object directly
             ParsedPlan rawPlan = parsePlanResponse(response.body());
             if (rawPlan != null && rawPlan.action != null && !rawPlan.action.isBlank()) {
-                LOG.fine(() -> "LLM plan (" + modelName + " raw): action=" + rawPlan.action);
-                return rawPlan.action.trim().toLowerCase();
+                OutputValidator.ValidationResult validation = outputValidator
+                        .validatePlannerOutput(rawPlan.action, rawPlan.thought,
+                                rawPlan.confidence, response.body());
+                if (!validation.valid()) {
+                    LOG.warning("Planner output (raw) blocked by validator (" + modelName
+                            + "): " + validation.reason());
+                    outputValidator.recordValidation(false);
+                } else {
+                    outputValidator.recordValidation(true);
+                    LOG.fine(() -> "LLM plan (" + modelName + " raw): action=" + rawPlan.action);
+                    return rawPlan.action.trim().toLowerCase();
+                }
             }
 
             LOG.warning("Failed to parse action from " + modelName + ": "
@@ -1022,6 +1048,7 @@ public class OllamaPlanner implements Planner {
     public int emptyPlanCount() { return emptyPlanCount; }
     public Map<String, Integer> actionUsageCount() { return Map.copyOf(actionUsageCount); }
     public Map<String, Integer> actionErrorCount() { return Map.copyOf(actionErrorCount); }
+    public OutputValidator outputValidator() { return outputValidator; }
     public String lastThought() { return lastThought; }
     public Instant lastLlmCall() { return lastLlmCall; }
 
