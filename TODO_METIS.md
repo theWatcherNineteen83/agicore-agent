@@ -23,6 +23,10 @@
 - [x] Proaktive Telegram-Meldungen (Wetter/HA/MQTT → Nachricht)
 - [x] TornadoVM GPU-Integration ✅
 
+## Phase 2.5: Prompt-Engineering ✅ (100%)
+- [x] Prompt Caching ✅ (Ollama keep_alive=10m, num_ctx=4096)
+- [x] Latenz-/Token-Tracking ✅ (avgLatencyMs, promptTokens, responseTokens → /api/status)
+
 ## Phase 3: Wahrnehmung 🟡 33%
 - [ ] Kamera-Integration (Türkamera, Keller)
 - [x] ADS-B Flugdaten ✅ (readsb JSON → Beliefs + Goals, 60s Polling)
@@ -47,7 +51,10 @@
 - [ ] Java Voice-Loop (MaryTTS + Vosk nativ integrieren)
 - [ ] Live-Test mit Georg (Mikrofon → Metis → Kopfhörer)
 
-## Phase 5: Eigenständigkeit ⬜
+## Phase 5: Eigenständigkeit 🟡 40%
+- [x] Blue/Green Rollback ✅ (RollbackManager, Auto-Rollback bei >10 failures)
+- [x] Autonomous Bugfixing ✅ (BugfixingAgent, Pattern-Detection, Auto-Fix)
+- [ ] Prompt Chaining (multi-step reasoning chains)
 - [ ] Selbstständige Code-Generierung
 - [ ] JNI/Panama-Bridge für GPU
 - [x] Multi-Agent-Koordination ✅

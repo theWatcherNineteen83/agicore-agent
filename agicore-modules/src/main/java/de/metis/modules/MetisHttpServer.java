@@ -41,6 +41,8 @@ public class MetisHttpServer {
     private final AtomicBoolean evolutionPaused = new AtomicBoolean(false);
     private KnowledgeStore knowledgeStore; // set via setter for conversation persistence
     private AgentCoordinator coordinator;
+    private RollbackManager rollbackManager;  // Phase 5: Blue/Green
+    private BugfixingAgent bugfixingAgent;     // Phase 5: Auto-fix
 
     public MetisHttpServer(Agent agent, int port) throws IOException {
         this.agent = agent;
@@ -62,6 +64,8 @@ public class MetisHttpServer {
 
     public void setKnowledgeStore(KnowledgeStore ks) { this.knowledgeStore = ks; }
     public void setCoordinator(AgentCoordinator c) { this.coordinator = c; }
+    public void setRollbackManager(RollbackManager rm) { this.rollbackManager = rm; }
+    public void setBugfixingAgent(BugfixingAgent ba) { this.bugfixingAgent = ba; }
 
     public void start() {
         server.start();
@@ -565,7 +569,12 @@ public class MetisHttpServer {
                       "validPlanCount": %d,
                       "emptyPlanCount": %d,
                       "actionUsageCount": %s,
-                      "actionErrorCount": %s,""",
+                      "actionErrorCount": %s,
+                      "avgLatencyMs": %d,
+                      "lastLatencyMs": %d,
+                      "totalPromptTokens": %d,
+                      "totalResponseTokens": %d,
+                      "tokensPerCall": %.0f,""",
                     op.llmCalls(), op.llmSuccessRate(), op.fallbackUses(),
                     op.modelFallbackUses(),
                     jsonList(op.fallbackModelChain()),
@@ -574,7 +583,12 @@ public class MetisHttpServer {
                     op.validPlanCount(),
                     op.emptyPlanCount(),
                     jsonMap(op.actionUsageCount()),
-                    jsonMap(op.actionErrorCount()));
+                    jsonMap(op.actionErrorCount()),
+                    op.avgLatencyMs(),
+                    op.lastCallLatencyMs(),
+                    op.totalPromptTokens(),
+                    op.totalResponseTokens(),
+                    op.tokensPerCall());
         } else {
             plannerInfo = "";
         }
@@ -595,7 +609,9 @@ public class MetisHttpServer {
                   "evolutionCycles": %d,
                   %s
                   "plannerType": "%s",
-                  "worldModelAvgConfidence": %.3f
+                  "worldModelAvgConfidence": %.3f,
+                  %s
+                  %s
                 }
                 """,
                 m.totalTicks(),
@@ -609,7 +625,9 @@ public class MetisHttpServer {
                 evo.evolutionCycles(),
                 plannerInfo,
                 planner.getClass().getSimpleName(),
-                wm.averageConfidence()
+                wm.averageConfidence(),
+                rollbackManager != null ? rollbackManager.healthJson() + "," : "",
+                bugfixingAgent != null ? bugfixingAgent.healthJson() : ""
         );
 
         sendJson(exchange, 200, json);

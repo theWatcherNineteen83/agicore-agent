@@ -80,6 +80,14 @@ public class OllamaPlanner implements Planner {
     private int modelFallbackUses = 0;  // count of model-level fallbacks within Tier 1
     private Instant lastLlmCall;
 
+    // ── Latency & Token Tracking (Phase 2.5.2) ───────────────
+    private long totalLatencyMs = 0;
+    private long lastCallLatencyMs = 0;
+    private long totalPromptTokens = 0;
+    private long totalResponseTokens = 0;
+    private long lastPromptTokens = 0;
+    private long lastResponseTokens = 0;
+
     // ── Planning metrics (Huyen Kap. 6) ──────────────────────
     private int totalPlansGenerated = 0;
     private int validPlanCount = 0;
@@ -305,6 +313,7 @@ public class OllamaPlanner implements Planner {
      * Returns the parsed action name or null on failure.
      */
     private String callOllamaModel(String modelName, String prompt) {
+        long startMs = System.currentTimeMillis();
         try {
             String jsonBody = String.format("""
                     {
@@ -315,8 +324,10 @@ public class OllamaPlanner implements Planner {
                       "options": {
                         "temperature": 0.3,
                         "top_p": 0.95,
-                        "num_predict": 256
-                      }
+                        "num_predict": 256,
+                        "num_ctx": 4096
+                      },
+                      "keep_alive": "10m"
                     }
                     """, modelName, escapeJson(prompt));
 
@@ -328,6 +339,11 @@ public class OllamaPlanner implements Planner {
                     .build();
 
             HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
+
+            // ── Track latency + tokens (Phase 2.5.2) ──────────────
+            lastCallLatencyMs = System.currentTimeMillis() - startMs;
+            totalLatencyMs += lastCallLatencyMs;
+            trackTokens(response.body());
 
             if (response.statusCode() != 200) {
                 LOG.warning("Ollama model " + modelName + " returned " + response.statusCode());
@@ -908,6 +924,43 @@ public class OllamaPlanner implements Planner {
         return modelProvider != null ? modelProvider.get() : "nemotron-cascade-2:30b";
     }
 
+    /**
+     * Parse token counts from Ollama response (Phase 2.5.2).
+     * Extracts prompt_eval_count and eval_count from the JSON body.
+     */
+    private void trackTokens(String responseBody) {
+        try {
+            int peIdx = responseBody.indexOf("\"prompt_eval_count\":");
+            if (peIdx >= 0) {
+                String num = extractNumberAt(responseBody, peIdx + "\"prompt_eval_count\":".length());
+                if (num != null) {
+                    lastPromptTokens = Long.parseLong(num);
+                    totalPromptTokens += lastPromptTokens;
+                }
+            }
+            int eIdx = responseBody.indexOf("\"eval_count\":");
+            if (eIdx >= 0) {
+                String num = extractNumberAt(responseBody, eIdx + "\"eval_count\":".length());
+                if (num != null) {
+                    lastResponseTokens = Long.parseLong(num);
+                    totalResponseTokens += lastResponseTokens;
+                }
+            }
+        } catch (Exception e) {
+            // Non-critical — token tracking is best-effort
+        }
+    }
+
+    private String extractNumberAt(String json, int pos) {
+        StringBuilder num = new StringBuilder();
+        for (int i = pos; i < json.length(); i++) {
+            char c = json.charAt(i);
+            if (Character.isDigit(c)) num.append(c);
+            else if (num.length() > 0) break;
+        }
+        return num.length() > 0 ? num.toString() : null;
+    }
+
     private static String escapeJson(String s) {
         StringBuilder sb = new StringBuilder("\"");
         for (char c : s.toCharArray()) {
@@ -951,6 +1004,14 @@ public class OllamaPlanner implements Planner {
     public int llmFailures() { return llmFailures; }
     public int fallbackUses() { return fallbackUses; }
     public int modelFallbackUses() { return modelFallbackUses; }
+    public long totalLatencyMs() { return totalLatencyMs; }
+    public long lastCallLatencyMs() { return lastCallLatencyMs; }
+    public long avgLatencyMs() { return llmCalls == 0 ? 0 : totalLatencyMs / llmCalls; }
+    public long totalPromptTokens() { return totalPromptTokens; }
+    public long totalResponseTokens() { return totalResponseTokens; }
+    public long lastPromptTokens() { return lastPromptTokens; }
+    public long lastResponseTokens() { return lastResponseTokens; }
+    public double tokensPerCall() { return llmCalls == 0 ? 0 : (double) (totalPromptTokens + totalResponseTokens) / llmCalls; }
     public Map<String, Integer> modelFallbackCounts() { return Map.copyOf(modelFallbackCounts); }
     public List<String> fallbackModelChain() { return List.copyOf(fallbackModels); }
     public int totalPlansGenerated() { return totalPlansGenerated; }

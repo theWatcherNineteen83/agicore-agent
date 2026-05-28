@@ -92,6 +92,11 @@ public final class AgentMain {
     // ── Emergence tracking ────────────────────────────────────
     private final List<String> emergenceEvents = new ArrayList<>();
     private int consecutiveFailures = 0;
+
+    // ── Blue/Green Rollback + Autonomous Bugfixing (Phase 5) ─
+    private RollbackManager rollbackManager;
+    private BugfixingAgent bugfixingAgent;
+    private int bugfixCheckInterval = 50;  // ticks between bugfix evaluations
     private double lastSuccessRate = 1.0;
     private long lastEmergenceReportTick = 0;
 
@@ -166,6 +171,20 @@ public final class AgentMain {
                 } else {
                     // Emergence detection: track anomalies
                     detectEmergence(result, totalTicks);
+
+                    // Blue/Green health tracking (Phase 5)
+                    if (rollbackManager != null) {
+                        rollbackManager.recordAction(result.success());
+                    }
+
+                    // Bugfixing error classification (Phase 5)
+                    if (bugfixingAgent != null && !result.success()) {
+                        var classified = bugfixingAgent.classifyFromResult(result);
+                        if (classified != null) {
+                            LOG.fine("Bug classified: " + classified.errorClass()
+                                    + " for " + classified.actionName());
+                        }
+                    }
                 }
 
                 // ── Autonomous goal generation (idle exploration) ──
@@ -202,6 +221,11 @@ public final class AgentMain {
                     lastEvolution = totalTicks;
                 }
 
+                // ── Blue/Green health eval + Bugfixing (Phase 5) ──
+                if (totalTicks % bugfixCheckInterval == 0) {
+                    evaluateHealthAndFix();
+                }
+
                 // ── Sleep ─────────────────────────────────────
                 if (running.get()) {
                     Thread.sleep(tickIntervalMs);
@@ -214,8 +238,17 @@ public final class AgentMain {
             } catch (Exception e) {
                 LOG.log(Level.WARNING, "Tick " + totalTicks + " threw exception", e);
                 consecutiveFailures++;
+
+                // Record crash for Blue/Green rollback (Phase 5)
+                if (rollbackManager != null) rollbackManager.recordCrash();
+                if (bugfixingAgent != null) bugfixingAgent.classify(e.getMessage(), "agent-tick");
+
                 if (consecutiveFailures > 10) {
                     LOG.severe("Too many consecutive failures — emergency stop");
+                    // Auto-rollback before emergency stop
+                    if (rollbackManager != null) {
+                        rollbackManager.rollback();
+                    }
                     break;
                 }
                 // Backoff on errors
@@ -333,6 +366,37 @@ public final class AgentMain {
             String event = String.format("T%d: Emergence-triggered evolution — %s",
                     totalTicks, evoResult.message());
             emergenceEvents.add(event);
+        }
+    }
+
+    // ── Blue/Green Health Evaluation + Bugfixing (Phase 5) ────────
+
+    private void evaluateHealthAndFix() {
+        // Health evaluation → auto-rollback if needed
+        if (rollbackManager != null) {
+            boolean rolledBack = rollbackManager.evaluateHealth();
+            if (rolledBack) {
+                LOG.severe("AUTO-ROLLBACK triggered — agent should restart");
+                emergenceEvents.add("AUTO-ROLLBACK at tick " + totalTicks
+                        + " → version " + rollbackManager.previousVersion());
+            }
+        }
+
+        // Bugfixing pattern detection + auto-fix
+        if (bugfixingAgent != null) {
+            var pattern = bugfixingAgent.detectPattern();
+            if (pattern.isPresent()) {
+                LOG.warning("Detected error pattern: " + pattern.get()
+                        + " (" + bugfixingAgent.recentErrorCount() + " recent errors)");
+
+                // Only auto-fix repeat errors (same action+error combo ≥ 3 times)
+                var lastErr = bugfixingAgent.lastError();
+                if (lastErr.isPresent()
+                        && bugfixingAgent.isRepeatError(lastErr.get().actionName(), pattern.get(), 3)) {
+                    var fix = bugfixingAgent.attemptFix(pattern.get(), lastErr.get().actionName());
+                    fix.ifPresent(f -> emergenceEvents.add("AUTO-FIX at tick " + totalTicks + ": " + f));
+                }
+            }
         }
     }
 
@@ -571,6 +635,14 @@ public final class AgentMain {
     public static Builder builder(Agent agent) {
         return new Builder(agent);
     }
+
+    // ── Phase 5 accessors ────────────────────────────────────
+
+    public RollbackManager rollbackManager() { return rollbackManager; }
+    public BugfixingAgent bugfixingAgent() { return bugfixingAgent; }
+
+    public void setRollbackManager(RollbackManager rm) { this.rollbackManager = rm; }
+    public void setBugfixingAgent(BugfixingAgent ba) { this.bugfixingAgent = ba; }
 
     public static class Builder {
         private final Agent agent;
@@ -974,6 +1046,22 @@ public final class AgentMain {
                 .idleGoalInterval(10)
                 .emergenceReportInterval(50)
                 .build();
+
+        // Phase 5: Blue/Green Rollback + Bugfixing
+        Path deployDir = Path.of(".").toAbsolutePath();
+        var rollbackMgr = new RollbackManager(deployDir);
+        rollbackMgr.promoteToBlue("0.3.0-phase5"); // initial deployment
+        runtime.setRollbackManager(rollbackMgr);
+
+        var bugfixer = new BugfixingAgent().withRollbackManager(rollbackMgr);
+        runtime.setBugfixingAgent(bugfixer);
+
+        // Wire health monitoring to HTTP API
+        if (httpServer != null) {
+            httpServer.setRollbackManager(rollbackMgr);
+            httpServer.setBugfixingAgent(bugfixer);
+        }
+        LOG.info("Blue/Green rollback + autonomous bugfixing active (Phase 5)");
 
         if (evolution) {
             runtime = AgentMain.builder(agent)
