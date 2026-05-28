@@ -27,6 +27,7 @@ import de.metis.kernel.workspace.GlobalWorkspace;
 import de.metis.kernel.world.WorldModel;
 import de.metis.modules.evolution.ModelRegistry;
 import de.metis.modules.planner.OllamaPlanner;
+import de.metis.modules.planner.PromptChainingService;
 import de.metis.modules.planner.StubPlanner;
 import de.metis.kernel.metrics.FitnessSignal;
 import de.metis.modules.CuriosityEngine;
@@ -49,6 +50,7 @@ import java.util.Set;
 public class Agent {
 
     private final AgentCoreLoop core;
+    private PromptChainingService chainService;
 
     private Agent(AgentCoreLoop core) { this.core = core; }
 
@@ -79,6 +81,7 @@ public class Agent {
     public SelfModel selfModel() { return core.selfModel(); }
     public WorldModel worldModel() { return core.worldModel(); }
     public MetaRepresentation metaRepr() { return core.metaRepr(); }
+    public PromptChainingService chainService() { return chainService; }
 
     public static Builder builder() { return new Builder(); }
 
@@ -97,6 +100,7 @@ public class Agent {
         private EvolutionManager evolutionManager = new EvolutionManager();
         private CuriosityEngine curiosityEngine = null;
         private FitnessSignal fitnessSignal = null;
+        private PromptChainingService chainService = null;
 
         public Builder registerShellCommand(List<String> command, long timeoutSeconds) {
             executor.register(new ShellCommandAction(command, timeoutSeconds)); return this;
@@ -144,6 +148,10 @@ public class Agent {
         }
         public Builder curiosityEngine(CuriosityEngine c) { this.curiosityEngine = c; return this; }
         public Builder fitnessSignal(FitnessSignal f) { this.fitnessSignal = f; return this; }
+        public Builder promptChainingService(PromptChainingService cs) { this.chainService = cs; return this; }
+        public Builder promptChainingService(String ollamaUrl, String model, Duration timeout) {
+            this.chainService = new PromptChainingService(ollamaUrl, model, timeout); return this;
+        }
 
         public Agent build() {
             var consolidator = new MemoryConsolidator(stm, ltm);
@@ -165,7 +173,9 @@ public class Agent {
                     consolidator, meta, metrics, hyperMutator,
                     workspace, selfModel, worldModel, metaRepr, evolutionManager,
                     curiosityEngine != null ? () -> curiosityEngine.generateExplorationGoal() : null);
-            return new Agent(loop);
+            Agent agent = new Agent(loop);
+            agent.chainService = this.chainService;
+            return agent;
         }
     }
 }

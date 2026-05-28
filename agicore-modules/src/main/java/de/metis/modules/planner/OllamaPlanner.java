@@ -416,7 +416,8 @@ public class OllamaPlanner implements Planner {
         sb.append("- linux-explore-system: deep system probe (processes, memory, disk, network)\n");
         sb.append("- memory-query: search the agent's own long-term knowledge base\n");
         sb.append("- self-analyze: inspect agent's own performance metrics and state\n");
-        sb.append("- javasandbox: execute safe, sandboxed Java code experiments\n\n");
+        sb.append("- javasandbox: execute safe, sandboxed Java code experiments\n");
+        sb.append("- prompt-chain: decompose complex multi-step goals into sequential sub-goals, execute each with context from previous results, and synthesize final answer (Pattern: Decompose→Execute→Aggregate)\n\n");
 
         // ── Rich Few-Shot examples with thought (ReAct format) ──
         sb.append("FEW-SHOT EXAMPLES:\n");
@@ -429,7 +430,9 @@ public class OllamaPlanner implements Planner {
         sb.append("Goal: Get detailed system resource overview → {\"thought\":\"Deep system probe covers multiple resource dimensions\",\"action\":\"linux-explore-system\",\"reasoning\":\"deep system probe for resources\",\"confidence\":0.85}\n");
         sb.append("Goal: What do I know about network configuration? → {\"thought\":\"This is a knowledge retrieval task, not an active probe\",\"action\":\"memory-query\",\"reasoning\":\"search agent's long-term knowledge base\",\"confidence\":0.80}\n");
         sb.append("Goal: How well am I performing lately? → {\"thought\":\"Self-analysis inspects the agent's own metrics, not external systems\",\"action\":\"self-analyze\",\"reasoning\":\"self-analysis of performance metrics\",\"confidence\":0.85}\n");
-        sb.append("Goal: Run a Java math experiment safely → {\"thought\":\"Safe code execution needs sandbox, not raw shell\",\"action\":\"javasandbox\",\"reasoning\":\"sandboxed Java execution for safe code\",\"confidence\":0.90}\n\n");
+        sb.append("Goal: Run a Java math experiment safely → {\"thought\":\"Safe code execution needs sandbox, not raw shell\",\"action\":\"javasandbox\",\"reasoning\":\"sandboxed Java execution for safe code\",\"confidence\":0.90}\n");
+        sb.append("Goal: Research a topic and create a structured report → {\"thought\":\"Complex multi-step task needs decomposition — web research, extract, structure, save\",\"action\":\"prompt-chain\",\"reasoning\":\"multi-step research task best handled by prompt chaining\",\"confidence\":0.85}\n");
+        sb.append("Goal: Investigate system security and generate audit report → {\"thought\":\"System audit requires multiple steps — probe, analyze, aggregate, report\",\"action\":\"prompt-chain\",\"reasoning\":\"systematic audit via chained sub-goals\",\"confidence\":0.85}\n\n");
 
         // ── Goal context ──
         sb.append("CURRENT GOAL:\n");

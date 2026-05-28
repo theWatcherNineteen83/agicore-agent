@@ -780,6 +780,7 @@ public final class AgentMain {
                 .registerShellCommand(List.of("uname", "-a"))
                 .registerHttpGet(URI.create("https://httpbin.org/get"))
                 .ollamaPlanner("http://192.168.22.204:11434/api/generate", modelRegistry, Duration.ofSeconds(60))
+                .promptChainingService("http://192.168.22.204:11434/api/generate", "nemotron-cascade-2:30b", Duration.ofSeconds(90))
                 .workspaceCapacity(5)
                 .build();
 
