@@ -2,28 +2,26 @@
 
 **Metis** ist eine selbst-evolvierende, lokal laufende Java-AGI. Benannt nach der Titanin der Weisheit aus der griechischen Mythologie.
 
-Sie denkt in kognitiven Zyklen (Perceive → Plan → Execute → Observe → Learn), plant Aktionen per LLM (Ollama), und kann sich selbstständig weiterentwickeln — durch KI-generierte Code-Mutationen mit automatischer Kompilierung, Shadow-Evaluation und Git-Versionierung.
+Sie denkt in kognitiven Zyklen (Perceive → Plan → Execute → Observe → Learn), plant Aktionen per LLM (Ollama), und kann sich selbstständig weiterentwickeln — durch KI-generierte Code-Mutationen mit automatischer Kompilierung, Shadow-Evaluation und Git-Versionierung. Ein externer Watchdog überwacht als unbestechliche Instanz.
 
 ## Architektur
 
 ```
-┌──────────────────────────────────────────┐
-│              Metis AGI                   │
-│                                          │
-│  ┌──────────────┐  ┌──────────────────┐ │
-│  │  Kernel      │  │  Modules         │ │
-│  │  (immutable) │  │  (evolvable)     │ │
-│  │              │  │                  │ │
-│  │ • CoreLoop   │  │ • OllamaPlanner  │ │
-│  │ • WorldModel │  │ • MutationSvc    │ │
-│  │ • SafetyGuard│  │ • ModelRegistry  │ │
-│  │ • SelfModel  │  │ • StubPlanner    │ │
-│  │ • Evolution  │  │                  │ │
-│  └──────────────┘  └──────────────────┘ │
-│                                          │
-│  HTTP-API (Ollama-kompatibel)           │
-│  → OpenWebUI-Integration                │
-└──────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────┐
+│                   Metis AGI                         │
+│                                                     │
+│  ┌──────────────┐  ┌──────────────┐  ┌───────────┐ │
+│  │  Kernel      │  │  Modules     │  │  Watchdog  │ │
+│  │  (immutable) │  │  (evolvable) │  │  (separate │ │
+│  │              │  │              │  │   JVM, RO) │ │
+│  │ • CoreLoop   │  │ • Planner    │  │            │ │
+│  │ • WorldModel │  │ • EvalHarness│  │ • HALT     │ │
+│  │ • SafetyGuard│  │ • ModelReg.  │  │ • ROLLBACK │ │
+│  │ • SelfModel  │  │ • Scorers(6) │  │ • ALERT    │ │
+│  └──────────────┘  └──────────────┘  └───────────┘ │
+│                                                     │
+│  HTTP-API (Ollama-kompatibel) → OpenWebUI           │
+└─────────────────────────────────────────────────────┘
 ```
 
 **Kognitive Architektur (Global Workspace Theory nach Baars):**
@@ -34,92 +32,25 @@ SENSORS → Global Workspace → PERCEIVE → PLAN → EXECUTE → OBSERVE → L
          Self Model ─── World Model ─── Meta-Cognition
 ```
 
-- **Global Workspace:** Attention-Bottleneck (Miller's Law, 5±2 Items). Inhalte aus Memory, Goals, Self-Model und World-Model konkurrieren um Aufmerksamkeit.
-- **OllamaPlanner:** LLM-basiertes Reasoning (3-Tier-Fallback: LLM → Learned Mapping → Keyword-Heuristik)
-- **Self-Model:** Kalibriert Erwartungen, trackt Forward-Prediction-Error
-- **World-Model:** Dynamisches Belief-Netzwerk mit Belief-Revision (Bestätigung → Stärkung, Widerspruch → Schwächung, <15% → Löschung)
-- **Meta-Cognition:** EMA-basierte Confidence, Surprise-Detection
-
-## Evolution
-
-Metis kann sich selbst weiterentwickeln — sowohl Module als auch Kernel (Feature-Branches).
-
-```
-Stagnation erkannt (200 Ticks ohne Verbesserung)
-  → LLM generiert Code-Mutation (Ollama)
-  → javac-Kompilierung
-  → Shadow-Evaluation (300 Ticks isoliert)
-  → Fitness-Vergleich
-  → Accept: git merge
-  → Reject: git reset / git branch -D
-```
-
-**Sicherheit:**
-- Kernel: max. 5% Code-Änderung pro Mutation, Feature-Branch (`evolution/kernel-<UUID>`)
-- Module: max. 15% Code-Änderung, direkter Commit mit Rollback
-- `SafetyGuard`: CPU-Limit, Memory-Limit, Tick-Limit
-- Evolution jederzeit pausierbar via HTTP-API
-
-## Knowledge Bootstrap
-
-Beim Start kann Metis Basiswissen aus anderen Ollama-Modellen beziehen:
-
-```bash
-# Einzelnes Modell
---bootstrap-model phi4:latest
-
-# Multi-Modell-Consensus (empfohlen)
---bootstrap-models phi4:latest,llama3.2:3b
-```
-
-Mehrere Modelle werden befragt, ähnliche Antworten per Jaccard-Clustering gruppiert:
-- **2+ Modelle stimmen überein:** +15% Confidence pro zusätzlichem Modell
-- **Einzelmeinung:** −25% Confidence-Penalty (ungeprüft)
-- Beliefs werden durch eigene Erfahrung validiert oder verworfen
-
-## Modellauswahl
-
-Metis wählt automatisch die besten verfügbaren Ollama-Modelle pro Aufgabe:
-
-| Aufgabe | Modell | Größe |
-|---------|--------|-------|
-| Planning | `nemotron-cascade-2:30b` | ~18 GB |
-| Mutation | `deepseek-r1:32b` | 19.9 GB |
-| Embedding | `llama3.2:3b` | 2.0 GB |
-| Chat (Telegram) | `phi4:latest` | 9.1 GB |
-
-**Fallback-Chain (auto):** nemotron-cascade-2:30b → mistral-small3.1:24b → nemotron:latest → qwen3.6:latest
-
-**VRAM-Budget (RX 7900 XTX, 24 GB):**
-- Dauerlast: Planning 15.5 + Chat 9.1 = 24.6 GB (Ollama offloading)
-- Mutation on-demand: deepseek-r1 wird bei Bedarf geladen, danach entladen
-
-Manuelle Overrides per CLI: `--planning-model`, `--mutation-model`, `--embedding-model`
+- **Global Workspace:** Attention-Bottleneck (Miller's Law, 5±2 Items)
+- **OllamaPlanner:** LLM-basiert mit 3-Tier-Fallback, System-Prompt-Doubling-Defense
+- **Self-Model:** Kalibriert Erwartungen, Forward-Prediction-Error
+- **World-Model:** Dynamisches Belief-Netzwerk mit PersistentVectorIndex + HybridSearch (BM25+Cosinus)
+- **Watchdog:** Externer Sicherheitsprozess (separate JVM, read-only), 3 Aktionen: HALT/ROLLBACK/ALERT
+- **Eval-Harness:** 6 Kategorien, 3-Tier (Smoke→Full→Extended), Gate-Logik mit Grund-Truth
 
 ## Schnellstart
 
-### Bauen
-
 ```bash
-git clone https://github.com/theWatcherNineteen83/metis-agent.git
-cd metis-agent
+git clone https://github.com/theWatcherNineteen83/agicore-agent.git
+cd agicore-agent
 mvn package -DskipTests
-# → agicore-modules/target/metis-agent.jar
-```
-
-### Lokal starten
-
-```bash
 java -jar agicore-modules/target/metis-agent.jar \
   --api-port 11735 \
-  --planning-model mistral-small3.1:24b \
-  --bootstrap-models phi4:latest,llama3.2:3b \
   --max-ticks 30
 ```
 
 ### OpenWebUI-Integration
-
-Metis spricht eine Ollama-kompatible HTTP-API:
 
 ```
 OpenWebUI → Verbindungen → Neue Ollama-Verbindung
@@ -127,7 +58,7 @@ URL: http://<host>:11735
 → Modell "metis-agent" erscheint im Chat
 ```
 
-### Deployment (systemd)
+### Deployment
 
 ```bash
 ./deploy-metis.sh   # Baut, kopiert per scp, installiert systemd-Service
@@ -137,13 +68,13 @@ URL: http://<host>:11735
 
 | Flag | Beschreibung |
 |------|-------------|
-| `--api-port N` | HTTP-API auf Port N starten (für OpenWebUI) |
+| `--api-port N` | HTTP-API auf Port N starten |
 | `--interval N` | Tick-Intervall in ms (default: 3000) |
 | `--max-ticks N` | Nach N Ticks stoppen (0 = unbegrenzt) |
-| `--evolution` | Self-Evolution aktivieren (nur Modules) |
-| `--kernel-evolution` | Kernel + Module Evolution (Feature-Branches) |
+| `--evolution` | Self-Evolution aktivieren |
+| `--kernel-evolution` | Kernel + Module Evolution |
 | `--bootstrap-model M` | Basiswissen von Modell M laden |
-| `--bootstrap-models A,B` | Consensus-Bootstrap mit mehreren Modellen |
+| `--bootstrap-models A,B` | Consensus-Bootstrap |
 | `--planning-model M` | Planungs-Modell überschreiben |
 | `--mutation-model M` | Mutations-Modell überschreiben |
 | `--embedding-model M` | Embedding-Modell überschreiben |
@@ -154,99 +85,30 @@ URL: http://<host>:11735
 | Endpoint | Beschreibung |
 |----------|-------------|
 | `GET /api/tags` | Verfügbare Modelle (Ollama-Format) |
-| `POST /api/chat` | Chat mit EDI-Persona, Session-Persistenz (SQLite) |
-| `GET /api/status` | Agent-Metriken + Planner-Status + Fallback-Chain |
+| `POST /api/chat` | Chat mit EDI-Persona, SQLite-Sessions |
+| `GET /api/status` | Agent-Metriken + Planner + Rollback |
 | `GET /api/learned` | Gelernte Mappings, Beliefs, Experiences |
-| `GET /api/conversations` | Alle Konversation-Sessions auflisten |
-| `GET /api/conversations/{id}` | Session-Verlauf laden |
+| `GET /api/conversations` | Konversation-Sessions |
+| `GET /api/conversations/{id}` | Session-Verlauf |
 | `GET /api/evolution/status` | Evolution-Status |
 | `GET /api/evolution/pause` / `resume` | Evolution pausieren/fortsetzen |
 
-## Status — 28.05.2026
+## Modellauswahl
 
-**Version:** 0.4.0 | **Stand:** 28.05.2026 | **Planner:** 99–100% | **GPU:** ROCm via Panama FFM (OpenCL Zero-Copy) | **Phase 1–5:** ✅ 100%
+Metis wählt via `ModelRegistry` automatisch die besten Ollama-Modelle:
 
-### Phase 1: Zuverlässiger Kern ✅ ABGESCHLOSSEN
+| Rolle | Modell | Größe |
+|-------|--------|-------|
+| Planning | `mistral-small3.1:24b` | 15.5 GB |
+| Mutation | `deepseek-r1:32b` | 19.9 GB |
+| Embedding | `nomic-embed-text` | 0.3 GB |
+| Chat | `phi4:latest` | 9.1 GB |
 
-- ✅ `format: json` — Ollama-Planner mit strukturiertem JSON-Output
-- ✅ Response-Parsing — /api/generate, /api/chat, Thinking-Modelle, Raw-Body-Fallback
-- ✅ Model-Fallback-Chain — 3-stufig: mistral-small3.1→nemotron→qwen3.6
-- ✅ Plan-Validierung — Safety-Gate, Action-Relevance, Duplicate-Guard
-- ✅ Prompt-Optimierung v1 — 4 Few-Shot-Beispiele
-- ✅ **Prompt-Optimierung v2** — Chain-of-Thought (4-Schritt), 10 Few-Shot, Failure-Avoidance, temp 0.3
-- ✅ systemd-Service — Auto-Restart, Journal-Logging, Runs on boot
+## Status
 
-### Phase 2: Konversations-KI ✅ 100%
+**Version:** 0.5.0 | **Stand:** 28.05.2026 | **Phasen:** 1–5 ✅ · 6 🟡 67% · 7 🆕 0%
 
-- ✅ Persona-System — EDI-Identität (Mass Effect 3), Werte, Tonfall
-- ✅ Chat-Speicher — SQLite `conversation_messages` mit Session-ID
-- ✅ Multi-Turn-Kontext — `/api/chat` mit Konversationshistorie
-- ✅ Telegram-Bot — @metis_agi_bot, Direkt-Chat via LLM (phi4:latest)
-- ✅ Wetter-Trigger — ICOBURG22 Polling alle 15 Min
-- ✅ HA-Event-Trigger — binary_sensor, person, camera via REST API
-- ✅ Hardware-Self-Awareness — CPU, GPU, RAM, SIMD, VRAM, ROCm
-- ✅ Deep Netts — Pure-Java neuronale Netze, XOR-Training
-- ✅ KnowledgeReplyService — Eigene Antworten aus Beliefs (>70% Confidence)
-- ✅ **Proaktive Meldungen** — MQTT/Wetter/HA-Events → Telegram
-- ✅ **MQTT-Integration** — Eclipse Paho, Topic-Filter, Event-Trigger
-
-### Runde 2 & 3 (26.05. Abends) ✅
-
-- ✅ Fitness-Signal — multidimensional (Prediction-Accuracy, Surprise, Efficiency, Completion)
-- ✅ Curiosity-Engine — Surprise-getriebene Exploration
-- ✅ Kausale Schicht — CausalModel (Pearl Do-Calculus)
-- ✅ MQTT-Topic-Filter — Wildcard → spezifische Topics
-
-### Phase 2.5: Hardware-Optimierung ✅
-
-- ✅ Hardware-Discovery — Ryzen 7 5700G, RX 7900 XTX, 64 GB RAM, AVX2
-- ✅ VRAM-Budget — Planning ~18 GB + Chat 9 GB = 27 GB (Ollama offloading)
-- ✅ TornadoVM — Java → GPU-Kernel-Kompilierung
-- ✅ Project Panama FFM — OpenCL Zero-Copy GPU (ROCm, kein JNI)
-
-### Phase 3: Wahrnehmung ✅ 100%
-
-- ✅ Home Assistant — states + services via REST API
-- ✅ ADS-B Flugdaten — readsb JSON → Beliefs + Goals (60s Polling)
-- ✅ **Kamera-Integration** — CameraSnapshotAction (ffmpeg, RTSP + MJPEG), CameraPollingTrigger (5min, Motion-Detection)
-  - Türkamera: MJPEG 1080p `http://192.168.22.161:9081/snapshot`
-  - Keller: Annke H.265 720p `rtsp://192.168.22.148/H265/ch1/main/av_stream`
-
-### Phase 4: Sprachausgabe 🟡 90%
-- Piper TTS + Whisper STT + MaryTTS + Vosk + Java Voice Loop ✅
-- Live-Test mit Georg 🔒 blockiert
-
-### Phase 5: Eigenständigkeit ✅ 100%
-- Blue/Green Rollback, Autonomous Bugfixing, Prompt Chaining ✅
-- Code-Generierung (LLM→javac→deploy) ✅
-- Panama FFM OpenCL Bridge (Zero-Copy GPU, ROCm) ✅
-- RAG Foundation (OllamaEmbedding + InMemoryVectorIndex) ✅
-- RAG Advanced (DocumentChunker, HybridSearch BM25+Cosinus, PersistentVectorIndex) ✅
-
-### Phase 6: Produktionsreife 🟡 57% (28.05.)
-
-| Feature | Status | Commit |
-|---------|--------|--------|
-| Lost-in-the-Middle (Context Windowing) | ✅ | 8426162 |
-| OutputValidator (JSON-Schema, Toxicity, Injection) | ✅ | ae66cdd |
-| LLM-as-Judge (Selbstbewertung, 4-Dimensionen) | ✅ | 0116022 |
-| Human-in-the-Loop (Read/Write-Gate) | 🔴 | — |
-| A/B-Testing (Prompt-Varianten) | ⬜ | — |
-| Data Flywheel (User-Korrekturen) | ⬜ | — |
-
-### Roadmap
-
-| Phase | Ziel | Status |
-|-------|------|--------|
-| 🔧 Phase 1 | Stabiler Kern (>85% Planner) | ✅ done |
-| 💬 Phase 2 | Konversation + Persona + Events + MQTT | ✅ 100% |
-| ⚡ Phase 2.5 | Hardware-Optimierung (GPU, Panama, TornadoVM) | ✅ done |
-| 👁️ Phase 3 | Wahrnehmung (HA, ADS-B, Kameras) | ✅ 100% |
-| 🎙️ Phase 4 | Sprachausgabe (TTS/STT) | 🟡 90% |
-| 🧠 Phase 5 | Eigenständigkeit + Selbstverbesserung | ✅ 100% |
-| 🛡️ Phase 6 | Produktionsreife (Guardrails, Eval) | 🟡 57% |
-
-**Ziel:** EDI-ähnliche KI (Mass Effect 3) — eigenständig, per Text und Telegram ansprechbar, mit eigenem Wissen.
+→ Details: **[AGI_EDI_ROADMAP.md](AGI_EDI_ROADMAP.md)** · **[TODO_METIS.md](TODO_METIS.md)**
 
 ---
 
