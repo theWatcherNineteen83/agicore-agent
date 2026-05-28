@@ -65,7 +65,21 @@ public class VoiceLoopService {
     // ── Main Loop: Listen → Understand → Think → Speak ──────────
 
     private void runLoop() {
-        while (running.get()) {
+        int loopCount = 0;
+        int maxLoops = 10;  // safety: max self-talk iterations
+        String lastSpoken = "";
+
+        // Initial trigger: speak first → headphones → mic → loop starts
+        try {
+            new MaryTTSSpeakAction(
+                "Metis Selbstgespräch beginnt. Kopfhörer auf Mikrofon.", "bits1-hsmm")
+                .execute();
+            Thread.sleep(3000);
+        } catch (Exception e) {
+            LOG.fine("Initial TTS skipped: " + e.getMessage());
+        }
+
+        while (running.get() && loopCount < maxLoops) {
             try {
                 // 1. LISTEN via Vosk (Java-native, microphone)
                 var listenAction = new VoskListenAction(LISTEN_SECONDS);
@@ -100,7 +114,7 @@ public class VoiceLoopService {
                 final String recognized = cleanHeard;
                 LOG.info(() -> "Heard: \"" + recognized + "\"");
 
-                // 2. Submit as Goal (no TTS response to avoid feedback loop)
+                // 2. Submit as Goal + respond via TTS (self-talk loop)
                 if (recognized.toLowerCase().contains("wetter")
                         || recognized.toLowerCase().contains("metis")
                         || recognized.length() > 10) {
@@ -112,9 +126,18 @@ public class VoiceLoopService {
                             1
                     ));
                     conversationCount++;
+                    loopCount++;
+
+                    // Self-talk: speak a response, which feeds back through headphones→mic
+                    String response = "Metis Selbstgespräch " + loopCount + ": " + recognized;
+                    new MaryTTSSpeakAction(response, "bits1-hsmm").execute();
+                    lastSpoken = response;
+
+                    LOG.info("Self-talk cycle " + loopCount + "/" + maxLoops
+                            + ": spoke → heard → spoke");
                 }
 
-                Thread.sleep(1500);
+                Thread.sleep(2000);
 
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
