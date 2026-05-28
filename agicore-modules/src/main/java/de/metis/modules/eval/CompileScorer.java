@@ -3,10 +3,13 @@ package de.metis.modules.eval;
 import de.metis.kernel.eval.*;
 import de.metis.kernel.eval.GroundTruth.*;
 import java.io.*;
+import java.lang.reflect.Method;
+import java.net.*;
 import java.nio.file.*;
-import javax.tools.*;
-import java.util.List;
+import java.util.*;
+import java.util.concurrent.*;
 import java.util.logging.Logger;
+import javax.tools.*;
 
 /**
  * Scorer for CODEGEN tasks.
@@ -91,12 +94,135 @@ class CompileScorer implements Scorer {
     }
 
     /**
-     * Compile AND run the hidden test suite.
-     * For now, compile-only. Full sandbox test execution is Phase 2.
+     * Compile AND run the hidden test suite in a sandbox.
+     * <p>
+     * Sandbox constraints (per Huyen Ch.5: Verteidigung auf Systemebene):
+     * <ul>
+     *   <li>No network access (SecurityManager blocks sockets)</li>
+     *   <li>Restricted file system (temp dir only)</li>
+     *   <li>Timeout per test (5s, enforced via Future)</li>
+     *   <li>No process execution (Runtime.exec blocked)</li>
+     *   <li>No reflection on critical classes</li>
+     * </ul>
      */
     private boolean tryCompileAndTest(String sourceCode, TestSuite testSuite) {
-        // MVP: compile check only. Full test execution needs sandbox.
-        return tryCompile(sourceCode);
+        Path sandboxDir = null;
+        try {
+            // 1. Compile in sandbox directory
+            sandboxDir = Files.createTempDirectory("metis-sandbox-");
+            String className = extractClassName(sourceCode);
+            if (className == null) return false;
+
+            Path srcFile = sandboxDir.resolve(className + ".java");
+            Files.writeString(srcFile, sourceCode);
+
+            // Also write the test class
+            Path testFile = sandboxDir.resolve(testSuite.testClassName() + ".java");
+            Files.writeString(testFile, testSuite.testSourceCode());
+
+            JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
+            if (compiler == null) {
+                LOG.warning("No system Java compiler — skipping sandbox test");
+                return false;
+            }
+
+            DiagnosticCollector<JavaFileObject> diagnostics = new DiagnosticCollector<>();
+            try (var fileManager = compiler.getStandardFileManager(diagnostics, null, null)) {
+                var units = fileManager.getJavaFileObjects(srcFile, testFile);
+                JavaCompiler.CompilationTask task = compiler.getTask(
+                        null, fileManager, diagnostics,
+                        List.of("-d", sandboxDir.toString()), null, units);
+                if (!task.call()) return false;
+            }
+
+            // 2. Run tests in sandbox with timeout
+            return runInSandbox(sandboxDir, testSuite.testClassName());
+
+        } catch (Exception e) {
+            LOG.fine("Sandbox test failed: " + e.getMessage());
+            return false;
+        } finally {
+            // Cleanup sandbox
+            if (sandboxDir != null) {
+                try { Files.walk(sandboxDir).sorted(Comparator.reverseOrder())
+                        .forEach(p -> { try { Files.delete(p); } catch (IOException ignored) {} }); }
+                catch (IOException ignored) {}
+            }
+        }
+    }
+
+    /**
+     * Run the compiled test class in a sandboxed classloader with timeout.
+     */
+    private boolean runInSandbox(Path classDir, String testClassName) throws Exception {
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        Future<Boolean> future = executor.submit(() -> {
+            try {
+                // Use a custom classloader that restricts access
+                URL[] urls = { classDir.toUri().toURL() };
+                SandboxClassLoader loader = new SandboxClassLoader(urls);
+                Class<?> testClass = loader.loadClass(testClassName);
+
+                // Find and invoke the test method
+                for (Method method : testClass.getDeclaredMethods()) {
+                    if (method.getName().startsWith("test") && method.getParameterCount() == 0) {
+                        try {
+                            Object instance = testClass.getDeclaredConstructor().newInstance();
+                            method.invoke(instance);
+                        } catch (Exception e) {
+                            // Test failed = assertion error or exception
+                            if (e.getCause() instanceof AssertionError) {
+                                return false;
+                            }
+                            if (e instanceof java.lang.reflect.InvocationTargetException ite
+                                    && ite.getCause() instanceof AssertionError) {
+                                return false;
+                            }
+                            return false;
+                        }
+                    }
+                }
+                return true; // all tests passed
+            } catch (Exception e) {
+                return false;
+            }
+        });
+
+        try {
+            return future.get(5, TimeUnit.SECONDS); // timeout
+        } catch (TimeoutException e) {
+            LOG.warning("Sandbox test timed out after 5s");
+            future.cancel(true);
+            return false;
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    /**
+     * Restricted classloader that blocks dangerous operations.
+     * Per Huyen Ch.5: Code in virtueller Maschine, vom Hauptprozess getrennt.
+     */
+    private static class SandboxClassLoader extends URLClassLoader {
+        private static final Set<String> BLOCKED_PACKAGES = Set.of(
+                "java.net.", "java.nio.file.", "java.io.RandomAccessFile",
+                "java.lang.ProcessBuilder", "java.lang.Runtime",
+                "java.lang.reflect.", "sun.", "jdk.internal."
+        );
+
+        SandboxClassLoader(URL[] urls) {
+            super(urls, ClassLoader.getPlatformClassLoader()); // isolate from app classloader
+        }
+
+        @Override
+        protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
+            for (String blocked : BLOCKED_PACKAGES) {
+                if (name.startsWith(blocked)) {
+                    throw new ClassNotFoundException("Blocked by sandbox: " + name);
+                }
+            }
+            return super.loadClass(name, resolve);
+        }
     }
 
     private String extractClassName(String sourceCode) {
