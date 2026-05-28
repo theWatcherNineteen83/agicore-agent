@@ -198,6 +198,12 @@ public class WikipediaTrainingService {
 
     // ── Speech Training (Speak → Hear → Compare → Improve) ─────────
 
+    // CLI paths (Piper + Whisper statt MaryTTS/Vosk)
+    private static final String PIPER_BIN = "/usr/local/bin/piper";
+    private static final String PIPER_MODEL = "/home/prometheus/piper-voices/de_DE-thorsten-medium.onnx";
+    private static final String WHISPER_BIN = "/home/prometheus/.local/bin/whisper";
+    private static final String WHISPER_MODEL = "tiny";
+
     private void runSpeechTraining() {
         List<String> sentences = new ArrayList<>(state.pendingSentences);
         state.pendingSentences.clear();
@@ -210,45 +216,71 @@ public class WikipediaTrainingService {
             if (!running.get()) break;
 
             try {
-                // 1. SPEAK: Generate audio via MaryTTS
-                Path audioFile = Path.of("/tmp/metis-wiki-train/speech.wav");
-                Files.createDirectories(audioFile.getParent());
+                // 1. SPEAK: Piper TTS → WAV file
+                Path wavFile = Files.createTempFile("metis-speech-", ".wav");
 
-                var tts = new MaryTTSSpeakAction(original, "bits1-hsmm");
-                var ttsResult = tts.execute();
+                ProcessBuilder ttsPb = new ProcessBuilder(
+                        PIPER_BIN, "--model", PIPER_MODEL,
+                        "--output_file", wavFile.toString()
+                );
+                ttsPb.redirectError(ProcessBuilder.Redirect.DISCARD);
+                Process ttsProc = ttsPb.start();
+                ttsProc.getOutputStream().write(original.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                ttsProc.getOutputStream().close();
 
-                if (!ttsResult.success()) {
-                    LOG.fine("TTS failed for: " + original.substring(0, Math.min(50, original.length())));
+                boolean ttsOk = ttsProc.waitFor(30, java.util.concurrent.TimeUnit.SECONDS);
+                if (!ttsOk || ttsProc.exitValue() != 0) {
+                    LOG.fine("Piper TTS failed for sentence, skipping");
+                    try { Files.deleteIfExists(wavFile); } catch (IOException ignored) {}
                     continue;
                 }
 
-                // Small pause for audio to finish
-                Thread.sleep(1500);
+                // 2. HEAR: Whisper STT from WAV file
+                ProcessBuilder sttPb = new ProcessBuilder(
+                        WHISPER_BIN, wavFile.toString(),
+                        "--model", WHISPER_MODEL,
+                        "--language", "de",
+                        "--output_format", "txt",
+                        "--output_dir", "/tmp"
+                );
+                sttPb.redirectError(ProcessBuilder.Redirect.DISCARD);
+                Process sttProc = sttPb.start();
+                boolean sttOk = sttProc.waitFor(60, java.util.concurrent.TimeUnit.SECONDS);
 
-                // 2. HEAR: Transcribe via Vosk
-                var stt = new VoskListenAction(listenSeconds);
-                var sttResult = stt.execute();
+                // Whisper writes output to <output_dir>/<filename>.<ext>
+                // e.g. /tmp/metis-speech-XXXXX.wav.txt
+                Path transcriptFile = Path.of("/tmp", wavFile.getFileName().toString() + ".txt");
+                String heard = "";
+                if (sttOk && sttProc.exitValue() == 0 && Files.exists(transcriptFile)) {
+                    heard = Files.readString(transcriptFile).trim();
+                }
 
-                if (!sttResult.success() || sttResult.body() == null || sttResult.body().isBlank()) {
-                    LOG.fine("STT produced no output for sentence");
+                // Cleanup temp files
+                try { Files.deleteIfExists(wavFile); } catch (IOException ignored) {}
+                try { Files.deleteIfExists(transcriptFile); } catch (IOException ignored) {}
+
+                if (heard.isEmpty()) {
+                    LOG.fine("Whisper produced no output");
                     continue;
                 }
 
-                String heard = sttResult.body().trim();
-
-                // 3. COMPARE: Calculate Word Error Rate
+                // 3. COMPARE: Calculate word similarity
                 double similarity = wordSimilarity(original, heard);
-                LOG.fine("Speech: \"" + original.substring(0, Math.min(60, original.length()))
+                LOG.info("Speech: \"" + original.substring(0, Math.min(60, original.length()))
                         + "\" → heard \"" + heard + "\" (" + String.format("%.0f%%", similarity * 100) + ")");
 
                 // 4. IMPROVE: Learn if similarity < 80%
                 if (similarity < 0.8) {
-                    var vocabAction = new VocabularyLearningAction(heard, original);
-                    vocabAction.execute();
+                    // Try VocabularyLearningAction first, fallback gracefully
+                    try {
+                        var vocabAction = new VocabularyLearningAction(heard, original);
+                        vocabAction.execute();
+                    } catch (Exception vocabEx) {
+                        LOG.fine("VocabularyLearningAction failed (non-critical): " + vocabEx.getMessage());
+                    }
                     state.wordsLearned++;
                     trainedThisCycle++;
 
-                    // Also add as Metis goal for tracking
                     goalManager.add("Sprachtraining: \"" + heard + "\" → \"" + original + "\"",
                         30, 0.5, 1);
                 }
@@ -260,7 +292,8 @@ public class WikipediaTrainingService {
                 Thread.currentThread().interrupt();
                 break;
             } catch (Exception e) {
-                LOG.fine("Speech training sentence failed: " + e.getMessage());
+                LOG.warning("Speech training sentence error: " + e.getMessage());
+                // Continue with next sentence — don't abort the whole cycle
             }
         }
 
