@@ -95,7 +95,7 @@ public class PromptChainingService {
             totalSteps += steps.size();
             LOG.info(() -> "PromptChaining: decomposed '" + truncate(complexGoal, 60)
                     + "' → " + steps.size() + " steps: "
-                    + steps.stream().map(ChainStep::description).collect(Collectors.joining(" → ")));
+                    + steps.stream().map(s -> s.description).collect(Collectors.joining(" → ")));
 
             return new ChainResult(UUID.randomUUID(), complexGoal, steps, steps.size(), context);
         } catch (Exception e) {

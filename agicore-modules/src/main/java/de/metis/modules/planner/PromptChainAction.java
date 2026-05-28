@@ -3,6 +3,7 @@ package de.metis.modules.planner;
 import de.metis.kernel.action.Action;
 import de.metis.kernel.action.ActionResult;
 
+import java.time.Instant;
 import java.util.*;
 import java.util.function.Function;
 import java.util.logging.Logger;
@@ -66,7 +67,7 @@ public class PromptChainAction implements Action {
 
     @Override
     public ActionResult execute() {
-        long startMs = System.currentTimeMillis();
+        Instant startedAt = Instant.now();
         StringBuilder log = new StringBuilder();
 
         try {
@@ -77,9 +78,10 @@ public class PromptChainAction implements Action {
             log.append("  → ").append(chain.totalSteps).append(" steps\n");
 
             if (chain.totalSteps == 0) {
-                return ActionResult.failure("prompt-chain",
-                        new IllegalStateException("Decomposition produced 0 steps"),
-                        log.toString());
+                log.append("FAILED: Decomposition produced 0 steps\n");
+                return ActionResult.fail("prompt-chain",
+                        "Decomposition produced 0 steps for goal: " + truncate(complexGoal, 100),
+                        startedAt);
             }
 
             // Phase 2: Execute chain
@@ -93,28 +95,32 @@ public class PromptChainAction implements Action {
                         .append(": ").append(step.description)
                         .append(" [").append(step.action).append("]");
 
-                // Add previous results as context
-                String stepContext = chainContext.toString();
-
                 // Execute the sub-action
                 ActionResult result;
                 try {
                     result = subActionExecutor.apply(step.action);
                 } catch (Exception e) {
-                    result = ActionResult.failure(step.action, e, "Sub-action threw exception");
+                    log.append(" ✗ (exception: ").append(truncate(e.getMessage(), 80)).append(")\n");
+                    result = ActionResult.fail(step.action,
+                            "Sub-action threw: " + e.getMessage(), Instant.now());
                 }
 
                 if (result.success()) {
                     successCount++;
-                    log.append(" ✓ (").append(result.durationMs()).append("ms)\n");
+                    long durationMs = result.duration().toMillis();
+                    log.append(" ✓ (").append(durationMs).append("ms)\n");
                 } else {
                     failCount++;
-                    log.append(" ✗ (").append(result.durationMs()).append("ms): ")
-                            .append(truncate(result.summary(), 100)).append("\n");
+                    long durationMs = result.duration().toMillis();
+                    String summary = result.body() != null ? result.body()
+                            : (result.error() != null ? result.error() : "unknown error");
+                    log.append(" ✗ (").append(durationMs).append("ms): ")
+                            .append(truncate(summary, 100)).append("\n");
                 }
 
                 // Feed result into context for next step
-                String stepResultText = result.body() != null ? result.body() : result.summary();
+                String stepResultText = result.body() != null ? result.body()
+                        : (result.error() != null ? result.error() : "no output");
                 chainContext.append("\n[Step ").append(i + 1).append(" result]: ")
                         .append(stepResultText).append("\n");
 
@@ -130,7 +136,7 @@ public class PromptChainAction implements Action {
             chain.synthesizedResult = synthesis;
             log.append("  → ").append(truncate(synthesis, 150)).append("\n");
 
-            long durationMs = System.currentTimeMillis() - startMs;
+            long durationMs = java.time.Duration.between(startedAt, Instant.now()).toMillis();
             log.append("DONE: ").append(durationMs).append("ms total\n");
 
             String body = String.format("""
@@ -147,13 +153,14 @@ public class PromptChainAction implements Action {
                     chain.totalSteps, successCount, failCount,
                     escapeJsonString(synthesis));
 
-            return new ActionResult("prompt-chain", true, body, durationMs,
-                    null, log.toString());
+            return new ActionResult("prompt-chain", true, body, null, startedAt,
+                    java.time.Duration.between(startedAt, Instant.now()));
 
         } catch (Exception e) {
-            long durationMs = System.currentTimeMillis() - startMs;
             LOG.warning("PromptChainAction failed: " + e.getMessage());
-            return ActionResult.failure("prompt-chain", e, log.toString());
+            log.append("EXCEPTION: ").append(e.getMessage()).append("\n");
+            return ActionResult.fail("prompt-chain",
+                    "PromptChainAction exception: " + e.getMessage(), startedAt);
         }
     }
 
