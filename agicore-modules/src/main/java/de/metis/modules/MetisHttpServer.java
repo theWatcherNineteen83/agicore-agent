@@ -458,6 +458,13 @@ public class MetisHttpServer {
                 json.append("\n");
             }
             json.append("  },\n");
+            // Phase 6: LLM-as-Judge metrics (Huyen Kap. 3)
+            json.append("  \"llmJudgeEvaluations\": ").append(op.llmJudge().totalEvaluations()).append(",\n");
+            json.append("  \"llmJudgeAvgScore\": ").append(String.format("%.2f", op.llmJudge().avgScore())).append(",\n");
+            json.append("  \"llmJudgeWarnings\": ").append(op.llmJudge().warningCount()).append(",\n");
+            json.append("  \"llmJudgeBlocks\": ").append(op.llmJudge().blockCount()).append(",\n");
+            json.append("  \"llmJudgeLastScore\": ").append(String.format("%.2f", op.llmJudge().lastScore())).append(",\n");
+            json.append("  \"llmJudgeLastReasoning\": \"").append(escapeJsonValue(op.llmJudge().lastReasoning())).append("\",\n");
         }
 
         // Top beliefs
@@ -605,7 +612,13 @@ public class MetisHttpServer {
                       "lastLatencyMs": %d,
                       "totalPromptTokens": %d,
                       "totalResponseTokens": %d,
-                      "tokensPerCall": %.0f,""",
+                      "tokensPerCall": %.0f,
+                      "llmJudgeEvaluations": %d,
+                      "llmJudgeAvgScore": %s,
+                      "llmJudgeWarnings": %d,
+                      "llmJudgeBlocks": %d,
+                      "llmJudgeLastScore": %s,
+                      "llmJudgeLastReasoning": %s,""",
                     op.llmCalls(), op.llmSuccessRate(), op.fallbackUses(),
                     op.modelFallbackUses(),
                     jsonList(op.fallbackModelChain()),
@@ -619,7 +632,13 @@ public class MetisHttpServer {
                     op.lastCallLatencyMs(),
                     op.totalPromptTokens(),
                     op.totalResponseTokens(),
-                    op.tokensPerCall());
+                    op.tokensPerCall(),
+                    op.llmJudge().totalEvaluations(),
+                    String.format("%.2f", op.llmJudge().avgScore()),
+                    op.llmJudge().warningCount(),
+                    op.llmJudge().blockCount(),
+                    String.format("%.2f", op.llmJudge().lastScore()),
+                    escapeJsonValue(op.llmJudge().lastReasoning()));
         } else {
             plannerInfo = "";
         }

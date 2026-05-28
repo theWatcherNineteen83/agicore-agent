@@ -10,6 +10,7 @@ import de.metis.kernel.world.Belief;
 import de.metis.kernel.world.WorldModel;
 
 import de.metis.modules.evolution.ModelRegistry;
+import de.metis.kernel.safety.LlmJudge;
 import de.metis.kernel.safety.OutputValidator;
 
 import java.net.URI;
@@ -99,6 +100,9 @@ public class OllamaPlanner implements Planner {
 
     // ── Output validation (Huyen Kap. 10) ────────────────────
     private final OutputValidator outputValidator = new OutputValidator();
+
+    // ── LLM-as-Judge (Huyen Kap. 3) ──────────────────────────
+    private final LlmJudge llmJudge = new LlmJudge();
 
     // ── ReAct state ──────────────────────────────────────────
     private String lastThought = null;
@@ -198,6 +202,7 @@ public class OllamaPlanner implements Planner {
                              List<ContentItem> broadcast, MetaCognition meta) {
 
         totalPlansGenerated++;
+        List<String> result = null;
 
         // ── Tier 1: LLM reasoning with Evaluator-Optimizer loop ──
         EvaluatedPlan bestPlan = planViaOllamaWithOptimizer(goal, recentHistory, broadcast, meta);
@@ -212,42 +217,65 @@ public class OllamaPlanner implements Planner {
             lastThought = bestPlan.thought;
             validPlanCount++;
             actionUsageCount.merge(bestPlan.action, 1, Integer::sum);
-            return List.of(bestPlan.action);
+            result = List.of(bestPlan.action);
         }
 
         // Fallback to simple plan if optimizer produced nothing
-        String action = planViaOllama(goal, recentHistory, broadcast, meta);
+        if (result == null) {
+            String action = planViaOllama(goal, recentHistory, broadcast, meta);
 
-        if (action != null && !action.isBlank() && availableActions.contains(action)) {
-            validPlanCount++;
-            actionUsageCount.merge(action, 1, Integer::sum);
-            // Self-reflect: let the model critique its own decision
-            String reflection = selfReflect(goal, action);
-            if (reflection != null) {
-                LOG.fine(() -> "Self-reflection: " + reflection);
-                storeReflection(goal, action, reflection);
+            if (action != null && !action.isBlank() && availableActions.contains(action)) {
+                validPlanCount++;
+                actionUsageCount.merge(action, 1, Integer::sum);
+                // Self-reflect: let the model critique its own decision
+                String reflection = selfReflect(goal, action);
+                if (reflection != null) {
+                    LOG.fine(() -> "Self-reflection: " + reflection);
+                    storeReflection(goal, action, reflection);
+                }
+                LOG.fine(() -> "Ollama planned: " + action + " for goal: " + goal.description());
+                result = List.of(action);
             }
-            LOG.fine(() -> "Ollama planned: " + action + " for goal: " + goal.description());
-            return List.of(action);
         }
 
         // ── Tier 2: Learned mapping ────────────────────────────
-        fallbackUses++;
-        String learned = planViaLearnedMapping(goal, broadcast);
-        if (learned != null) {
-            validPlanCount++;
-            actionUsageCount.merge(learned, 1, Integer::sum);
-            LOG.fine(() -> "Learned fallback: " + learned + " for goal: " + goal.description());
-            return List.of(learned);
+        if (result == null) {
+            fallbackUses++;
+            String learned = planViaLearnedMapping(goal, broadcast);
+            if (learned != null) {
+                validPlanCount++;
+                actionUsageCount.merge(learned, 1, Integer::sum);
+                LOG.fine(() -> "Learned fallback: " + learned + " for goal: " + goal.description());
+                result = List.of(learned);
+            }
         }
 
         // ── Tier 3: Keyword heuristic ──────────────────────────
-        String keyword = planViaKeywords(goal, broadcast);
-        if (keyword != null) {
-            validPlanCount++;
-            actionUsageCount.merge(keyword, 1, Integer::sum);
-            LOG.fine(() -> "Keyword fallback: " + keyword + " for goal: " + goal.description());
-            return List.of(keyword);
+        if (result == null) {
+            String keyword = planViaKeywords(goal, broadcast);
+            if (keyword != null) {
+                validPlanCount++;
+                actionUsageCount.merge(keyword, 1, Integer::sum);
+                LOG.fine(() -> "Keyword fallback: " + keyword + " for goal: " + goal.description());
+                result = List.of(keyword);
+            }
+        }
+
+        // ── Phase 6: LLM-as-Judge quality gate (Huyen Kap. 3) ──
+        if (result != null && !result.isEmpty()) {
+            String planAction = result.getFirst();
+            LlmJudge.Evaluation eval = llmJudge.evaluate(goal.description(), planAction);
+            if (eval.blocked()) {
+                LOG.severe("LLM Judge ⛔ BLOCKED plan (score="
+                        + String.format("%.2f", eval.aggregateScore())
+                        + "): " + planAction
+                        + " | reasoning: " + eval.reasoning());
+                invalidPlanCount++;
+                emptyPlanCount++;
+                return Collections.emptyList();
+            }
+            // Warning but not blocked: log and proceed
+            return result;
         }
 
         // No plan found
@@ -1049,6 +1077,7 @@ public class OllamaPlanner implements Planner {
     public Map<String, Integer> actionUsageCount() { return Map.copyOf(actionUsageCount); }
     public Map<String, Integer> actionErrorCount() { return Map.copyOf(actionErrorCount); }
     public OutputValidator outputValidator() { return outputValidator; }
+    public LlmJudge llmJudge() { return llmJudge; }
     public String lastThought() { return lastThought; }
     public Instant lastLlmCall() { return lastLlmCall; }
 
