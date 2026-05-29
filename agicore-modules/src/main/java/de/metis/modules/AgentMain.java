@@ -874,6 +874,24 @@ public final class AgentMain {
                     "http://192.168.22.204:11434", 60);
             healthProbe.start();
             LOG.info("SystemHealthProbe started — VRAM, GPU temp, Ollama models, dmesg errors every 60s");
+
+            // ── Eval Harness: periodic model evaluation ──
+            var evalReportDir = persist.resolveSibling("eval-reports");
+            var evalInvoker = new de.metis.modules.eval.LiveMetisInvoker(
+                    "http://192.168.22.204:11735",
+                    "http://192.168.22.204:11434",
+                    modelRegistry);
+            var evalRunner = new de.metis.modules.eval.EvalRunner(evalInvoker, knowledgeStore, evalReportDir);
+            // Run initial SMOKE test after startup
+            scheduler.schedule(() -> {
+                try {
+                    var report = evalRunner.run("SMOKE");
+                    LOG.info("Initial SMOKE eval: " + (report != null ? report.gate().ok() ? "PASS" : "FAIL" : "N/A"));
+                } catch (Exception e) {
+                    LOG.warning("Initial eval failed: " + e.getMessage());
+                }
+            }, 30, TimeUnit.SECONDS);
+            LOG.info("EvalHarness initialized — SMOKE test scheduled in 30s");
         }
 
         // Bootstrap world model
