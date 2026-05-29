@@ -11,5 +11,7 @@ public enum WatchdogAction {
     /** Git reset to last known-good commit, restart Metis. Soft tripwire. */
     ROLLBACK,
     /** Send alert to admin (Telegram). Info-level event. */
-    ALERT
+    ALERT,
+    /** Prune underperforming models from ModelRegistry (based on eval reports). */
+    PRUNE
 }

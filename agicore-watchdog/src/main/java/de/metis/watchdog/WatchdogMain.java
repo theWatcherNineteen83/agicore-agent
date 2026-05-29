@@ -36,6 +36,7 @@ public class WatchdogMain {
     private final HttpClient http;
     private final ScheduledExecutorService scheduler;
     private final List<String> actionLog;
+    private final AuditLog auditLog;
 
     private int missedHeartbeats = 0;
     private Instant lastHeartbeat = Instant.now();
@@ -55,6 +56,7 @@ public class WatchdogMain {
             return t;
         });
         this.actionLog = new ArrayList<>();
+        this.auditLog = new AuditLog(Path.of(config.auditLogPath()));
     }
 
     /**
@@ -68,6 +70,15 @@ public class WatchdogMain {
 
         // Determine current commit at startup
         currentCommit = detectCurrentCommit();
+
+        // Verify audit chain integrity
+        if (!auditLog.verify()) {
+            LOG.severe("⚠️ AUDIT LOG TAMPERED — hash chain broken!");
+            executeAlert("AUDIT LOG TAMPER DETECTED");
+        } else {
+            LOG.info("AuditLog: " + auditLog.entryCount() + " entries, chain head "
+                    + auditLog.lastHash().substring(0, 12) + "...");
+        }
 
         // Start heartbeat loop
         scheduler.scheduleAtFixedRate(this::heartbeatCheck, 1,
@@ -119,6 +130,7 @@ public class WatchdogMain {
 
         // Hard tripwire: too many missed heartbeats
         if (missedHeartbeats >= config.maxMissedHeartbeats()) {
+            auditLog.append("HEARTBEAT_LOST", missedHeartbeats + " missed (max " + config.maxMissedHeartbeats() + ")");
             trigger(WatchdogAction.HALT, TripwireSeverity.HARD,
                     "Heartbeat lost: " + missedHeartbeats + " missed (max " + config.maxMissedHeartbeats() + ")");
         }
@@ -184,10 +196,14 @@ public class WatchdogMain {
         actionLog.add(entry);
         LOG.warning(entry);
 
+        // Append to tamper-evident audit chain
+        auditLog.append(action.name(), severity + ": " + reason);
+
         switch (action) {
             case HALT -> executeHalt(reason);
             case ROLLBACK -> executeRollback(reason);
             case ALERT -> executeAlert(reason);
+            case PRUNE -> executePrune(reason);
         }
     }
 
@@ -260,6 +276,66 @@ public class WatchdogMain {
         } catch (IOException e) {
             LOG.warning("Failed to write alert file: " + e.getMessage());
         }
+    }
+
+    /**
+     * Prune underperforming models via the Metis ModelRegistry API.
+     * Called when eval reports show a specific model consistently failing.
+     */
+    private void executePrune(String reason) {
+        LOG.warning("✂️ PRUNE: " + reason);
+
+        try {
+            // Extract model name from reason (format: "model:qwen3.6:latest metric:planning=0.45")
+            String modelName = extractModelFromReason(reason);
+            if (modelName == null || modelName.isBlank()) {
+                LOG.warning("PRUNE: could not extract model name from reason: " + reason);
+                return;
+            }
+
+            // Call Metis API to prune the model
+            HttpRequest req = HttpRequest.newBuilder()
+                    .uri(URI.create(config.metisPruneUrl()))
+                    .timeout(Duration.ofSeconds(10))
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(
+                            "{\"model\":\"" + modelName + "\",\"reason\":\"" + reason.replace("\"", "'") + "\"}"))
+                    .build();
+
+            HttpResponse<String> resp = http.send(req, HttpResponse.BodyHandlers.ofString());
+            LOG.info("PRUNE API response: " + resp.statusCode() + " — " + resp.body());
+
+            if (resp.statusCode() == 200) {
+                executeAlert("PRUNE success: " + modelName + " removed from registry — " + reason);
+            } else {
+                executeAlert("PRUNE failed (HTTP " + resp.statusCode() + "): " + modelName);
+            }
+        } catch (Exception e) {
+            LOG.warning("PRUNE failed: " + e.getMessage());
+            executeAlert("PRUNE error: " + e.getMessage());
+        }
+    }
+
+    /** Extract model name from prune reason string. */
+    private String extractModelFromReason(String reason) {
+        // Pattern: "model:NAME" or "planning:NAME score:X"
+        int modelIdx = reason.indexOf("model:");
+        if (modelIdx >= 0) {
+            int start = modelIdx + 6;
+            int end = reason.indexOf(' ', start);
+            return end > start ? reason.substring(start, end) : reason.substring(start);
+        }
+        // Try category:model format
+        for (String cat : new String[]{"planning", "codegen", "mutation"}) {
+            int catIdx = reason.indexOf(cat + ":");
+            if (catIdx >= 0) {
+                int start = catIdx + cat.length() + 1;
+                int end = reason.indexOf(' ', start);
+                String candidate = end > start ? reason.substring(start, end) : reason.substring(start);
+                if (candidate.contains(":") && !candidate.startsWith("0.")) return candidate;
+            }
+        }
+        return null;
     }
 
     // ── Helpers ─────────────────────────────────────────────────────
@@ -352,6 +428,11 @@ public class WatchdogMain {
             if (ok != null && !ok) {
                 trigger(WatchdogAction.ROLLBACK, TripwireSeverity.HARD,
                         "Eval gate FAIL [" + tier + "]: " + reason
+                                + " (report: " + file.getFileName() + ")");
+                // Also prune the failing model(s)
+                String pruneReason = "model:" + reason + " tier:" + tier;
+                trigger(WatchdogAction.PRUNE, TripwireSeverity.SOFT,
+                        "Eval-driven prune: " + pruneReason
                                 + " (report: " + file.getFileName() + ")");
             } else if (regressionCount > 0) {
                 // Soft alert for regressions even when gate passes

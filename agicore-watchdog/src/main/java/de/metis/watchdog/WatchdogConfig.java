@@ -46,7 +46,10 @@ public record WatchdogConfig(
         String auditLogPath,
 
         /** Directory where EvalHarness writes reports (Watchdog reads them) */
-        String evalReportDir
+        String evalReportDir,
+
+        /** Metis API endpoint for model pruning */
+        String metisPruneUrl
 ) {
     public WatchdogConfig {
         if (metisHealthUrl == null || metisHealthUrl.isBlank())
@@ -73,7 +76,8 @@ public record WatchdogConfig(
                 0.9,    // 90% CPU max
                 60,     // 60s sustained runaway → HALT
                 "/home/prometheus/metis-agent-repo/metis-audit.log",
-                "/home/prometheus/metis-agent-repo/eval-reports"
+                "/home/prometheus/metis/eval-reports",
+                "http://192.168.22.204:11735/api/admin/prune"
         );
     }
 }
