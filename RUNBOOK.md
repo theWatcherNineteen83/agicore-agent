@@ -8,7 +8,7 @@
 
 | Problem | Status | Details |
 |---|---|---|
-| **Git auf miniedi** | 🟡 SSH-Key fehlt | Git 2.43 installiert, Repo vorhanden, Remote: `git@github.com:theWatcherNineteen83/agicore-agent.git`. SSH-Key muss generiert + bei GitHub hinterlegt werden → Self-Evolution kann nicht pushen. |
+| **Git auf miniedi** | ✅ Funktioniert | SSH-Key (ed25519) generiert + GitHub Deploy Key mit Write-Access. `git push/pull` funktioniert. |
 | **Swap voll** | ✅ Unkritisch | 3.5/8 GB (44%), 55 GB RAM verfügbar. Claude's Annahme war falsch — kein Speicherdruck. Historischer Swap von qwen3.6:latest + deepseek-r1:32b (44 GB Modellgewicht). |
 | **Start-Mechanismen** | ✅ Konsolidiert | Nur systemd system-level (`metis.service`). Keepalive.sh entfernt, user-level deaktiviert. |
 | **Reboot-Sicherheit** | ✅ | Linger=yes, metis.service enabled (multi-user.target), watchdog enabled (default.target + 30s Startup-Delay). |
