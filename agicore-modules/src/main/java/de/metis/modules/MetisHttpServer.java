@@ -83,6 +83,7 @@ public class MetisHttpServer {
         server.createContext("/api/conversations", this::handleConversations);
         server.createContext("/api/agents", this::handleAgents);
         server.createContext("/api/admin/prune", this::handlePrune);
+        server.createContext("/api/admin/refresh-models", this::handleRefreshModels);
     }
 
     public void setKnowledgeStore(KnowledgeStore ks) { this.knowledgeStore = ks; }
@@ -734,6 +735,30 @@ public class MetisHttpServer {
     }
 
     private record ChatMessage(String role, String content, Instant timestamp) {}
+
+    // ── /api/admin/refresh-models ─────────────────────────────────
+
+    private void handleRefreshModels(HttpExchange exchange) throws IOException {
+        if (!"POST".equals(exchange.getRequestMethod())) {
+            sendJson(exchange, 405, "{\"error\":\"Method not allowed\"}");
+            return;
+        }
+        try {
+            if (modelRegistry != null) {
+                int before = modelRegistry.modelCount();
+                modelRegistry.refresh();
+                int after = modelRegistry.modelCount();
+                sendJson(exchange, 200,
+                        "{\"ok\":true,\"refreshed\":" + after
+                        + ",\"before\":" + before + ",\"added\":" + (after - before) + "}");
+                LOG.info("Models refreshed: " + before + " → " + after + " (" + (after - before) + " new)");
+            } else {
+                sendJson(exchange, 500, "{\"ok\":false,\"error\":\"ModelRegistry unavailable\"}");
+            }
+        } catch (Exception e) {
+            sendJson(exchange, 500, "{\"ok\":false,\"error\":\"" + e.getMessage() + "\"}");
+        }
+    }
 
     // ── /api/admin/prune ──────────────────────────────────────────
     /** Called by Watchdog to prune underperforming models from registry. */

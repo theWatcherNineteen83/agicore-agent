@@ -102,6 +102,21 @@ public class ModelRegistry {
     }
 
     /**
+     * Refresh model list from Ollama without restarting.
+     * Re-discovers all models and updates selections.
+     */
+    public int refresh() {
+        return discover().modelCount();
+    }
+
+    /**
+     * Total number of known models (auto-selected + available).
+     */
+    public int modelCount() {
+        return availableModels != null ? availableModels.size() : 0;
+    }
+
+    /**
      * Discover available models and auto-select best for each task.
      * Call once after construction.
      */
