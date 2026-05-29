@@ -68,6 +68,10 @@ public class WatchdogMain {
                 + "maxMissed=" + config.maxMissedHeartbeats()
                 + ", maxFailures=" + config.maxConsecutiveFailures());
 
+        // Start prune endpoint (port 11736) for eval-driven model pruning
+        var pruneEndpoint = new PruneEndpoint(11736);
+        pruneEndpoint.start();
+
         // Determine current commit at startup
         currentCommit = detectCurrentCommit();
 

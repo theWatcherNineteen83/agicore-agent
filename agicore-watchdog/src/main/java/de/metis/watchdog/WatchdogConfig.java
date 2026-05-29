@@ -77,7 +77,7 @@ public record WatchdogConfig(
                 60,     // 60s sustained runaway → HALT
                 "/home/prometheus/metis-agent-repo/metis-audit.log",
                 "/home/prometheus/metis/eval-reports",
-                "http://192.168.22.204:11735/api/admin/prune"
+                "http://localhost:11736/prune"
         );
     }
 }
