@@ -288,4 +288,9 @@ public class OllamaMutationService implements EvolutionManager.MutationService {
     public int mutationCount() { return mutationCount; }
     public String lastRawResponse() { return lastRawResponse; }
     public PromptBank promptBank() { return promptBank; }
+
+    /** Share a prompt bank instance (e.g., from EvolutionManager). */
+    public void setPromptBank(PromptBank shared) {
+        this.promptBank = shared != null ? shared : new PromptBank();
+    }
 }

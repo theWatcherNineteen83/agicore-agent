@@ -850,6 +850,8 @@ public final class AgentMain {
         if (evolution) {
             var ollama = new OllamaMutationService(modelRegistry);
             agent.core().evolutionManager().setMutationService(ollama);
+            // Share prompt bank: EvolutionManager records successes, OllamaMutationService reads for few-shot
+            ollama.setPromptBank(agent.core().evolutionManager().promptBank());
             String scope = kernelEvolution ? "Kernel + Modules" : "Modules only";
             LOG.info("Evolution enabled — " + scope + " (mutator: " + ollama.currentModel() + ")");
 
@@ -866,6 +868,12 @@ public final class AgentMain {
                         "de/metis/kernel/goal/GoalManager.java");
                 LOG.info("Kernel evolution enabled — 2 safety-critical modules registered");
             }
+
+            // ── System Health Probe: GPU/VRAM/Ollama/dmesg monitoring ──
+            var healthProbe = new de.metis.modules.monitor.SystemHealthProbe(
+                    "http://192.168.22.204:11434", 60);
+            healthProbe.start();
+            LOG.info("SystemHealthProbe started — VRAM, GPU temp, Ollama models, dmesg errors every 60s");
         }
 
         // Bootstrap world model
