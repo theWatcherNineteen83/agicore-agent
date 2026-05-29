@@ -22,7 +22,7 @@ ExecStart=/usr/lib/jvm/zulu25.32.21-ca-jdk25.0.2-linux_x64/bin/java \
     --mqtt-broker tcp://grappas.unterlandselite.de:51820 \
     --interval 5000 \
     --persist /home/prometheus/metis/agent-state.json \
-    --bootstrap-models phi4:latest,llama3.2:3b \
+    --bootstrap-models llama3.2:3b \
     --evolution
 ExecStop=/bin/kill -SIGTERM $MAINPID
 Restart=on-failure
