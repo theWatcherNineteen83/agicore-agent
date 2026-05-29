@@ -72,19 +72,18 @@ public class SystemHealthProbe {
 
     private void checkGpu() {
         try {
-            // VRAM via rocm-smi
-            String vram = execSudo("rocm-smi --showmeminfo vram --json 2>/dev/null");
+            // VRAM via rocm-smi (prometheus user has render group access)
+            String vram = execCmd("rocm-smi --showmeminfo vram --json 2>/dev/null");
             double vramUsedGb = -1;
             if (vram != null && vram.contains("VRAM")) {
-                // Parse JSON: find "Total Used Memory (B)" value
                 vramUsedGb = extractGpuJson(vram, "Total Used Memory", "B") / 1e9;
             }
 
-            // Temperature via rocm-smi
-            String temp = execSudo("rocm-smi --showtemp --json 2>/dev/null");
+            // Temperature via rocm-smi (use edge temp)
+            String temp = execCmd("rocm-smi --showtemp --json 2>/dev/null");
             int gpuTemp = -1;
             if (temp != null) {
-                gpuTemp = (int) extractGpuJson(temp, "Temperature", "Sensor");
+                gpuTemp = (int) extractGpuJson(temp, "Temperature", "edge");
             }
 
             // Only log on change or every 10 cycles to reduce noise
@@ -191,25 +190,35 @@ public class SystemHealthProbe {
     }
 
     private double extractGpuJson(String json, String prefix, String suffix) {
-        int start = json.indexOf("\"" + prefix);
-        if (start < 0) return -1;
-        // Find the numeric value after "B": or "Sensor":
-        start = json.indexOf("\"" + suffix + "\"", start);
-        if (start < 0) return -1;
-        start = json.indexOf(':', start) + 1;
-        while (start < json.length() && (Character.isWhitespace(json.charAt(start))
-                || json.charAt(start) == '"')) start++;
-        int end = start;
-        while (end < json.length() && (Character.isDigit(json.charAt(end))
-                || json.charAt(end) == '.')) end++;
-        try {
-            return Double.parseDouble(json.substring(start, end));
-        } catch (NumberFormatException e) {
-            return -1;
+        // Find "prefix...suffix": "value" pattern
+        int searchPos = 0;
+        while (searchPos < json.length()) {
+            int keyStart = json.indexOf('"', searchPos);
+            if (keyStart < 0) return -1;
+            int keyEnd = json.indexOf('"', keyStart + 1);
+            if (keyEnd < 0) return -1;
+            String key = json.substring(keyStart + 1, keyEnd);
+            if (key.contains(prefix) && key.contains(suffix)) {
+                // Find the value after colon
+                int colon = json.indexOf(':', keyEnd + 1);
+                if (colon < 0) return -1;
+                while (colon < json.length() && (Character.isWhitespace(json.charAt(colon))
+                        || json.charAt(colon) == ':' || json.charAt(colon) == '"')) colon++;
+                int end = colon;
+                while (end < json.length() && (Character.isDigit(json.charAt(end))
+                        || json.charAt(end) == '.')) end++;
+                try {
+                    return Double.parseDouble(json.substring(colon, end));
+                } catch (NumberFormatException e) {
+                    return -1;
+                }
+            }
+            searchPos = keyEnd + 1;
         }
+        return -1;
     }
 
-    private String execSudo(String cmd) {
+    private String execCmd(String cmd) {
         try {
             Process p = new ProcessBuilder("sh", "-c", cmd)
                     .redirectErrorStream(true)
@@ -219,6 +228,10 @@ public class SystemHealthProbe {
         } catch (Exception e) {
             return null;
         }
+    }
+
+    private String execSudo(String cmd) {
+        return execCmd("echo 'Mut Motivation Respekt Willenskraft Qualitaet' | sudo -S " + cmd + " 2>/dev/null");
     }
 
     private boolean isAfter(String ts, Instant ref) {
