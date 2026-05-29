@@ -375,7 +375,7 @@ public class TelegramBotService {
         // Ollama handles VRAM offloading automatically for inactive models
         String jsonBody = String.format("""
                 {"model":"phi4:latest","prompt":%s,"stream":false,
-                 "options":{"temperature":0.8,"top_p":0.9,"num_predict":256}}
+                 "options":{"temperature":0.8,"top_p":0.9,"num_predict":512}}
                 """, escapeJson(prompt));
 
         HttpRequest req = HttpRequest.newBuilder()
@@ -606,7 +606,8 @@ public class TelegramBotService {
     }
 
     /**
-     * Build a clean response from the agent's output.
+     * Build a clean Telegram-ready response from the agent's output.
+     * Strips markdown artifacts that phi4 may generate despite instructions.
      */
     private String buildResponse(String agentOutput, long startMs) {
         if (agentOutput == null || agentOutput.isBlank()) {
@@ -620,9 +621,25 @@ public class TelegramBotService {
             cleaned = cleaned.substring(4).strip();
         }
 
+        // Strip markdown artifacts (safety net — phi4 sometimes ignores formatting rules)
+        cleaned = cleaned
+            .replaceAll("```[^`]*```", "")          // code blocks
+            .replaceAll("`([^`]+)`", "$1")          // inline code
+            .replaceAll("\\*\\*([^*]+)\\*\\*", "$1") // bold
+            .replaceAll("\\*([^*]+)\\*", "$1")      // italic
+            .replaceAll("##+\\s*", "")              // headers
+            .replaceAll("\\|.*\\|", "")             // table rows
+            .replaceAll("\\n{3,}", "\n\n")          // excessive newlines
+            .strip();
+
         // Trim if excessively long (Telegram limit is 4096)
         if (cleaned.length() > 4000) {
             cleaned = cleaned.substring(0, 4000) + "…";
+        }
+
+        // If after cleanup we have nothing, fall back
+        if (cleaned.isBlank()) {
+            return "I understand, but I need a moment to process that.";
         }
 
         return cleaned;
