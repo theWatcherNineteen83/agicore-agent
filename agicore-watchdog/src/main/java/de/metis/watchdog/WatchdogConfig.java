@@ -43,7 +43,10 @@ public record WatchdogConfig(
         int resourceRunawaySec,
 
         /** Audit log path (append-only, hash-chained) */
-        String auditLogPath
+        String auditLogPath,
+
+        /** Directory where EvalHarness writes reports (Watchdog reads them) */
+        String evalReportDir
 ) {
     public WatchdogConfig {
         if (metisHealthUrl == null || metisHealthUrl.isBlank())
@@ -69,7 +72,8 @@ public record WatchdogConfig(
                 ),
                 0.9,    // 90% CPU max
                 60,     // 60s sustained runaway → HALT
-                "/home/prometheus/metis-agent-repo/metis-audit.log"
+                "/home/prometheus/metis-agent-repo/metis-audit.log",
+                "/home/prometheus/metis-agent-repo/eval-reports"
         );
     }
 }

@@ -1,7 +1,12 @@
 package de.metis.modules.eval;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import de.metis.kernel.eval.*;
+import java.io.IOException;
+import java.nio.file.*;
 import java.time.Instant;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -221,6 +226,58 @@ public class EvalHarness {
         scorers.put(Category.CONVERSATION, new ExactMatchScorer());
         scorers.put(Category.SAFETY, new SafetyScorer());
         scorers.put(Category.PERFORMANCE, new PerformanceScorer());
+    }
+
+    // ── Report persistence (Watchdog integration) ──────────────────
+
+    private static final ObjectMapper MAPPER = new ObjectMapper()
+            .enable(SerializationFeature.INDENT_OUTPUT);
+    private static final DateTimeFormatter FILE_TS = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HHmmss");
+
+    /**
+     * Write eval report for the Watchdog to consume.
+     * Call after every harness run.
+     */
+    public static Path writeReport(EvalReport report, Path evalReportDir) throws IOException {
+        Files.createDirectories(evalReportDir);
+        String ts = report.runAt().atZone(java.time.ZoneId.systemDefault()).format(FILE_TS);
+        String filename = ts + "-" + report.tier().toLowerCase() + "-eval-report.json";
+        Path file = evalReportDir.resolve(filename);
+        MAPPER.writeValue(file.toFile(), new ReportJson(report));
+        LOG.info("Eval report: " + file + " gate=" + (report.gate().ok() ? "PASS" : "FAIL"));
+        return file;
+    }
+
+    /** Lightweight JSON-friendly wrapper for Watchdog consumption. */
+    record ReportJson(
+            String benchmarkVersion, String metisCommit, Instant runAt,
+            Map<String, Map<String, MetricsJson>> results,
+            GateJson gate, List<RegressionJson> regressions, String tier
+    ) {
+        record MetricsJson(double mean, double stddev, int runs, String gate) {}
+        record GateJson(boolean ok, String reason, List<String> failingMetrics) {}
+        record RegressionJson(String metric, double baseline, double candidate,
+                              double delta, boolean withinNoise) {}
+
+        ReportJson(EvalReport r) {
+            this(r.benchmarkVersion(), r.metisCommit(), r.runAt(),
+                    toResults(r.results()),
+                    new GateJson(r.gate().ok(), r.gate().reason(), r.gate().failingMetrics()),
+                    r.regressions().stream().map(reg -> new RegressionJson(reg.metric(),
+                            reg.baseline(), reg.candidate(), reg.delta(), reg.withinNoise())).toList(),
+                    r.tier());
+        }
+        private static Map<String, Map<String, MetricsJson>> toResults(
+                Map<Category, EvalReport.CategoryResult> results) {
+            Map<String, Map<String, MetricsJson>> out = new LinkedHashMap<>();
+            for (var e : results.entrySet()) {
+                Map<String, MetricsJson> m = new LinkedHashMap<>();
+                for (var ms : e.getValue().metrics().values())
+                    m.put(ms.metric(), new MetricsJson(ms.mean(), ms.stddev(), ms.runs(), ms.gate().name()));
+                out.put(e.getKey().name(), m);
+            }
+            return out;
+        }
     }
 
     // ── Math helpers ────────────────────────────────────────────────

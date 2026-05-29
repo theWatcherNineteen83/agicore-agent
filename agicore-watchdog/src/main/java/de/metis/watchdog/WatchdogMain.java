@@ -42,6 +42,7 @@ public class WatchdogMain {
     private String currentCommit = "";
     private boolean halted = false;
     private int rollbackCount = 0;
+    private Path lastEvalReport = null;  // tracks last processed eval report
 
     public WatchdogMain(WatchdogConfig config) {
         this.config = config;
@@ -74,6 +75,9 @@ public class WatchdogMain {
 
         // Start resource monitor (every 30s)
         scheduler.scheduleAtFixedRate(this::resourceCheck, 30, 30, TimeUnit.SECONDS);
+
+        // Start eval report watcher (every 60s)
+        scheduler.scheduleAtFixedRate(this::evalReportCheck, 10, 60, TimeUnit.SECONDS);
 
         // Block main thread
         try {
@@ -302,6 +306,102 @@ public class WatchdogMain {
             num.append(json.charAt(start++));
         }
         try { return Double.parseDouble(num.toString()); } catch (NumberFormatException e) { return 0; }
+    }
+
+    // ── Eval Report Watcher ────────────────────────────────────────
+
+    /**
+     * Poll the eval-reports directory for new reports from EvalHarness.
+     * If any report has gate.ok == false → ROLLBACK (HARD tripwire).
+     * Alerts on new regressions even if gate passes.
+     */
+    private void evalReportCheck() {
+        if (config.evalReportDir() == null || config.evalReportDir().isBlank()) return;
+
+        Path dir = Path.of(config.evalReportDir());
+        if (!Files.isDirectory(dir)) return;
+
+        try (var files = Files.list(dir)) {
+            files.filter(f -> f.toString().endsWith("-eval-report.json"))
+                    .sorted()
+                    .forEach(this::processEvalReport);
+        } catch (IOException e) {
+            LOG.fine("Eval report scan failed: " + e.getMessage());
+        }
+    }
+
+    private void processEvalReport(Path file) {
+        // Skip already-processed reports
+        if (lastEvalReport != null && file.getFileName().toString()
+                .compareTo(lastEvalReport.getFileName().toString()) <= 0) {
+            return;
+        }
+        lastEvalReport = file;
+
+        try {
+            String content = Files.readString(file);
+            Boolean ok = extractJsonBool(content, "ok");
+            String reason = extractJsonString(content, "reason");
+            String tier = extractJsonString(content, "tier");
+            int regressionCount = countJsonArrayElements(content, "regressions");
+
+            LOG.info("Eval report [" + tier + "]: gate=" + (ok != null && ok ? "PASS" : "FAIL")
+                    + ", regressions=" + regressionCount
+                    + ", file=" + file.getFileName());
+
+            if (ok != null && !ok) {
+                trigger(WatchdogAction.ROLLBACK, TripwireSeverity.HARD,
+                        "Eval gate FAIL [" + tier + "]: " + reason
+                                + " (report: " + file.getFileName() + ")");
+            } else if (regressionCount > 0) {
+                // Soft alert for regressions even when gate passes
+                executeAlert("Eval regressions detected [" + tier + "]: "
+                        + regressionCount + " metrics regressed"
+                        + " (report: " + file.getFileName() + ")");
+            }
+        } catch (IOException e) {
+            LOG.warning("Failed to read eval report " + file + ": " + e.getMessage());
+        }
+    }
+
+    // ── Minimal JSON parsing (no Jackson dep in watchdog) ───────────
+
+    private static Boolean extractJsonBool(String json, String key) {
+        java.util.regex.Pattern p = java.util.regex.Pattern.compile(
+                "\"" + key + "\"\\s*:\\s*(true|false)");
+        var m = p.matcher(json);
+        return m.find() ? Boolean.parseBoolean(m.group(1)) : null;
+    }
+
+    private static String extractJsonString(String json, String key) {
+        java.util.regex.Pattern p = java.util.regex.Pattern.compile(
+                "\"" + key + "\"\\s*:\\s*\"([^\"]*)\"");
+        var m = p.matcher(json);
+        return m.find() ? m.group(1) : "";
+    }
+
+    private static int countJsonArrayElements(String json, String key) {
+        java.util.regex.Pattern p = java.util.regex.Pattern.compile(
+                "\"" + key + "\"\\s*:\\s*\\[");
+        var m = p.matcher(json);
+        if (!m.find()) return 0;
+        int start = m.end();
+        int depth = 1, count = 0, i = start;
+        while (i < json.length() && depth > 0) {
+            char c = json.charAt(i);
+            if (c == '{') depth++;
+            else if (c == '}') depth--;
+            else if (c == '[') depth++;
+            else if (c == ']') depth--;
+            else if (c == '"' && depth == 1) {
+                // hit a string element inside the array
+                count++;
+                i++; // skip opening quote
+                while (i < json.length() && json.charAt(i) != '"') i++;
+            }
+            i++;
+        }
+        return count;
     }
 
     private void shutdown() {
