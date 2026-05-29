@@ -387,7 +387,7 @@ public class TelegramBotService {
                   {"role":"system","content":"%s"},
                   {"role":"user","content":"%s"}
                 ],"stream":false,
-                 "options":{"temperature":0.3,"top_p":0.85,"num_predict":512},
+                 "options":{"temperature":0.3,"top_p":0.85,"num_predict":512,"num_gpu":0},
                  "keep_alive":0}
                 """, systemMsg, userMsg);
 

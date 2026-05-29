@@ -169,7 +169,7 @@ public class WikipediaKnowledgeService {
                 {"model":"gemma4:e4b","messages":[
                   {"role":"user","content":%s}
                 ],"stream":false,
-                 "options":{"temperature":0.2,"num_predict":256},
+                 "options":{"temperature":0.2,"num_predict":256,"num_gpu":0},
                  "keep_alive":0}
                 """, escapeJson(prompt));
 
