@@ -23,6 +23,7 @@ import de.metis.modules.events.AdsbPollingTrigger;
 import de.metis.modules.events.WebcamPollingTrigger;
 import de.metis.modules.events.CameraPollingTrigger;
 import de.metis.modules.events.CameraPollingTrigger.CameraConfig;
+import de.metis.modules.action.CameraVisionAction;
 import de.metis.modules.action.CameraSnapshotAction;
 import de.metis.modules.events.ProactiveNotificationService;
 import de.metis.modules.hardware.HardwareDiscovery;
@@ -1138,6 +1139,28 @@ public final class AgentMain {
             }
         }, 3, 10, TimeUnit.MINUTES);
         LOG.info("Wikipedia knowledge acquisition active — API-based, curiosity-driven, every 10 min");
+
+        // Phase 7: Camera Vision (minicpm-v) — periodic observations from existing cameras
+        var visionCameras = List.of(
+                new CameraVisionAction("tuerkamera", "http://192.168.22.161:9081/snapshot", agent.worldModel()),
+                new CameraVisionAction("balkon", "http://192.168.22.180:8080/photo.jpg", agent.worldModel())
+        );
+        var visionScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+            var t = new Thread(r, "camera-vision");
+            t.setDaemon(true);
+            return t;
+        });
+        visionScheduler.scheduleAtFixedRate(() -> {
+            for (var cam : visionCameras) {
+                try {
+                    cam.observe();
+                    Thread.sleep(3000); // rate-limit: 3s between cameras
+                } catch (Exception e) {
+                    LOG.fine("Camera vision cycle: " + e.getMessage());
+                }
+            }
+        }, 2, 5, TimeUnit.MINUTES);
+        LOG.info("Camera vision active — minicpm-v observes 2 cameras every 5 min");
 
         // Build the runtime, wiring in the HTTP server for evolution control
         final MetisHttpServer api = httpServer;
