@@ -166,7 +166,7 @@ public class WikipediaKnowledgeService {
                 + "Facts:";
 
         String jsonBody = String.format("""
-                {"model":"gemma4:e4b","messages":[
+                {"model":"granite4.1:3b","messages":[
                   {"role":"user","content":%s}
                 ],"stream":false,
                  "options":{"temperature":0.2,"num_predict":256,"num_gpu":0},

@@ -114,7 +114,7 @@ public class CameraVisionAction {
                 {"model":"%s","messages":[
                   {"role":"user","content":"%s","images":["%s"]}
                 ],"stream":false,
-                 "options":{"temperature":0.1,"num_predict":80,"num_gpu":0},
+                 "options":{"temperature":0.1,"num_predict":80},
                  "keep_alive":0}
                 """, MODEL, escapeJson(PROMPT), b64);
 
