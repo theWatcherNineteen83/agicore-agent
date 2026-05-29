@@ -28,6 +28,7 @@ import de.metis.modules.events.ProactiveNotificationService;
 import de.metis.modules.hardware.HardwareDiscovery;
 import de.metis.modules.hardware.HardwareProfileAction;
 import de.metis.modules.hardware.DeepNettsAction;
+import de.metis.modules.knowledge.WikipediaKnowledgeService;
 import de.metis.modules.hardware.TornadoVmAction;
 import de.metis.modules.multiagent.AgentCoordinator;
 import de.metis.modules.CuriosityEngine;
@@ -1099,18 +1100,44 @@ public final class AgentMain {
         eventTriggers.add(cameraPolling);
         LOG.info("Camera event trigger active — " + cameraPolling.description());
 
-        // Phase 4: Wikipedia Training (Artikel lesen + Sprachtraining)
-        Path wikiDir = Path.of("/data/prometheus/wiki_de");
-        if (Files.isDirectory(wikiDir)) {
-            var wikiStatePath = persist != null
-                    ? persist.resolveSibling("wiki-training-state.json")
-                    : Path.of("/home/prometheus/metis/wiki-training-state.json");
-            var wikiTrainer = new WikipediaTrainingService(wikiDir, agent.goals(), wikiStatePath);
-            wikiTrainer.start();
-            LOG.info("Wikipedia training active — " + wikiDir);
-        } else {
-            LOG.info("Wikipedia training skipped — " + wikiDir + " not found");
-        }
+        // Phase 4: Wikipedia Knowledge Acquisition (live API, no local dump needed)
+        var wikiKnowledge = new de.metis.modules.knowledge.WikipediaKnowledgeService(
+                "http://192.168.22.204:11434", agent.worldModel());
+        
+        // Curiosity-driven periodic learning: every 10 minutes, learn one article
+        var wikiScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+            var t = new Thread(r, "wikipedia-learner");
+            t.setDaemon(true);
+            return t;
+        });
+        wikiScheduler.scheduleAtFixedRate(() -> {
+            try {
+                // Get curiosity topics from least-explored belief domains
+                var beliefs = agent.worldModel().all();
+                var sourceCounts = new java.util.HashMap<String, Integer>();
+                for (var b : beliefs) {
+                    if (b.source() != null && !b.source().startsWith("bootstrap")) {
+                        sourceCounts.merge(b.source(), 1, Integer::sum);
+                    }
+                }
+                // Pick 3 least-represented sources as curiosity topics
+                var topics = sourceCounts.entrySet().stream()
+                        .sorted(Map.Entry.comparingByValue())
+                        .limit(3)
+                        .map(Map.Entry::getKey)
+                        .collect(java.util.stream.Collectors.toList());
+                wikiKnowledge.addCuriosityTopics(topics);
+                
+                int learned = wikiKnowledge.learnOneArticle();
+                if (learned > 0) {
+                    LOG.info("Wikipedia curiosity: learned " + learned + " facts (total: "
+                            + wikiKnowledge.factsLearned() + " from " + wikiKnowledge.articlesProcessed() + " articles)");
+                }
+            } catch (Exception e) {
+                LOG.fine("Wikipedia learning cycle: " + e.getMessage());
+            }
+        }, 3, 10, TimeUnit.MINUTES);
+        LOG.info("Wikipedia knowledge acquisition active — API-based, curiosity-driven, every 10 min");
 
         // Build the runtime, wiring in the HTTP server for evolution control
         final MetisHttpServer api = httpServer;

@@ -138,4 +138,16 @@ public class CuriosityEngine {
                 chosen, domainVisits.getOrDefault(chosen, 0));
         return new Goal(description, chosen, 40, 0.45, 1);
     }
+
+    /**
+     * Get interesting exploration domains for the Wikipedia knowledge service.
+     * Returns domains/topics the engine is currently curious about.
+     */
+    public List<String> getExplorationDomains() {
+        return domainVisits.entrySet().stream()
+                .sorted(Map.Entry.comparingByValue())
+                .limit(3)
+                .map(Map.Entry::getKey)
+                .collect(java.util.stream.Collectors.toList());
+    }
 }
