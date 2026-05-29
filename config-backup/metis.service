@@ -1,0 +1,35 @@
+[Unit]
+Description=Metis AGI — Self-Evolving Agent System
+After=network-online.target ollama.service
+Wants=network-online.target ollama.service
+
+[Service]
+Type=simple
+User=prometheus
+WorkingDirectory=/home/prometheus/metis
+Environment=JAVA_HOME=/usr/lib/jvm/zulu25.32.21-ca-jdk25.0.2-linux_x64
+ExecStart=/usr/lib/jvm/zulu25.32.21-ca-jdk25.0.2-linux_x64/bin/java \
+    -Xmx2g -XX:+UseZGC \
+    --enable-native-access=ALL-UNNAMED \
+    -jar /home/prometheus/metis/metis-agent.jar \
+    --api-port 11735 \
+    --planning-model mistral-small3.1:24b \
+    --mutation-model qwen3.6:27b-q4_K_M \
+    --telegram-token 8334147633:AAEoXX7LS8pDe_gWXO8mUav8i0SGmEPnVLU \
+    --weather-api-key 0352c669d7d0422d92c669d7d0522d9a \
+    --ha-url http://192.168.22.200:8123 \
+    --ha-token eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJmYjg4ZWU0ZDMwY2Y0MjFhYmEyMTEwZmFiMjA0NGZlMiIsImlhdCI6MTc3ODUxNzA0MCwiZXhwIjoyMDkzODc3MDQwfQ.9wWCa30M5xvdcRAtaDWeGITIGBMO-V_vFPQVZy-kzDc \
+    --mqtt-broker tcp://grappas.unterlandselite.de:51820 \
+    --interval 5000 \
+    --persist /home/prometheus/metis/agent-state.json \
+    --bootstrap-models phi4:latest,llama3.2:3b \
+    --evolution
+ExecStop=/bin/kill -SIGTERM $MAINPID
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=metis
+
+[Install]
+WantedBy=multi-user.target
