@@ -340,12 +340,8 @@ public class TelegramBotService {
 
             // 2nd: Fall back to LLM
             if (response == null) {
-                String prompt = Persona.systemPrompt()
-                        + "\n\nConversation with " + userName + " on Telegram:"
-                        + (context.isEmpty() ? "\n(new conversation)" : "\n" + context)
-                        + "\n\n" + userName + ": " + text + "\n\nEDI:";
-
-                response = callOllama(prompt);
+                String chatPrompt = buildChatPrompt(userName, text, context);
+                response = callOllama(chatPrompt);
                 if (response == null || response.isBlank()) {
                     response = "I'm here, but I need a moment. Please try again.";
                 }
@@ -367,19 +363,35 @@ public class TelegramBotService {
     }
 
     /**
-     * Call Ollama /api/generate for a direct LLM completion.
-     * Uses a fast model dedicated to chat to avoid competing with the planner.
+     * Format user message with minimal context for LLM chat.
+     * System persona is handled by the system role in /api/chat.
+     */
+    private String buildChatPrompt(String userName, String text, String context) {
+        if (context == null || context.isEmpty()) {
+            return userName + " asks: " + text;
+        }
+        return "Previous conversation:\n" + context + "\n\n" + userName + " asks: " + text;
+    }
+
+    /**
+     * Call Ollama /api/chat for a conversational response.
+     * Uses proper chat roles (system/user/assistant) to avoid prompt leakage.
      */
     private String callOllama(String prompt) throws Exception {
-        // Chat model: phi4 (9.1GB) — unused by agent, good reasoning, fast
-        // Ollama handles VRAM offloading automatically for inactive models
+        // Build proper chat messages instead of raw prompt
+        String systemMsg = Persona.systemPrompt().replace("\"", "\\\"").replace("\n", "\\n");
+        String userMsg = prompt.replace("\"", "\\\"").replace("\n", "\\n");
+        
         String jsonBody = String.format("""
-                {"model":"phi4:latest","prompt":%s,"stream":false,
+                {"model":"phi4:latest","messages":[
+                  {"role":"system","content":"%s"},
+                  {"role":"user","content":"%s"}
+                ],"stream":false,
                  "options":{"temperature":0.8,"top_p":0.9,"num_predict":512}}
-                """, escapeJson(prompt));
+                """, systemMsg, userMsg);
 
         HttpRequest req = HttpRequest.newBuilder()
-                .uri(URI.create("http://192.168.22.204:11434/api/generate"))
+                .uri(URI.create("http://192.168.22.204:11434/api/chat"))
                 .timeout(Duration.ofSeconds(180))
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
@@ -391,10 +403,10 @@ public class TelegramBotService {
             return null;
         }
 
-        LOG.fine("Ollama response received, " + resp.body().length() + " bytes");
-        // Extract "response" field from JSON
+        LOG.fine("Ollama chat response received, " + resp.body().length() + " bytes");
+        // Extract "content" field from "message" object in /api/chat response
         String body = resp.body();
-        String search = "\"response\":\"";
+        String search = "\"content\":\"";
         int start = body.indexOf(search);
         if (start < 0) return null;
         start += search.length();

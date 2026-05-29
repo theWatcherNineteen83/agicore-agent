@@ -26,6 +26,23 @@ public class KnowledgeReplyService {
         this.store = store;
     }
 
+    /** Source prefixes to exclude from knowledge replies (internal metas). */
+    private static final Set<String> EXCLUDED_SOURCES = Set.of(
+            "bootstrap", "bootstrap:", "persona", "system"
+    );
+
+    /** Patterns that indicate a belief is internal/debug data, not factual knowledge. */
+    private static final List<String> INTERNAL_PATTERNS = List.of(
+            "Action:", "Goal:", "? success", "EDI: ?",
+            "You are EDI", "Core traits:", "You have access to:",
+            "Conversation context:", "Phase 2", "Linux miniedi",
+            "HTTP 200 GET", "From my knowledge",
+            "action for goal"
+    );
+
+    private static final int MIN_STATEMENT_LENGTH = 10;
+    private static final int MAX_STATEMENT_LENGTH = 500;
+
     /**
      * Try to answer a question from Metis's own knowledge.
      *
@@ -41,11 +58,24 @@ public class KnowledgeReplyService {
             if (keywords.isEmpty()) return null;
 
             // Search beliefs for matching knowledge
-            List<Belief> matches = store.searchBeliefs(keywords, MAX_RESULTS);
+            List<Belief> matches = store.searchBeliefs(keywords, MAX_RESULTS * 3); // oversample, then filter
             if (matches.isEmpty()) return null;
 
+            // Filter out internal/metadata beliefs
+            var validBeliefs = matches.stream()
+                    .filter(b -> !isExcludedSource(b.source()))
+                    .filter(b -> !containsInternalPattern(b.statement()))
+                    .filter(b -> {
+                        int len = b.statement().length();
+                        return len >= MIN_STATEMENT_LENGTH && len <= MAX_STATEMENT_LENGTH;
+                    })
+                    .limit(MAX_RESULTS)
+                    .toList();
+
+            if (validBeliefs.isEmpty()) return null;
+
             // Check if we have enough confidence
-            double avgConfidence = matches.stream()
+            double avgConfidence = validBeliefs.stream()
                     .mapToDouble(Belief::confidence)
                     .average().orElse(0);
 
@@ -55,12 +85,22 @@ public class KnowledgeReplyService {
             }
 
             // Build response from matching beliefs
-            return buildResponse(matches, avgConfidence);
+            return buildResponse(validBeliefs, avgConfidence);
 
         } catch (Exception e) {
             LOG.warning("Knowledge reply failed: " + e.getMessage());
             return null;
         }
+    }
+
+    private boolean isExcludedSource(String source) {
+        if (source == null) return true;
+        return EXCLUDED_SOURCES.stream().anyMatch(source::startsWith);
+    }
+
+    private boolean containsInternalPattern(String statement) {
+        if (statement == null) return true;
+        return INTERNAL_PATTERNS.stream().anyMatch(statement::contains);
     }
 
     /**
@@ -107,7 +147,7 @@ public class KnowledgeReplyService {
             sb.append("• ").append(capitalize(fact)).append(".\n");
         }
 
-        sb.append("\n_— EDI, from own experience_");
+        sb.append("\n— EDI, aus eigener Erfahrung");
         return sb.toString();
     }
 
