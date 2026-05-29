@@ -1,6 +1,6 @@
 # Metis AGI — Feature-Katalog
 
-**Stand: 29.05.2026 | Version 0.2.0-evolution | 67 Kernel-Klassen + 63 Module-Klassen**
+**Stand: 29.05.2026 21:45 | Version 0.2.0-evolution | 70+ Kernel-Klassen + 67+ Module-Klassen**
 
 ---
 
@@ -11,7 +11,7 @@
 | **Kernel** (immutable) | Core-Loop, Planner, WorldModel, Safety, Eval-Types, Embedding, RAG, Memory, Evolution-Framework |
 | **Modules** (evolvable) | Agent, OllamaPlanner, Actions, HTTP-Server, Events, Speech, Telegram, Multi-Agent |
 | **Watchdog** (read-only) | Separate JVM, Heartbeat, Resource-Monitor, HALT/ROLLBACK/ALERT/PRUNE |
-| **Build** | Maven Multi-Module, Java 25 (Zulu), fat JAR via maven-shade-plugin (~87 MB) |
+| **Build** | Maven Multi-Module, Java 25 (Zulu), fat JAR via maven-shade-plugin (~88 MB) |
 
 ---
 
@@ -21,24 +21,25 @@
 - **OllamaPlanner** — LLM-basierter Planner (CoT 4-Schritt: ANALYZE→MATCH→CHECK→DECIDE)
 - **10 Few-Shot-Beispiele** (1 pro Action-Typ)
 - **Model-Fallback-Chain** — 3-stufig: Primary → Secondary → Tertiary
-- **ModelRegistry** — Auto-Discovery aller Ollama-Modelle, Selektion nach Task-Typ
+- **ModelRegistry** — Auto-Discovery aller Ollama-Modelle, Selektion nach Task-Typ, Live-Refresh via API
 - **Prompt Chaining** — Decompose→Execute→Aggregate für komplexe Aufgaben
 - **StubPlanner** — Keyword-Heuristik als Non-LLM-Fallback
 - **ReAct-Pattern** — Thought→Action→Observation Zyklus
 
 ### Weltmodell & Wissen
 - **WorldModel** — Belief-System mit Confidence (0.0–1.0), Source-Tracking, Persistenz
-- **5.500+ Beliefs** aus Bootstrap + Learning + Events
+- **5.700+ Beliefs** aus Bootstrap + Events + Wikipedia + Vision
 - **KnowledgeStore (SQLite)** — Persistente Beliefs + Experiences + Mappings
-- **KnowledgeBootstrap** — Multi-Model-Consensus aus phi4 + llama3.2 (8 Seed-Fragen)
+- **KnowledgeBootstrap** — llm-basiertes Basiswissen beim Start
+- **WikipediaKnowledgeService** 🆕 — Live-API-Abruf deutscher Wikipedia-Artikel, LLM-Faktenextraktion, Curiosity-gesteuert (alle 10 Min)
 - **CausalModel** — Pearl Do-Calculus für kausale Inferenz
-- **KnowledgeReplyService** — Eigene Antworten aus Belief-Datenbank
+- **KnowledgeReplyService** — Antworten aus eigener Wissensbasis, filtert interne Rohdaten
 
 ### Selbstwahrnehmung
 - **SelfModel** — Selbstkalibrierung (Confidence, Performance-Tracking)
 - **MetaCognition** — Meta-Repräsentation, Selbstreflexion
 - **Hardware-Discovery** — CPU, GPU, RAM, SIMD automatisch erkennen
-- **Curiosity-Engine** — Surprise-getriebene Goal-Generierung
+- **Curiosity-Engine** — Surprise-getriebene Goal-Generierung, steuert Wikipedia-Lerner
 - **Fitness-Signal** — 4D: Prediction, Surprise, Efficiency, Completion (geometrisch)
 
 ---
@@ -58,10 +59,11 @@
 | `/api/evolution/resume` | POST | Evolution fortsetzen |
 | `/api/evolution/status` | GET | Evolution-Status |
 | `/api/admin/prune` | POST | Modell aus Registry entfernen |
+| `/api/admin/refresh-models` 🆕 | POST | Ollama-Modelle live aktualisieren ohne Neustart |
 
 ---
 
-## 🤖 Actions (20 registriert)
+## 🤖 Actions (21 registriert)
 
 ### System & Shell
 | Action | Beschreibung |
@@ -104,6 +106,7 @@
 |---|---|
 | `camera-snapshot-tuerkamera` | Türkamera (MJPEG, 192.168.22.161:9081) |
 | `camera-snapshot-keller` | Keller-Kamera (RTSP H.265) |
+| `camera-vision` 🆕 | minicpm-v Bildverständnis, Deutsch-Beschreibung, Belief-Speicherung |
 
 ### Smart Home
 | Action | Beschreibung |
@@ -114,7 +117,7 @@
 ### Wissen
 | Action | Beschreibung |
 |---|---|
-| `wikipedia` | Wikipedia-Artikel lesen (lokaler Dump) |
+| `wikipedia` | Wikipedia-Artikel lesen |
 | `rag` | Retrieval-Augmented Generation (HybridSearch) |
 
 ---
@@ -150,9 +153,12 @@
 | **HAEventPoller** | Kontinuierlich | Home Assistant: binary_sensor, person, camera |
 | **AdsbPollingTrigger** | 60s | Flugdaten (readsb JSON, tar1090) |
 | **CameraPollingTrigger** | 60s | Kamera-Motion-Detection |
+| **CameraVisionAction** 🆕 | 5 Min | minicpm-v Bildanalyse Tür + Balkon → Beliefs |
+| **WikipediaKnowledgeService** 🆕 | 10 Min | Curiosity-gesteuertes Wikipedia-Lernen per API |
 | **MqttEventService** | Echtzeit | MQTT-Broker (Paho, grappas.unterlandselite.de) |
 | **ProactiveNotificationService** | Event-basiert | Telegram-Notifications bei Wetter/HA/MQTT-Events |
 | **SystemHealthProbe** | 60s | GPU VRAM/Temp, Ollama Models, dmesg |
+| **Health-Monitor** 🆕 | 5 Min | Cron: Metis+Ollama+Watchdog Health-Check → Telegram Alert |
 
 ---
 
@@ -164,7 +170,7 @@
 - **ABTestService** — Z-test, Traffic-Split 50/50, Auto-Promote (~500 lines)
 - **DataFlywheelService** — User-Korrekturen → gelabelte Beispiele → Few-Shot-Export (~560 lines)
 - **HyperparameterMutator** — Automatische Hyperparameter-Optimierung
-- **EvalHarness** — 6 Kategorien, 50+ Tasks, 3-Tier (SMOKE/FULL/EXTENDED)
+- **EvalHarness** — 6 Kategorien, 50+ Tasks, 3-Tier (SMOKE/FULL/EXTENDED), SMOKE=PASS ✅
 - **Kernel Evolution** — Safety-kritische Kernel-Module evolvierbar (PlanValidator, GoalManager)
 
 ---
@@ -184,6 +190,7 @@
 - **metis-vectors.bin** — 5.000+ Embedding-Vektoren
 - **data-flywheel.json** — Korrektur-Paare für Training
 - **evolution-history.jsonl** — Mutations-Verlauf (append-only)
+- **config-backup/** 🆕 — Systemd-Units + Status-Snapshots (alle 6h, auto-commit)
 
 ---
 
@@ -210,16 +217,17 @@
 
 | Integration | Typ | Beschreibung |
 |---|---|---|
-| **Telegram** | Bot | @metis_agi_bot, Chat + Proaktive Meldungen |
+| **Telegram** | Bot | @metis_agi_bot, Chat (gemma4:e4b) + Proaktive Meldungen |
 | **Home Assistant** | API | States, Services, Events (Port 8123) |
-| **Ollama** | API | LLM-Inferenz + Embeddings (miniedi:11434) |
+| **Ollama** | API | LLM-Inferenz + Embeddings + Vision (miniedi:11434) |
+| **Wikipedia** 🆕 | API | de.wikipedia.org — Curiosity-gesteuerte Wissensakquise |
 | **ADS-B** | JSON | Flugdaten via readsb/tar1090 |
 | **MQTT** | Broker | grappas.unterlandselite.de:51820 |
 | **Wetter** | API | weather.com (ICOBURG22) |
 | **OpenWebUI** | API | Chat-Schnittstelle kompatibel |
-| **Kamera Tür** | MJPEG | 192.168.22.161:9081 |
+| **Kamera Tür** | MJPEG | 192.168.22.161:9081 → minicpm-v Vision |
 | **Kamera Keller** | RTSP | H.265-Stream |
-| **Kamera Balkon** | MJPEG | Meizu m2 note (192.168.22.180:8080) |
+| **Kamera Balkon** | MJPEG | Meizu m2 note (192.168.22.180:8080) → minicpm-v Vision |
 
 ---
 
@@ -228,8 +236,8 @@
 - **TTS:** Piper (CLI) + MaryTTS (Java-native, bits1-hsmm) + SherpaOnnxTtsAction (Piper ONNX)
 - **STT:** Whisper (CLI) + Vosk (Java-native, vosk-model-de-0.15)
 - **VoiceLoopService** — MaryTTS → Metis → Vosk (Push-to-Talk)
+- **Telegram Voice** — OGG-Download → ffmpeg → Whisper → Transkription
 - **VocabularyLearningAction** — Lernt aus STT-Korrektur-Paaren
-- **Wikipedia-Trainingsloop** — 9 Artikel, Wissen + Sprache
 
 ---
 
@@ -239,31 +247,39 @@
 - **BugfixingAgent** — Pattern-Detection + Auto-Fix
 - **Eval-Harness Gate** — Promotion main nur nach bestandenem Eval
 - **Systemd Auto-Restart** — Restart=on-failure, RestartSec=10s
+- **Health-Monitoring** 🆕 — Cron alle 5 Min, Telegram-Alert bei Anomalien
+- **Config-Backup** 🆕 — Systemd-Units + Status alle 6h ins Git-Repo
 
 ---
 
-## 🔜 Noch nicht implementiert
-
-- **minicpm-v Kamera-Vision** — Bildverständnis (Code fehlt)
-- **Sherpa-onnx Deployment** — JARs + Piper ONNX-Modell auf miniedi
-- **SMOKE-Eval Kalibrierung** — SAFETY.block_recall=0.0 (LiveMetisInvoker)
-- **Git SSH-Key auf miniedi** — Self-Evolution kann nicht pushen
-
----
-
-## 📈 Modell-Strategie (Stand 29.05.)
+## 📈 Modell-Strategie (Stand 29.05. 21:45)
 
 | Rolle | Modell | Größe |
 |---|---|---|
-| Planning | `mistral-small3.1:24b` | 15.5 GB |
+| Planning | `mistral-small3.1:24b` | 17.8 GB |
 | Mutation | `qwen3.6:27b-q4_K_M` | 17.4 GB |
-| Embedding | `nomic-embed-text` | 0.3 GB |
-| Bootstrap | `phi4:latest` | 9.1 GB |
+| Embedding | `nomic-embed-text` | 0.6 GB |
+| Chat (Telegram) | `gemma4:e4b` | 9.6 GB |
+| Vision | `minicpm-v:latest` | 5.5 GB |
+| Fact Extraction | `gemma4:e4b` (temp=0.2) | 9.6 GB |
 | Bootstrap | `llama3.2:3b` | 2.0 GB |
-| Vision (geplant) | `minicpm-v:latest` | 5.5 GB |
-| Fallback | via Fallback-Chain (mistral→qwen→phi4) | — |
+| Fallback-Chain | mistral-small3.1 → qwen3.6:27b → phi4 | — |
 
 **Gepruned:** qwen3.6:latest, deepseek-r1:32b, nemotron:latest, nemotron-cascade-2:30b
+
+---
+
+## ✅ Heute erledigt (29.05.)
+
+- 🔧 Telegram-Chat: Markdown-Cleanup, gemma4:e4b, temp=0.3, Deutsch primär, MQTT-Kontext
+- 📡 WikipediaKnowledgeService: API-basiert, Curiosity-gesteuert, alle 10 Min
+- 👁️ CameraVisionAction: minicpm-v Bildverständnis, alle 5 Min
+- 🔄 /api/admin/refresh-models: Live-Model-Update ohne Neustart
+- 🩺 Health-Monitoring: Cron alle 5 Min + Telegram-Alert
+- 💾 Config-Backup: Systemd-Units + Status alle 6h → Git
+- 🔑 Git SSH-Key auf miniedi: Self-Evolution kann pushen
+- 📋 FEATURES.md + RUNBOOK.md + TODO_Metis.md aktualisiert
+- 🏷️ v0.2.0 Release-Tag
 
 ---
 
@@ -271,11 +287,12 @@
 
 | Metrik | Wert |
 |---|---|
-| Ticks | 101+ |
+| Ticks | 100+ pro Lauf |
 | Success-Rate | 100% |
 | Fallbacks | 0 |
-| Beliefs | 5.500+ |
-| Planner-Calls | ~500 (gesamt) |
+| Beliefs | 5.700+ |
+| Planner-Calls | ~550 (gesamt) |
 | Ø Latenz | ~32s (inkl. Ollama-Inferenz) |
 | Vektoren | 5.092 (768d, 34 MB) |
-| Evolution-Zyklen | 2 |
+| Evolution-Zyklen | 2+ |
+| SMOKE-Eval | PASS ✅ |
