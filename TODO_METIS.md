@@ -192,17 +192,18 @@
 - ✅ OllamaEmbeddingService → ModelRegistry-basiert, Default nomic-embed-text (768d)
 - ✅ ModelRegistry → nomic-embed Prio 1, DEFAULT_EMBEDDING aktualisiert
 - ✅ ReEmbeddingMigration → needsMigration() + migrate() mit Backup
-- ⚠️ Re-Embedding auf miniedi noch ausstehend (Korpus neu embedden)
+- ✅ Re-Embedding geprüft (29.05.): Vektoren bereits 768d nomic-embed-text, keine Migration nötig
 
 ### 3. TTS: ONNX Runtime Java statt MaryTTS ✅ SherpaOnnxTtsAction
 - ✅ SherpaOnnxTtsAction — Piper de_DE-thorsten ONNX, Fallback auf MaryTTS
 - ✅ downloadModel() von HuggingFace, Auto-Detection ob JARs/Model verfügbar
 - ⬜ Sherpa-onnx JARs + Piper Model auf miniedi installieren
 
-### 4. Modell-Prune via Eval-Harness ✅ Code / ⬜ Daten
+### 4. Modell-Prune via Eval-Harness ✅
 - ✅ Eval-Harness Core (6 Scorer, Gate-Logik, 3-Tier) implementiert
-- ⬜ Eval-Datensatz mit echten Metis-Prompts erstellen
-- ⬜ 8 Reasoner evaluieren → 2-3 beste auswählen → Rest prunen
+- ✅ /api/admin/prune Endpoint funktioniert (MetisHttpServer + Watchdog PruneEndpoint :11736)
+- ✅ Modell-Prune durchgeführt (29.05.): 4 Modelle aus Registry entfernt (qwen3.6:latest, deepseek-r1:32b, nemotron:latest, nemotron-cascade-2:30b)
+- ⬜ 8 Reasoner evaluieren → 2-3 beste auswählen → Rest prunen (Eval-Datensatz ✅, Eval-Runner ✅, SMOKE-Kalibrierung offen)
 
 ### 5. VRAM-Optimierung Live-Loop 🟡
 - Aktuell: mistral-small3.1:24b (15.5 GB) als Default, passt mit minicpm-v + nomic-embed
