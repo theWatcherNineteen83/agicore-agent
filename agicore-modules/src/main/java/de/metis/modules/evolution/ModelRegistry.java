@@ -139,6 +139,32 @@ public class ModelRegistry {
     public void overrideMutationModel(String model) { this.selectedMutationModel = model; }
     public void overrideEmbeddingModel(String model) { this.selectedEmbeddingModel = model; }
 
+    /**
+     * Prune a model from auto-selection registry.
+     * Called by Watchdog when eval reports show consistent underperformance.
+     * The pruned model will not be auto-selected until re-discovered.
+     */
+    public void pruneModel(String modelName) {
+        if (modelName == null || modelName.isBlank()) return;
+        String lower = modelName.toLowerCase();
+        if (selectedPlanningModel != null && selectedPlanningModel.toLowerCase().contains(lower)) {
+            LOG.warning("PRUNE: removing planning model " + selectedPlanningModel);
+            selectedPlanningModel = null;
+        }
+        if (selectedMutationModel != null && selectedMutationModel.toLowerCase().contains(lower)) {
+            LOG.warning("PRUNE: removing mutation model " + selectedMutationModel);
+            selectedMutationModel = null;
+        }
+        if (selectedEmbeddingModel != null && selectedEmbeddingModel.toLowerCase().contains(lower)) {
+            LOG.warning("PRUNE: removing embedding model " + selectedEmbeddingModel);
+            selectedEmbeddingModel = null;
+        }
+        if (availableModels != null) {
+            availableModels.removeIf(m -> m.name().toLowerCase().contains(lower));
+        }
+        LOG.info("Model pruned: " + modelName + " — will be re-evaluated on next discover()");
+    }
+
     // ── Model info ───────────────────────────────────────────────────────
 
     public record ModelInfo(String name, long sizeBytes, String family) {

@@ -81,6 +81,7 @@ public class MetisHttpServer {
         server.createContext("/api/learned", this::handleLearned);
         server.createContext("/api/conversations", this::handleConversations);
         server.createContext("/api/agents", this::handleAgents);
+        server.createContext("/api/admin/prune", this::handlePrune);
     }
 
     public void setKnowledgeStore(KnowledgeStore ks) { this.knowledgeStore = ks; }
@@ -731,4 +732,28 @@ public class MetisHttpServer {
     }
 
     private record ChatMessage(String role, String content, Instant timestamp) {}
+
+    // ── /api/admin/prune ──────────────────────────────────────────
+    /** Called by Watchdog to prune underperforming models from registry. */
+    private void handlePrune(HttpExchange exchange) throws IOException {
+        if (!"POST".equals(exchange.getRequestMethod())) {
+            sendJson(exchange, 405, "{\"error\":\"Method not allowed\"}");
+            return;
+        }
+        try {
+            String body = new String(exchange.getRequestBody().readAllBytes());
+            String model = extractJsonString(body, "model");
+            String reason = extractJsonString(body, "reason");
+            LOG.warning("PRUNE request: model=" + model + " reason=" + reason);
+            if (modelRegistry != null && model != null && !model.isBlank()) {
+                modelRegistry.pruneModel(model);
+                sendJson(exchange, 200, "{\"ok\":true,\"pruned\":\"" + model + "\"}");
+                LOG.info("PRUNE executed: " + model);
+            } else {
+                sendJson(exchange, 400, "{\"ok\":false,\"error\":\"Invalid model or registry unavailable\"}");
+            }
+        } catch (Exception e) {
+            sendJson(exchange, 500, "{\"ok\":false,\"error\":\"" + e.getMessage() + "\"}");
+        }
+    }
 }
