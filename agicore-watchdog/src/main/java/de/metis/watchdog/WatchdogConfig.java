@@ -61,15 +61,15 @@ public record WatchdogConfig(
                 20,     // rollback after 20 consecutive failures
                 0.3,    // rollback at 30% error rate
                 "265324594", // Georg's Telegram
-                "/home/prometheus/agicore-agent",
+                "/home/prometheus/metis-agent-repo",
                 "",     // known-good commit set at startup
                 java.util.Set.of(
-                        "/home/prometheus/agicore-agent/",
+                        "/home/prometheus/metis-agent-repo/",
                         "/tmp/metis-"
                 ),
                 0.9,    // 90% CPU max
                 60,     // 60s sustained runaway → HALT
-                "/home/prometheus/agicore-agent/metis-audit.log"
+                "/home/prometheus/metis-agent-repo/metis-audit.log"
         );
     }
 }
