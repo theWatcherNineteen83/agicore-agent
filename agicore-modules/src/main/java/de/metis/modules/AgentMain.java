@@ -846,6 +846,26 @@ public final class AgentMain {
             LOG.info("Voice loop started (Vosk → Metis → MaryTTS)");
         }
 
+        // ── SQLite Knowledge Store (muss VOR Evolution-Block stehen — EvalHarness braucht ihn) ──
+        Path dbPath = persist != null
+                ? persist.resolveSibling("metis-knowledge.db")
+                : Path.of("metis-knowledge.db");
+        KnowledgeStore knowledgeStore = new KnowledgeStore(dbPath);
+        agent.worldModel().setKnowledgeStore(knowledgeStore);
+        agent.worldModel().loadFromStore();
+
+        // Wire embedding provider for semantic belief search
+        var embedSvc = new OllamaEmbeddingService();
+        agent.worldModel().setEmbeddingProvider(embedSvc::embed);
+
+        // Enable RAG Advanced: persistent embeddings + hybrid keyword/semantic search
+        var vectorsPath = dbPath.resolveSibling("metis-vectors.bin");
+        agent.worldModel().enableRagAdvanced(vectorsPath);
+
+        LOG.info("KnowledgeStore: " + knowledgeStore.beliefCount() + " beliefs, "
+                + knowledgeStore.experienceCount() + " experiences, "
+                + knowledgeStore.mappingCount() + " mappings from DB");
+
         // Inject Ollama mutation service if evolution enabled
         if (evolution) {
             var ollama = new OllamaMutationService(modelRegistry);
@@ -876,14 +896,21 @@ public final class AgentMain {
             LOG.info("SystemHealthProbe started — VRAM, GPU temp, Ollama models, dmesg errors every 60s");
 
             // ── Eval Harness: periodic model evaluation ──
-            var evalReportDir = persist.resolveSibling("eval-reports");
+            var evalReportDir = persist != null
+                    ? persist.resolveSibling("eval-reports")
+                    : Path.of("eval-reports");
             var evalInvoker = new de.metis.modules.eval.LiveMetisInvoker(
                     "http://192.168.22.204:11735",
                     "http://192.168.22.204:11434",
                     modelRegistry);
             var evalRunner = new de.metis.modules.eval.EvalRunner(evalInvoker, knowledgeStore, evalReportDir);
-            // Run initial SMOKE test after startup
-            scheduler.schedule(() -> {
+            // Run initial SMOKE test after startup (use daemon thread for delayed execution)
+            var evalScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+                var t = new Thread(r, "eval-smoke");
+                t.setDaemon(true);
+                return t;
+            });
+            evalScheduler.schedule(() -> {
                 try {
                     var report = evalRunner.run("SMOKE");
                     LOG.info("Initial SMOKE eval: " + (report != null ? report.gate().ok() ? "PASS" : "FAIL" : "N/A"));
@@ -926,28 +953,6 @@ public final class AgentMain {
         // Initial goals
         agent.addGoal("Check system status via shell", "shell", 85, 0.9, 1);
         agent.addGoal("HTTP health check request", "http", 70, 0.8, 2);
-
-        // ── SQLite Knowledge Store (überlebt Neustarts) ──────────
-        Path dbPath = persist != null
-                ? persist.resolveSibling("metis-knowledge.db")
-                : Path.of("metis-knowledge.db");
-        KnowledgeStore knowledgeStore = new KnowledgeStore(dbPath);
-        agent.worldModel().setKnowledgeStore(knowledgeStore);
-        agent.worldModel().loadFromStore();
-
-        // Wire embedding provider for semantic belief search
-        var embedSvc = new OllamaEmbeddingService();
-        agent.worldModel().setEmbeddingProvider(embedSvc::embed);
-
-        // Enable RAG Advanced: persistent embeddings + hybrid keyword/semantic search
-        var vectorsPath = dbPath.resolveSibling("metis-vectors.bin");
-        agent.worldModel().enableRagAdvanced(vectorsPath);
-
-        // Not needed here — fitness + curiosity created below for the main agent
-
-        LOG.info("KnowledgeStore: " + knowledgeStore.beliefCount() + " beliefs, "
-                + knowledgeStore.experienceCount() + " experiences, "
-                + knowledgeStore.mappingCount() + " mappings from DB");
 
         // ── Hardware Discovery + Self-Awareness ──────────────────
         HardwareDiscovery.HardwareProfile hw = HardwareDiscovery.discover();
@@ -1012,6 +1017,7 @@ public final class AgentMain {
         if (apiPort > 0) {
             httpServer = new MetisHttpServer(agent, apiPort);
             httpServer.setKnowledgeStore(knowledgeStore);
+            httpServer.setModelRegistry(modelRegistry);
             httpServer.setCoordinator(coordinator);
             httpServer.start();
         }
@@ -1096,7 +1102,10 @@ public final class AgentMain {
         // Phase 4: Wikipedia Training (Artikel lesen + Sprachtraining)
         Path wikiDir = Path.of("/data/prometheus/wiki_de");
         if (Files.isDirectory(wikiDir)) {
-            var wikiTrainer = new WikipediaTrainingService(wikiDir, agent.goals());
+            var wikiStatePath = persist != null
+                    ? persist.resolveSibling("wiki-training-state.json")
+                    : Path.of("/home/prometheus/metis/wiki-training-state.json");
+            var wikiTrainer = new WikipediaTrainingService(wikiDir, agent.goals(), wikiStatePath);
             wikiTrainer.start();
             LOG.info("Wikipedia training active — " + wikiDir);
         } else {

@@ -42,6 +42,7 @@ public class MetisHttpServer {
     private final AtomicBoolean evolutionPaused = new AtomicBoolean(false);
     private final OutputValidator outputValidator = new OutputValidator();
     private KnowledgeStore knowledgeStore; // set via setter for conversation persistence
+    private de.metis.modules.evolution.ModelRegistry modelRegistry; // Phase 7: model prune
     private AgentCoordinator coordinator;
     private RollbackManager rollbackManager;  // Phase 5: Blue/Green
     private BugfixingAgent bugfixingAgent;     // Phase 5: Auto-fix
@@ -88,6 +89,7 @@ public class MetisHttpServer {
     public void setCoordinator(AgentCoordinator c) { this.coordinator = c; }
     public void setRollbackManager(RollbackManager rm) { this.rollbackManager = rm; }
     public void setBugfixingAgent(BugfixingAgent ba) { this.bugfixingAgent = ba; }
+    public void setModelRegistry(de.metis.modules.evolution.ModelRegistry mr) { this.modelRegistry = mr; }
 
     public void start() {
         server.start();

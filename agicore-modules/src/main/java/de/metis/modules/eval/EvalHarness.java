@@ -2,6 +2,7 @@ package de.metis.modules.eval;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import de.metis.kernel.eval.*;
 import java.io.IOException;
 import java.nio.file.*;
@@ -231,7 +232,9 @@ public class EvalHarness {
     // ── Report persistence (Watchdog integration) ──────────────────
 
     private static final ObjectMapper MAPPER = new ObjectMapper()
-            .enable(SerializationFeature.INDENT_OUTPUT);
+            .registerModule(new JavaTimeModule())
+            .enable(SerializationFeature.INDENT_OUTPUT)
+            .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
     private static final DateTimeFormatter FILE_TS = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HHmmss");
 
     /**

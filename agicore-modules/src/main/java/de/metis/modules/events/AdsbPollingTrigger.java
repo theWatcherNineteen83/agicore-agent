@@ -32,7 +32,7 @@ public class AdsbPollingTrigger implements EventTrigger {
 
     private static final Logger LOG = Logger.getLogger(AdsbPollingTrigger.class.getName());
 
-    private static final String READS_URL = "http://192.168.22.200:30002/ajax/aircraft";
+    private static final String READS_URL = "http://192.168.22.200:8085/data/aircraft.json";
     private static final Duration POLL_INTERVAL = Duration.ofSeconds(60);
     private static final Duration HTTP_TIMEOUT = Duration.ofSeconds(10);
 

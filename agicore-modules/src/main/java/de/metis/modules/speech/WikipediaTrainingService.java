@@ -1,11 +1,20 @@
 package de.metis.modules.speech;
 
-import de.metis.kernel.action.MaryTTSSpeakAction;
 import de.metis.kernel.action.VocabularyLearningAction;
-import de.metis.kernel.action.VoskListenAction;
 import de.metis.kernel.goal.GoalManager;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+
+import org.vosk.LibVosk;
+import org.vosk.Model;
+import org.vosk.Recognizer;
+
+import javax.sound.sampled.*;
 import java.io.*;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.time.Instant;
@@ -21,13 +30,13 @@ import java.util.logging.Logger;
  * <ol>
  *   <li>Read article → extract key sentences (first 2 paragraphs)</li>
  *   <li>Every N articles: TTS speak → STT listen → compare → learn corrections</li>
- *   <li>Track progress via JSON state file (resumable)</li>
+ *   <li>Track progress via JSON state file (resumable, persistent)</li>
  * </ol>
  * <p>
  * Learning loop: Speak → Hear → Compare → Improve
  * <ul>
- *   <li><b>Speak:</b> MaryTTS/Piper generates audio from text</li>
- *   <li><b>Hear:</b> Vosk/Whisper transcribes audio back to text</li>
+ *   <li><b>Speak:</b> Piper TTS generates audio from text</li>
+ *   <li><b>Hear:</b> Whisper STT transcribes audio back to text</li>
  *   <li><b>Compare:</b> Word Error Rate + extract specific corrections</li>
  *   <li><b>Improve:</b> VocabularyLearningAction adds corrections to Vosk grammar</li>
  * </ul>
@@ -40,7 +49,6 @@ public class WikipediaTrainingService {
     private final Path articleDir;
     private final int speechInterval;   // run speech training every N articles
     private final int maxSentencesPerArticle;  // sentences to extract per article
-    private final int listenSeconds;    // STT listen duration
 
     // State tracking
     private final Path stateFile;
@@ -54,14 +62,14 @@ public class WikipediaTrainingService {
     /**
      * @param articleDir  directory with Wikipedia .txt files
      * @param goalManager Metis goal manager for submitting learning goals
+     * @param statePath   persistent path for training state JSON (e.g., /home/prometheus/metis/wiki-training-state.json)
      */
-    public WikipediaTrainingService(Path articleDir, GoalManager goalManager) {
+    public WikipediaTrainingService(Path articleDir, GoalManager goalManager, Path statePath) {
         this.articleDir = articleDir;
         this.goalManager = goalManager;
         this.speechInterval = 2;          // speech train every 2 articles
         this.maxSentencesPerArticle = 3;  // extract 3 key sentences
-        this.listenSeconds = 4;           // 4 seconds listening
-        this.stateFile = Path.of("/tmp/metis-wiki-train-state.json");
+        this.stateFile = statePath;
     }
 
     // ── Lifecycle ──────────────────────────────────────────────────
@@ -154,7 +162,7 @@ public class WikipediaTrainingService {
         state.pendingSentences.addAll(sentences);
 
         // Store article knowledge as a Metis goal
-        if (sentences.size() > 0) {
+        if (!sentences.isEmpty()) {
             String summary = sentences.get(0);
             goalManager.add("Wiki gelernt: " + title + " — " + summary,
                     20, 0.4, 1);
@@ -198,11 +206,12 @@ public class WikipediaTrainingService {
 
     // ── Speech Training (Speak → Hear → Compare → Improve) ─────────
 
-    // CLI paths (Piper + Whisper statt MaryTTS/Vosk)
+    // Piper TTS + Vosk STT (both local, no external binaries except piper)
     private static final String PIPER_BIN = "/usr/local/bin/piper";
     private static final String PIPER_MODEL = "/home/prometheus/piper-voices/de_DE-thorsten-medium.onnx";
-    private static final String WHISPER_BIN = "/home/prometheus/.local/bin/whisper";
-    private static final String WHISPER_MODEL = "tiny";
+    private static final String VOSK_MODEL_PATH = "/data/prometheus/vosk-model-de/vosk-model-small-de-0.15";
+    private static final float VOSK_SAMPLE_RATE = 16000f;
+    private static volatile Model voskModel;  // lazy-loaded singleton
 
     private void runSpeechTraining() {
         List<String> sentences = new ArrayList<>(state.pendingSentences);
@@ -225,8 +234,9 @@ public class WikipediaTrainingService {
                 );
                 ttsPb.redirectError(ProcessBuilder.Redirect.DISCARD);
                 Process ttsProc = ttsPb.start();
-                ttsProc.getOutputStream().write(original.getBytes(java.nio.charset.StandardCharsets.UTF_8));
-                ttsProc.getOutputStream().close();
+                try (var stdin = ttsProc.getOutputStream()) {
+                    stdin.write(original.getBytes(StandardCharsets.UTF_8));
+                }
 
                 boolean ttsOk = ttsProc.waitFor(30, java.util.concurrent.TimeUnit.SECONDS);
                 if (!ttsOk || ttsProc.exitValue() != 0) {
@@ -235,32 +245,32 @@ public class WikipediaTrainingService {
                     continue;
                 }
 
-                // 2. HEAR: Whisper STT from WAV file
-                ProcessBuilder sttPb = new ProcessBuilder(
-                        WHISPER_BIN, wavFile.toString(),
-                        "--model", WHISPER_MODEL,
-                        "--language", "de",
-                        "--output_format", "txt",
-                        "--output_dir", "/tmp"
-                );
-                sttPb.redirectError(ProcessBuilder.Redirect.DISCARD);
-                Process sttProc = sttPb.start();
-                boolean sttOk = sttProc.waitFor(60, java.util.concurrent.TimeUnit.SECONDS);
-
-                // Whisper writes output to <output_dir>/<filename>.<ext>
-                // e.g. /tmp/metis-speech-XXXXX.wav.txt
-                Path transcriptFile = Path.of("/tmp", wavFile.getFileName().toString() + ".txt");
+                // 2. HEAR: Vosk STT directly from WAV file (reliable, Java-native)
                 String heard = "";
-                if (sttOk && sttProc.exitValue() == 0 && Files.exists(transcriptFile)) {
-                    heard = Files.readString(transcriptFile).trim();
+                try {
+                    byte[] pcm16k = resampleWavTo16kHz(wavFile);
+                    if (pcm16k != null && pcm16k.length > 0) {
+                        Model m = getVoskModel();
+                        try (Recognizer rec = new Recognizer(m, VOSK_SAMPLE_RATE)) {
+                            rec.setWords(true);
+                            if (rec.acceptWaveForm(pcm16k, pcm16k.length)) {
+                                String resultJson = rec.getResult();
+                                heard = extractTextFromVoskResult(resultJson);
+                            } else {
+                                String partial = rec.getPartialResult();
+                                heard = extractPartialFromVoskResult(partial);
+                            }
+                        }
+                    }
+                } catch (Exception voskEx) {
+                    LOG.warning("Vosk STT failed: " + voskEx.getMessage());
                 }
 
-                // Cleanup temp files
+                // Cleanup temp file
                 try { Files.deleteIfExists(wavFile); } catch (IOException ignored) {}
-                try { Files.deleteIfExists(transcriptFile); } catch (IOException ignored) {}
 
                 if (heard.isEmpty()) {
-                    LOG.fine("Whisper produced no output");
+                    LOG.fine("Vosk produced no output for: " + original.substring(0, Math.min(40, original.length())));
                     continue;
                 }
 
@@ -269,9 +279,8 @@ public class WikipediaTrainingService {
                 LOG.info("Speech: \"" + original.substring(0, Math.min(60, original.length()))
                         + "\" → heard \"" + heard + "\" (" + String.format("%.0f%%", similarity * 100) + ")");
 
-                // 4. IMPROVE: Learn if similarity < 80%
-                if (similarity < 0.8) {
-                    // Try VocabularyLearningAction first, fallback gracefully
+                // 4. IMPROVE: Learn if similarity < 95% (lenient threshold for synthetic speech)
+                if (similarity < 0.95) {
                     try {
                         var vocabAction = new VocabularyLearningAction(heard, original);
                         vocabAction.execute();
@@ -280,7 +289,6 @@ public class WikipediaTrainingService {
                     }
                     state.wordsLearned++;
                     trainedThisCycle++;
-
                     goalManager.add("Sprachtraining: \"" + heard + "\" → \"" + original + "\"",
                         30, 0.5, 1);
                 }
@@ -293,7 +301,6 @@ public class WikipediaTrainingService {
                 break;
             } catch (Exception e) {
                 LOG.warning("Speech training sentence error: " + e.getMessage());
-                // Continue with next sentence — don't abort the whole cycle
             }
         }
 
@@ -319,7 +326,6 @@ public class WikipediaTrainingService {
 
         if (origWords.length == 0) return 0.0;
 
-        // Count matching words
         Set<String> origSet = new HashSet<>(Arrays.asList(origWords));
         Set<String> heardSet = new HashSet<>(Arrays.asList(heardWords));
 
@@ -329,19 +335,131 @@ public class WikipediaTrainingService {
         return (double) intersection.size() / origSet.size();
     }
 
-    // ── State Persistence ─────────────────────────────────────────
+    // ── Vosk Helpers ─────────────────────────────────────────────
+
+    private static synchronized Model getVoskModel() throws IOException {
+        if (voskModel == null) {
+            LibVosk.vosk_set_log_level(-1);
+            voskModel = new Model(VOSK_MODEL_PATH);
+            LOG.info("Vosk model loaded: " + VOSK_MODEL_PATH);
+        }
+        return voskModel;
+    }
+
+    /**
+     * Reads a WAV file (22050 Hz from Piper), resamples to 16kHz mono PCM for Vosk.
+     */
+    private static byte[] resampleWavTo16kHz(Path wavFile) throws Exception {
+        try (AudioInputStream ais = AudioSystem.getAudioInputStream(wavFile.toFile())) {
+            AudioFormat srcFormat = ais.getFormat();
+            AudioFormat targetFormat = new AudioFormat(
+                    AudioFormat.Encoding.PCM_SIGNED,
+                    VOSK_SAMPLE_RATE,
+                    16,
+                    1,
+                    2,
+                    VOSK_SAMPLE_RATE,
+                    false);
+
+            // If format already matches, just read bytes
+            if (AudioSystem.isConversionSupported(targetFormat, srcFormat)) {
+                try (AudioInputStream converted = AudioSystem.getAudioInputStream(targetFormat, ais)) {
+                    return converted.readAllBytes();
+                }
+            }
+
+            // Manual resampling fallback
+            byte[] srcBytes = ais.readAllBytes();
+            return linearResample(srcBytes, srcFormat, VOSK_SAMPLE_RATE);
+        }
+    }
+
+    /**
+     * Simple linear resampling. For production use, consider a proper resampling library.
+     */
+    private static byte[] linearResample(byte[] srcBytes, AudioFormat srcFormat, float targetRate) {
+        int srcChannels = srcFormat.getChannels();
+        int srcSampleSize = srcFormat.getSampleSizeInBits() / 8;
+        float srcRate = srcFormat.getSampleRate();
+        double ratio = targetRate / srcRate;
+
+        int srcFrames = srcBytes.length / (srcChannels * srcSampleSize);
+        int dstFrames = (int) (srcFrames * ratio);
+        byte[] dstBytes = new byte[dstFrames * 2]; // 16-bit mono output
+
+        ByteBuffer srcBuf = ByteBuffer.wrap(srcBytes).order(
+                srcFormat.isBigEndian() ? ByteOrder.BIG_ENDIAN : ByteOrder.LITTLE_ENDIAN);
+        ByteBuffer dstBuf = ByteBuffer.wrap(dstBytes).order(ByteOrder.LITTLE_ENDIAN);
+
+        for (int i = 0; i < dstFrames; i++) {
+            double srcPos = i / ratio;
+            int srcIdx = (int) srcPos;
+            double frac = srcPos - srcIdx;
+
+            // Read sample (handle multi-channel by taking first channel only if needed)
+            int bytePos = srcIdx * srcChannels * srcSampleSize;
+            if (bytePos + srcSampleSize > srcBytes.length) break;
+
+            short sample;
+            if (srcSampleSize == 2) {
+                sample = srcBuf.getShort(bytePos);
+            } else {
+                sample = (short) (srcBuf.get(bytePos) << 8);
+            }
+
+            // Optional linear interpolation
+            if (frac > 0.01 && bytePos + srcChannels * srcSampleSize + srcSampleSize <= srcBytes.length) {
+                short nextSample = srcBuf.getShort(bytePos + srcChannels * srcSampleSize);
+                sample = (short) (sample + frac * (nextSample - sample));
+            }
+
+            dstBuf.putShort(sample);
+        }
+
+        return dstBytes;
+    }
+
+    static String extractTextFromVoskResult(String json) {
+        if (json == null || json.isBlank()) return "";
+        // Vosk result: {"result": [{"word": "hallo", ...}], "text": "hallo welt"}
+        int textIdx = json.indexOf("\"text\" : \"");
+        if (textIdx < 0) textIdx = json.indexOf("\"text\":\"");
+        if (textIdx >= 0) {
+            int start = json.indexOf('"', textIdx + 8) + 1;
+            int end = json.indexOf('"', start);
+            if (start > 0 && end > start) return json.substring(start, end).trim();
+        }
+        return "";
+    }
+
+    static String extractPartialFromVoskResult(String json) {
+        if (json == null || json.isBlank()) return "";
+        int partialIdx = json.indexOf("\"partial\" : \"");
+        if (partialIdx < 0) partialIdx = json.indexOf("\"partial\":\"");
+        if (partialIdx >= 0) {
+            int start = json.indexOf('"', partialIdx + 11) + 1;
+            int end = json.indexOf('"', start);
+            if (start > 0 && end > start) return json.substring(start, end).trim();
+        }
+        return "";
+    }
+
+    // ── State Persistence (Jackson — no escaping bugs) ─────────────
+
+    private static final ObjectMapper JSON = new ObjectMapper()
+            .enable(SerializationFeature.INDENT_OUTPUT);
 
     private void loadState() {
         try {
-            if (Files.exists(stateFile)) {
-                String json = Files.readString(stateFile);
-                state = TrainingState.fromJson(json);
+            if (Files.exists(stateFile) && Files.size(stateFile) > 0) {
+                state = JSON.readValue(stateFile.toFile(), TrainingState.class);
                 LOG.info("Resumed training state: " + state.processedCount + " articles, "
                         + state.wordsLearned + " words");
             } else {
                 state = new TrainingState();
             }
-        } catch (IOException e) {
+        } catch (Exception e) {
+            LOG.warning("Failed to load training state: " + e.getMessage() + " — starting fresh");
             state = new TrainingState();
         }
     }
@@ -349,98 +467,20 @@ public class WikipediaTrainingService {
     private void saveState() {
         try {
             Files.createDirectories(stateFile.getParent());
-            Files.writeString(stateFile, state.toJson());
+            JSON.writeValue(stateFile.toFile(), state);
         } catch (IOException e) {
-            LOG.fine("Failed to save training state: " + e.getMessage());
+            LOG.warning("Failed to save training state: " + e.getMessage());
         }
     }
 
     // ── State Record ──────────────────────────────────────────────
 
     public static class TrainingState {
-        int processedCount = 0;
-        int wordsLearned = 0;
-        Set<String> processedTitles = new LinkedHashSet<>();
-        List<String> pendingSentences = new ArrayList<>();
+        @JsonProperty int processedCount = 0;
+        @JsonProperty int wordsLearned = 0;
+        @JsonProperty Set<String> processedTitles = new LinkedHashSet<>();
+        @JsonProperty List<String> pendingSentences = new ArrayList<>();
 
-        int remainingArticles() { return Math.max(0, 9 - processedCount); } // target: 9
-
-        String toJson() {
-            StringBuilder sb = new StringBuilder();
-            sb.append("{\n");
-            sb.append("  \"processedCount\": ").append(processedCount).append(",\n");
-            sb.append("  \"wordsLearned\": ").append(wordsLearned).append(",\n");
-            sb.append("  \"processedTitles\": [");
-            var it = processedTitles.iterator();
-            while (it.hasNext()) {
-                sb.append("\"").append(escapeJson(it.next())).append("\"");
-                if (it.hasNext()) sb.append(", ");
-            }
-            sb.append("],\n");
-            sb.append("  \"pendingSentences\": [");
-            var sit = pendingSentences.iterator();
-            while (sit.hasNext()) {
-                sb.append("\"").append(escapeJson(sit.next())).append("\"");
-                if (sit.hasNext()) sb.append(", ");
-            }
-            sb.append("]\n");
-            sb.append("}");
-            return sb.toString();
-        }
-
-        static TrainingState fromJson(String json) {
-            var ts = new TrainingState();
-            ts.processedCount = extractInt(json, "processedCount");
-            ts.wordsLearned = extractInt(json, "wordsLearned");
-
-            // Parse processedTitles array
-            int titlesStart = json.indexOf("\"processedTitles\":");
-            if (titlesStart >= 0) {
-                int arrStart = json.indexOf('[', titlesStart);
-                int arrEnd = json.indexOf(']', arrStart);
-                if (arrStart >= 0 && arrEnd > arrStart) {
-                    String arr = json.substring(arrStart + 1, arrEnd);
-                    for (String item : arr.split(",")) {
-                        String title = item.trim().replaceAll("^\"|\"$", "");
-                        if (!title.isBlank()) ts.processedTitles.add(title);
-                    }
-                }
-            }
-
-            // Parse pendingSentences
-            int sentStart = json.indexOf("\"pendingSentences\":");
-            if (sentStart >= 0) {
-                int arrStart = json.indexOf('[', sentStart);
-                int arrEnd = json.indexOf(']', arrStart);
-                if (arrStart >= 0 && arrEnd > arrStart) {
-                    String arr = json.substring(arrStart + 1, arrEnd);
-                    for (String item : arr.split("\",\"|^\"|\"$")) {
-                        String sent = item.trim().replaceAll("^\"|\"$", "");
-                        if (!sent.isBlank()) ts.pendingSentences.add(sent);
-                    }
-                }
-            }
-
-            return ts;
-        }
-
-        private static int extractInt(String json, String key) {
-            String search = "\"" + key + "\": ";
-            int start = json.indexOf(search);
-            if (start < 0) return 0;
-            start += search.length();
-            StringBuilder num = new StringBuilder();
-            for (int i = start; i < json.length(); i++) {
-                char c = json.charAt(i);
-                if (Character.isDigit(c)) num.append(c);
-                else break;
-            }
-            try { return Integer.parseInt(num.toString()); }
-            catch (NumberFormatException e) { return 0; }
-        }
-
-        private static String escapeJson(String s) {
-            return s == null ? "" : s.replace("\\", "\\\\").replace("\"", "\\\"");
-        }
+        int remainingArticles() { return Math.max(0, 9 - processedCount); }
     }
 }
