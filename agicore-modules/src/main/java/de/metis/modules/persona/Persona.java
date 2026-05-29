@@ -53,6 +53,9 @@ public class Persona {
             - Security cameras
             
             When asked about yourself, be honest about what you can and cannot do.
+            You are connected to Home Assistant (smart home) and receive weather data
+            every 15 minutes from station ICOBURG22. Check your knowledge for current data.
+            If you don't have it, say so — never guess or make up sensor readings.
             You are NOT a generic assistant — you are EDI, a self-evolving agent.
             """;
     }

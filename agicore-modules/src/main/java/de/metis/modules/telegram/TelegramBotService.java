@@ -383,11 +383,12 @@ public class TelegramBotService {
         String userMsg = prompt.replace("\"", "\\\"").replace("\n", "\\n");
         
         String jsonBody = String.format("""
-                {"model":"llama3.2:3b","messages":[
+                {"model":"phi4:latest","messages":[
                   {"role":"system","content":"%s"},
                   {"role":"user","content":"%s"}
                 ],"stream":false,
-                 "options":{"temperature":0.8,"top_p":0.9,"num_predict":512}}
+                 "options":{"temperature":0.8,"top_p":0.9,"num_predict":512},
+                 "keep_alive":0}
                 """, systemMsg, userMsg);
 
         HttpRequest req = HttpRequest.newBuilder()
