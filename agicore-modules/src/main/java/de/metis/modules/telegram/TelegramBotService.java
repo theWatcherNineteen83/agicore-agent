@@ -383,7 +383,7 @@ public class TelegramBotService {
         String userMsg = prompt.replace("\"", "\\\"").replace("\n", "\\n");
         
         String jsonBody = String.format("""
-                {"model":"medgemma1.5:latest","messages":[
+                {"model":"gemma4:e4b","messages":[
                   {"role":"system","content":"%s"},
                   {"role":"user","content":"%s"}
                 ],"stream":false,
