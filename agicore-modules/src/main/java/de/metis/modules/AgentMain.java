@@ -79,6 +79,7 @@ import java.util.logging.*;
 public final class AgentMain {
 
     private static final Logger LOG = Logger.getLogger(AgentMain.class.getName());
+    private static final Random RANDOM = new Random();
 
     private static final DateTimeFormatter TIME_FMT =
             DateTimeFormatter.ofPattern("HH:mm:ss").withZone(ZoneId.systemDefault());
@@ -1158,9 +1159,27 @@ public final class AgentMain {
 
                 // Kanban: create and flow a Wikipedia learning goal through the board
                 Goal wikiGoal = null;
+                boolean isSpeechGoal = RANDOM.nextDouble() < 0.05; // ~5% speech-loop
+
                 if (agent.core().goals().kanbanBoard() != null) {
                     var board = agent.core().goals().kanbanBoard();
-                    if (board.countInProgress(Goal.ResourceType.INFERENCE) < 2) {
+                    if (isSpeechGoal && board.countInProgress(Goal.ResourceType.CPU_HEAVY) < 2) {
+                        // Speech-loop: speak → listen → compare → learn vocabulary
+                        wikiGoal = new Goal(
+                                "Speech-Loop: Wikipedia article (speak→listen→learn)",
+                                "speech-loop", 55, 0.6, 2,
+                                Goal.ServiceClass.STANDARD, Goal.ResourceType.CPU_HEAVY, null);
+                        board.add(wikiGoal);
+                        board.promoteReady();
+                        wikiGoal = board.pull();
+                        if (wikiGoal != null) {
+                            LOG.info("Kanban: Speech-Loop goal pulled — will speak Wikipedia excerpt");
+                        } else {
+                            // WIP blocked — fall back to regular learning
+                            isSpeechGoal = false;
+                        }
+                    }
+                    if (!isSpeechGoal && board.countInProgress(Goal.ResourceType.INFERENCE) < 2) {
                         wikiGoal = new Goal(
                                 "Learn Wikipedia article (curiosity-driven)",
                                 "wikipedia-learn", 50, 0.5, 1,
@@ -1174,7 +1193,13 @@ public final class AgentMain {
                     }
                 }
 
-                int learned = wikiKnowledge.learnOneArticle();
+                int learned;
+                if (isSpeechGoal && wikiGoal != null) {
+                    // Speech-loop: pick a random article snippet and run the speech loop
+                    learned = runSpeechLoop(wikiKnowledge, wikiGoal, agent);
+                } else {
+                    learned = wikiKnowledge.learnOneArticle();
+                }
                 if (learned > 0) {
                     // Complete the Wikipedia goal on the board (moves IN_PROGRESS → DONE)
                     if (wikiGoal != null && agent.core().goals().kanbanBoard() != null) {
@@ -1213,6 +1238,53 @@ public final class AgentMain {
             }
         }, 2, 5, TimeUnit.MINUTES);
         LOG.info("Camera vision active — minicpm-v observes 2 cameras every 5 min");
+
+        // Goal 2: Java Learning — explore Zulu JDK 25, try sandbox commands
+        var javaLearnService = new de.metis.modules.hardware.JavaLearningService(agent.worldModel());
+        var javaScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+            var t = new Thread(r, "java-learner");
+            t.setDaemon(true);
+            return t;
+        });
+        javaScheduler.scheduleAtFixedRate(() -> {
+            try {
+                // Create Kanban goal for Java learning
+                if (agent.core().goals().kanbanBoard() != null) {
+                    var board = agent.core().goals().kanbanBoard();
+                    if (board.countInProgress(Goal.ResourceType.CPU_HEAVY) < 2) {
+                        Goal javaGoal = new Goal(
+                                "Learn Java: Zulu JDK 25 exploration",
+                                "java-learn", 45, 0.45, 1,
+                                Goal.ServiceClass.STANDARD, Goal.ResourceType.CPU_HEAVY, null);
+                        board.add(javaGoal);
+                        board.promoteReady();
+                        javaGoal = board.pull();
+                        if (javaGoal != null) {
+                            int result;
+                            if (RANDOM.nextDouble() < 0.3 && javaLearnService.commandsSucceeded() >= 5) {
+                                result = javaLearnService.tryCompileAndRun();
+                            } else {
+                                result = javaLearnService.exploreOneTool();
+                            }
+                            if (result >= 0) {
+                                board.complete(javaGoal.id());
+                            } else {
+                                board.requeue(javaGoal);
+                            }
+                            LOG.info("JavaLearn: " + result + " beliefs, "
+                                    + javaLearnService.commandsSucceeded() + "/"
+                                    + javaLearnService.commandsTried() + " success rate");
+                        }
+                    }
+                } else {
+                    // Fallback: learn without Kanban
+                    javaLearnService.exploreOneTool();
+                }
+            } catch (Exception e) {
+                LOG.fine("Java learning cycle: " + e.getMessage());
+            }
+        }, 5, 15, TimeUnit.MINUTES);
+        LOG.info("Java learning active — Zulu JDK 25 exploration every 15 min");
 
         // Build the runtime, wiring in the HTTP server for evolution control
         final MetisHttpServer api = httpServer;
@@ -1280,6 +1352,52 @@ public final class AgentMain {
             if (httpServer != null) {
                 httpServer.stop();
             }
+        }
+    }
+
+    /**
+     * Run speech-loop learning: pick a random Wikipedia article,
+     * speak it via Piper TTS, listen back via Vosk STT, compare.
+     * Only called for ~5% of Wikipedia learning cycles.
+     */
+    private static int runSpeechLoop(
+            de.metis.modules.knowledge.WikipediaKnowledgeService wikiKnowledge,
+            Goal goal, Agent agent) {
+        try {
+            // Pick a random article from the wiki-feed directory
+            Path wikiDir = Path.of("/home/prometheus/wiki-feed");
+            if (!Files.exists(wikiDir)) return wikiKnowledge.learnOneArticle();
+
+            List<Path> articles;
+            try (var stream = Files.list(wikiDir)) {
+                articles = stream
+                        .filter(p -> p.toString().endsWith(".txt"))
+                        .collect(java.util.stream.Collectors.toList());
+            }
+            if (articles.isEmpty()) return wikiKnowledge.learnOneArticle();
+
+            Path article = articles.get(RANDOM.nextInt(articles.size()));
+            String content = Files.readString(article);
+            String[] lines = content.split("\n", 2);
+            String title = lines[0].trim();
+            String text = lines.length > 1 ? lines[1].trim() : title;
+
+            // Run speech loop
+            var speechLoop = new de.metis.modules.speech.SpeechLoopAction(text, title);
+            var result = speechLoop.execute();
+
+            if (result.success()) {
+                LOG.info("SpeechLoop [" + title + "]: " + result.body());
+                // Also learn the article normally
+                wikiKnowledge.learnOneArticle();
+                return 1;
+            } else {
+                LOG.warning("SpeechLoop failed [" + title + "]: " + result.body());
+                return 0;
+            }
+        } catch (Exception e) {
+            LOG.warning("SpeechLoop error: " + e.getMessage());
+            return wikiKnowledge.learnOneArticle(); // fallback
         }
     }
 }
