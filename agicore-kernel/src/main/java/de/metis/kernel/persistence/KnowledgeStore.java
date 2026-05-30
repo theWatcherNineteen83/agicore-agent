@@ -32,8 +32,17 @@ public class KnowledgeStore implements AutoCloseable {
     public KnowledgeStore(Path dbPath) throws SQLException {
         boolean exists = Files.exists(dbPath);
         this.conn = DriverManager.getConnection("jdbc:sqlite:" + dbPath.toAbsolutePath());
+        // Concurrency-safe defaults so external feed scripts (Python feed_batch.py)
+        // can write while Metis is running without locking each other out.
+        try (Statement pragma = conn.createStatement()) {
+            pragma.execute("PRAGMA journal_mode=WAL");
+            pragma.execute("PRAGMA synchronous=NORMAL");
+            pragma.execute("PRAGMA busy_timeout=30000");
+        } catch (SQLException e) {
+            LOG.warning("KnowledgeStore: PRAGMA setup failed: " + e.getMessage());
+        }
         initSchema();
-        LOG.info("KnowledgeStore: " + dbPath + (exists ? " (existing)" : " (new)"));
+        LOG.info("KnowledgeStore: " + dbPath + (exists ? " (existing)" : " (new)") + " [WAL mode]");
     }
 
     public KnowledgeStore() throws SQLException {
