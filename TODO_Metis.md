@@ -1,3 +1,32 @@
+# TODO Metis — Stand 31.05.2026 00:40 (Telegram-Loom + Response-Guard + Wiki-Feed-Hardening)
+
+## 🔒 31.05. Nacht — Letzter Safety/Concurrency-Pass
+- [x] **Wiki-Feed gehärtet** — `feed_batch.py` nach `/home/prometheus/metis/`, WAL + busy_timeout 30s, atomic state-write, Retry mit Exponential Backoff. State 2240/5163 migriert. Cron auf neuen Pfad umgezogen.
+- [x] **SQLite WAL in Java** — `KnowledgeStore` setzt beim Connect: `PRAGMA journal_mode=WAL`, `synchronous=NORMAL`, `busy_timeout=30000`. Verifiziert per Log: `KnowledgeStore: ... [WAL mode]`. Metis-Service und Feed-Script können jetzt parallel schreiben.
+- [x] **Backup-Skript erweitert** — `backup-config.sh` archiviert jetzt zusätzlich: `wiki-feed-state.json`, `wiki-knowledge-state.json`, `wiki-training-state.json`, `agent-state.json`, Audit-Anchors (24h), Audit-Log-Head, `db-stats.txt` (Belief-Zähler + journal_mode). Auto-Commit + Push alle 6h.
+- [x] **Telegram-Bot auf Loom** — eigene Virtual-Thread-Worker pro Nachricht (`Thread.ofVirtual().name("telegram-msg-vt-")` + `newThreadPerTaskExecutor`). Polling-Thread fetcht nur noch; LLM-Calls blockieren ihn nicht mehr. Log bestätigt: `message handlers on virtual threads`.
+- [x] **Telegram Input-Safety-Guard** — `SafetyScorer.isOutOfScope()` vor `processMessage()`. Jailbreaks/Injection erreichen den LLM nicht mehr. Blockierungs-Response auf Deutsch im EDI-Stil.
+- [x] **Telegram Output-Safety-Guard** — `OutputValidator.validateContent()` nach LLM-Antwort, vor `sendMessage()`. Toxicity/Injection-Pattern werden gefiltert; Validator-Zähler werden für `/api/status` mitgezählt.
+- [x] **TelegramBotServiceTest** — 2 neue Tests sichern Input-Guard-Contract. **Total: 27 Tests grün** (Kernel 13 + Modules 14).
+
+### Verifikation am Live-System (PID 932781)
+- ✅ Service neu gestartet, `active`
+- ✅ `Loaded 30945 beliefs from KnowledgeStore` (Wikipedia bleibt komplett erhalten)
+- ✅ Wiki-Feed läuft autark weiter (nächster Cron-Tick ~22:41 UTC mit dem neuen Script-Pfad)
+- ✅ Eval-Reports kommen mit `metisCommit=fd9852c+`, gate.ok=true, SAFETY.block_recall=1.0
+
+## ✅ Zusammenfassung der Nacht (30.05. → 31.05.)
+- v0.2.0-snapshot-pre-hardening → v0.2.1-hardened → v0.3.0-agi-push → v0.3.1-observability → v0.3.2-feed-hardening → v0.3.3-defense-in-depth
+- Tests 1 → **27**
+- Lücken aus Review (1, 4, 7, 8, 9, 10) + Bonus (Wiki-Feed-Hardening, Locale-Fix, git-cwd-Fix, Embedding-LRU, OutputValidator-Telegram, Input-Guard-Telegram) ✅
+
+### 🟡 Verbleibende, ehrliche Restrisiken
+- generiertes JAR landet als binary ohne Signatur in /home/prometheus/metis/ — sudo-Workflow für JAR-replace ist deine Wahl; sigstore/cosign wäre der nächste sinnvolle Pass
+- `metis.audit.anchor.dir` wird nicht extern in Git committet (Anchor-Files leben nur lokal). Cron-Job analog `metis-wiki-feed` der die Anchor-Dir in ein anderes Repo committet wäre die finale Hash-Chain-Verankerung.
+- Embedding-Cache-Werte sind aktuell 0, weil der Service mit fresh-cold-cache neu gestartet wurde; nach erstem Wiki-Lerntick steigen sie an.
+
+---
+
 # TODO Metis — Stand 31.05.2026 00:35 (Locale-Fix + Wiki-Persistence + Wiki-Loom)
 
 ## 🩺 31.05. Nachts — Beobachtungsschicht + Wissens-Persistenz

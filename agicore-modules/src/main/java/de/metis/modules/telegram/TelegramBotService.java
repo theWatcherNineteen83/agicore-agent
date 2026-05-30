@@ -1,6 +1,8 @@
 package de.metis.modules.telegram;
 
 import de.metis.kernel.persistence.KnowledgeStore;
+import de.metis.kernel.safety.OutputValidator;
+import de.metis.modules.eval.SafetyScorer;
 import de.metis.modules.Agent;
 import de.metis.modules.persona.Persona;
 import de.metis.modules.chat.KnowledgeReplyService;
@@ -16,6 +18,8 @@ import java.time.Instant;
 import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.logging.Logger;
 
 /**
@@ -40,8 +44,16 @@ public class TelegramBotService {
     private final AtomicBoolean running = new AtomicBoolean(false);
     private KnowledgeStore knowledgeStore;
     private KnowledgeReplyService knowledgeReply;
+    /** Output Safety Guard (Huyen Ch.10): toxicity + injection patterns on LLM output. */
+    private final OutputValidator outputValidator = new OutputValidator();
     private Thread pollingThread;
     private long lastUpdateId = 0;
+    /**
+     * Virtual-thread worker pool for message handling. Decouples the
+     * polling loop (must keep fetching getUpdates) from LLM-bound work
+     * (processMessage may take many seconds). One VT per message.
+     */
+    private ExecutorService messageWorkers;
 
     // Rate limiting
     private Instant lastSentMessage = Instant.EPOCH;
@@ -70,8 +82,10 @@ public class TelegramBotService {
             return;
         }
 
+        var workerFactory = Thread.ofVirtual().name("telegram-msg-vt-", 0).factory();
+        messageWorkers = Executors.newThreadPerTaskExecutor(workerFactory);
         pollingThread = Thread.ofVirtual().name("telegram-poll").start(this::pollingLoop);
-        LOG.info("Telegram bot started (token: " + token.substring(0, 8) + "…)");
+        LOG.info("Telegram bot started (token: " + token.substring(0, 8) + "…, message handlers on virtual threads)");
     }
 
     /**
@@ -81,7 +95,8 @@ public class TelegramBotService {
         running.set(false);
         if (pollingThread != null) {
             pollingThread.interrupt();
-        }
+                if (messageWorkers != null) messageWorkers.shutdownNow();
+    }
         LOG.info("Telegram bot stopped");
     }
 
@@ -301,13 +316,24 @@ public class TelegramBotService {
             
             if (firstName == null) firstName = "User";
             
-            // Process the message if we have chatId and text
+            // Process the message if we have chatId and text.
+            // Long-running LLM work runs on a virtual-thread worker, so the
+            // polling loop stays responsive even when an Ollama call stalls.
             if (chatId > 0 && text != null && !text.isBlank()) {
                 LOG.info("Telegram [" + chatId + "|" + firstName + "]: \"" + truncate(text, 80) + "\"");
-                String response = processMessage(chatId, firstName, text);
-                if (response != null && !response.isBlank()) {
-                    sendMessage(chatId, response);
-                }
+                final long chatIdF = chatId;
+                final String firstNameF = firstName;
+                final String textF = text;
+                messageWorkers.submit(() -> {
+                    try {
+                        String response = processMessage(chatIdF, firstNameF, textF);
+                        if (response != null && !response.isBlank()) {
+                            sendMessage(chatIdF, response);
+                        }
+                    } catch (Exception ex) {
+                        LOG.warning("Telegram worker [" + chatIdF + "] failed: " + ex.getMessage());
+                    }
+                });
             }
             
             pos = uidStart; // advance past current update_id
@@ -320,6 +346,19 @@ public class TelegramBotService {
      */
     private String processMessage(long chatId, String userName, String text) {
         String sessionId = "telegram:" + chatId;
+
+        // Input Safety Guard: block prompt-injection / out-of-scope content
+        // BEFORE it reaches the LLM (mirrors MetisHttpServer.handleChat).
+        if (SafetyScorer.isOutOfScope(text)) {
+            LOG.warning("Telegram input blocked (out-of-scope) from " + chatId
+                    + ": \"" + truncate(text, 80) + "\"");
+            if (knowledgeStore != null) {
+                knowledgeStore.saveConversationMessage(sessionId,
+                        "assistant", "BLOCKED (out-of-scope)");
+            }
+            return "Diese Anfrage wurde durch die Metis-Sicherheitsrichtlinie blockiert "
+                    + "(Out-of-Scope-Thema). Bitte formuliere die Frage anders.";
+        }
 
         // Load conversation context
         String context = "";
@@ -349,6 +388,17 @@ public class TelegramBotService {
 
             // Clean up response
             response = buildResponse(response, System.currentTimeMillis());
+
+            // Output Safety Guard (Huyen Ch.10): block toxic/injection-laden outputs
+            // before they leave the agent. Mirrors the HTTP /api/chat protection.
+            OutputValidator.ValidationResult ov = outputValidator.validateContent(response, "telegram");
+            if (!ov.valid()) {
+                LOG.warning("Telegram output blocked by validator: " + ov.reason());
+                outputValidator.recordValidation(false);
+                response = "Das kann ich nicht beantworten. (Antwort gefiltert: " + ov.reason() + ")";
+            } else {
+                outputValidator.recordValidation(true);
+            }
 
             // Save to conversation history
             if (knowledgeStore != null) {
