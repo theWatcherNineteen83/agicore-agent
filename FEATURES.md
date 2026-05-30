@@ -1,6 +1,6 @@
 # Metis AGI — Feature-Katalog
 
-**Stand: 30.05.2026 19:00 | Version 0.2.0-evolution | 71+ Kernel-Klassen + 68+ Module-Klassen**
+**Stand: 30.05.2026 23:15 | Version 0.2.0-evolution | 71+ Kernel-Klassen + 68+ Module-Klassen**
 
 ---
 
@@ -60,6 +60,7 @@
 | `/api/evolution/status` | GET | Evolution-Status |
 | `/api/admin/prune` | POST | Modell aus Registry entfernen |
 | `/api/admin/refresh-models` 🆕 | POST | Ollama-Modelle live aktualisieren ohne Neustart |
+| `/api/board` 🆕 | Kanban-Board Live-View (Spalten, WIP, Flow-Metriken) |
 
 ---
 
@@ -122,6 +123,30 @@
 | `rag` | Retrieval-Augmented Generation (HybridSearch) |
 
 ---
+
+### Sprache lernen (Speech-Loop)
+| Action | Beschreibung |
+|---|---|
+| `speech-loop` 🆕 | Piper TTS → Vosk STT → VocabularyLearning, ~5% der Wikipedia-Artikel |
+
+### Java lernen
+| Action | Beschreibung |
+|---|---|
+| `java-learn` 🆕 | Zulu JDK 25 Exploration (--help, --version, Sandbox-Compile), alle 15 Min |
+
+---
+
+## 🗂 Kanban Goal Board 🆕
+
+| Konzept | Beschreibung |
+|---|---|
+| **Spalten** | BACKLOG → READY → IN_PROGRESS → DONE |
+| **WIP-Limits** | GPU_HEAVY=1, INFERENCE=2, CPU_HEAVY=2, LIGHT=4 |
+| **Service-Klassen** | EXPEDITE, FIXED_DATE, STANDARD, INTANGIBLE |
+| **Flow-Metriken** | Lead Time, Cycle Time, Wait Time, Retries |
+| **API** | `GET /api/board` — Live-Board mit Spalten, WIP, Flow-Metriken |
+| **Pull-System** | Goals ins BACKLOG → Metis pulled selbstständig bei Kapazität |
+| **Theorie** | David J. Anderson (2010): Kanban — Successful Evolutionary Change |
 
 ## 🔍 RAG & Embeddings
 
@@ -285,6 +310,7 @@
 - 📡 WikipediaKnowledgeService: API-basiert, Curiosity-gesteuert, alle 10 Min
 - 👁️ CameraVisionAction: minicpm-v Bildverständnis, alle 5 Min
 - 🔄 /api/admin/refresh-models: Live-Model-Update ohne Neustart
+| `/api/board` 🆕 | Kanban-Board Live-View (Spalten, WIP, Flow-Metriken) |
 - 🩺 Health-Monitoring: Cron alle 5 Min + Telegram-Alert
 - 💾 Config-Backup: Systemd-Units + Status alle 6h → Git
 - 🔑 Git SSH-Key auf miniedi: Self-Evolution kann pushen

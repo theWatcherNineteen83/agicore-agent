@@ -1,5 +1,19 @@
 # TODO Metis — Stand 30.05.2026 19:00 (GitHub-Push: 3820064)
 
+## 30.05. Abends — Kanban Goal Board + Speech-Loop + Java Learning ✅
+- [x] KanbanBoard: BACKLOG→READY→IN_PROGRESS→DONE, WIP-Limits pro ResourceType
+- [x] Service-Klassen: EXPEDITE/FIXED_DATE/STANDARD/INTANGIBLE (Anderson 2010)
+- [x] GoalFlowMetrics: Lead Time, Cycle Time, Wait Time, Retries
+- [x] /api/board Endpoint (Live-Board mit WIP, Flow-Metriken)
+- [x] EDI-Loop-Fix: Chat-Goals von System-Prompt auf "Respond to chat: ..." gekürzt
+- [x] Chat-Goal-Deduplizierung
+- [x] SpeechLoopAction: Piper TTS → Vosk STT → VocabularyLearning (~5% der Wikipedia-Artikel)
+- [x] JavaLearningService: Zulu JDK 25 Exploration (--help, Sandbox-Compile, alle 15 Min)
+- [x] Goals→BACKLOG (Pull-System): Scheduler add, CoreLoop promoteReady, Scheduler pull
+- [x] CORE_CATEGORIES: CoreLoop pullt nur eigene Kategorien, Rest = Scheduler-Domains
+- [x] Systemd service mit --kanban (sudo fix)
+
+
 ## 🆕 30.05. — ReadSourceAction ✅
 - [x] **ReadSourceAction** (kernel/action/) — Metis kann eigenen Java-Quellcode lesen
   - FIND-Modus: Klassenname (z.B. "EvolutionManager")

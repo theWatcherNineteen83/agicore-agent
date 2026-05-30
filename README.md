@@ -6,7 +6,7 @@ Sie denkt in kognitiven Zyklen (Perceive → Plan → Execute → Observe → Le
 
 ## Status
 
-**Version:** 0.2.0-evolution | **Stand:** 30.05.2026 19:00 | **Phasen:** 1–7 ✅ 100% | **GitHub:** [v0.2.0 Release](https://github.com/theWatcherNineteen83/agicore-agent/releases/tag/v0.2.0)
+**Version:** 0.2.0-evolution | **Stand:** 30.05.2026 23:15 | **Phasen:** 1–7 ✅ 100% | **GitHub:** [v0.2.0 Release](https://github.com/theWatcherNineteen83/agicore-agent/releases/tag/v0.2.0)
 
 → Details: **[FEATURES.md](FEATURES.md)** · **[AGI_EDI_ROADMAP.md](AGI_EDI_ROADMAP.md)** · **[RUNBOOK.md](RUNBOOK.md)** · **[TODO_Metis.md](TODO_Metis.md)**
 
@@ -23,13 +23,16 @@ Sie denkt in kognitiven Zyklen (Perceive → Plan → Execute → Observe → Le
 │  │ • CoreLoop   │  │ • Planner    │  │  • ALERT/PRUNE       │   │
 │  │ • WorldModel │  │ • EvalHarness│  │  • Audit-Log (SHA)   │   │
 │  │ • SafetyGuard│  │ • ModelReg.  │  │  • Health-Monitor    │   │
-│  │ • SelfModel  │  │ • 22 Actions │  └──────────────────────┘   │
-│  └──────────────┘  └──────────────┘                              │
+│  │ • SelfModel  │  │ • 24 Actions │  └──────────────────────┘   │
+│  └──────────────┘  │ • Kanban Board│                              │
+│                     └──────────────┘                              │
 │                                                                  │
 │  HTTP-API (Port 11735) ← OpenWebUI, curl, Health-Checks          │
 │  Telegram Bot       ← @metis_agi_bot (gemma4:e4b, Deutsch)       │
 │  Camera Vision      ← minicpm-v (alle 5 Min, Tür + Balkon)       │
 │  Wikipedia Lerner   ← Curiosity-gesteuert (alle 10 Min)          │
+│  Speech-Loop        ← Piper TTS → Vosk STT (~5% der Artikel)     │
+│  Java Lerner        ← Zulu JDK 25 Exploration (alle 15 Min)      │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
@@ -38,6 +41,7 @@ Sie denkt in kognitiven Zyklen (Perceive → Plan → Execute → Observe → Le
 - **WorldModel:** 5.700+ Beliefs, HybridSearch (BM25+Cosinus), PersistentVectorIndex
 - **Eval-Harness:** 6 Kategorien, 50+ Tasks, 3-Tier (SMOKE/FULL/EXTENDED), Gate: PASS ✅
 - **Watchdog:** Separate JVM, Heartbeat-Check (5s), Audit-Log mit SHA-256 Hash-Chain
+- **Kanban Board:** 4 Columns (BACKLOG→READY→IN_PROGRESS→DONE), WIP-Limits pro ResourceType, Service-Klassen (EXPEDITE/FIXED_DATE/STANDARD/INTANGIBLE), Anderson 2010
 
 ## Schnellstart
 
@@ -47,7 +51,8 @@ cd agicore-agent
 mvn package -DskipTests
 java -jar agicore-modules/target/metis-agent.jar \
   --api-port 11735 \
-  --evolution
+  --evolution \
+  --kanban
 ```
 
 ### Telegram-Bot
@@ -68,6 +73,7 @@ URL: http://<host>:11735
 | `--api-port N` | HTTP-API Port (default: 11735) |
 | `--interval N` | Tick-Intervall in ms (default: 5000) |
 | `--evolution` | Self-Evolution aktivieren |
+| `--kanban` | Kanban Goal Board (WIP-Limits, Pull-System) |
 | `--kernel-evolution` | Kernel + Module Evolution |
 | `--bootstrap-models A,B` | Consensus-Bootstrap-Modelle |
 | `--planning-model M` | Planungs-Modell überschreiben |
@@ -89,6 +95,7 @@ URL: http://<host>:11735
 | `GET /api/agents` | Multi-Agent-Status |
 | `POST /api/admin/prune` | Modell aus Registry entfernen |
 | `POST /api/admin/refresh-models` 🆕 | Ollama-Modelle live aktualisieren |
+| `/api/board` 🆕 | Kanban-Board Live-View (Spalten, WIP, Flow-Metriken) |
 
 ## Modell-Strategie
 
