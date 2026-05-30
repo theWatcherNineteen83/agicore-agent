@@ -14,6 +14,8 @@ import java.util.logging.Logger;
 
 import de.metis.kernel.persistence.KnowledgeStore;
 import de.metis.kernel.safety.OutputValidator;
+import de.metis.kernel.goal.KanbanBoard;
+import de.metis.kernel.goal.GoalFlowMetrics;
 import de.metis.modules.persona.Persona;
 import de.metis.modules.multiagent.AgentCoordinator;
 
@@ -46,6 +48,7 @@ public class MetisHttpServer {
     private AgentCoordinator coordinator;
     private RollbackManager rollbackManager;  // Phase 5: Blue/Green
     private BugfixingAgent bugfixingAgent;     // Phase 5: Auto-fix
+    private KanbanBoard kanbanBoard;           // Kanban: Goal Board
 
     public MetisHttpServer(Agent agent, int port) throws IOException {
         this.agent = agent;
@@ -84,6 +87,7 @@ public class MetisHttpServer {
         server.createContext("/api/agents", this::handleAgents);
         server.createContext("/api/admin/prune", this::handlePrune);
         server.createContext("/api/admin/refresh-models", this::handleRefreshModels);
+        server.createContext("/api/board", this::handleBoard);
     }
 
     public void setKnowledgeStore(KnowledgeStore ks) { this.knowledgeStore = ks; }
@@ -91,6 +95,7 @@ public class MetisHttpServer {
     public void setRollbackManager(RollbackManager rm) { this.rollbackManager = rm; }
     public void setBugfixingAgent(BugfixingAgent ba) { this.bugfixingAgent = ba; }
     public void setModelRegistry(de.metis.modules.evolution.ModelRegistry mr) { this.modelRegistry = mr; }
+    public void setKanbanBoard(KanbanBoard kb) { this.kanbanBoard = kb; }
 
     public void start() {
         server.start();
@@ -782,5 +787,81 @@ public class MetisHttpServer {
         } catch (Exception e) {
             sendJson(exchange, 500, "{\"ok\":false,\"error\":\"" + e.getMessage() + "\"}");
         }
+    }
+
+    // ── /api/board ──────────────────────────────────────────────
+
+    private void handleBoard(HttpExchange exchange) throws IOException {
+        if (kanbanBoard == null) {
+            sendJson(exchange, 200, "{\"enabled\":false,\"message\":\"Kanban board not enabled. Start with --kanban flag.\"}");
+            return;
+        }
+        var snap = kanbanBoard.snapshot();
+        var sb = new StringBuilder();
+        sb.append("{\n");
+        sb.append("  \"enabled\": true,\n");
+        sb.append("  \"backlog\": ").append(snap.backlogSize()).append(",\n");
+        sb.append("  \"ready\": ").append(snap.readySize()).append(",\n");
+        sb.append("  \"inProgress\": ").append(snap.inProgressSize()).append(",\n");
+        sb.append("  \"done\": ").append(snap.doneSize()).append(",\n");
+        sb.append("  \"totalCompleted\": ").append(snap.totalCompleted()).append(",\n");
+        sb.append("  \"totalExpedites\": ").append(snap.totalExpedites()).append(",\n");
+        sb.append("  \"wipPercent\": ").append(snap.wipPercent()).append(",\n");
+
+        // WIP limits
+        sb.append("  \"wipLimits\": {\n");
+        var limits = snap.wipLimits();
+        boolean firstLimit = true;
+        for (var entry : limits.entrySet()) {
+            if (!firstLimit) sb.append(",\n");
+            sb.append("    \"").append(entry.getKey().name()).append("\": {");
+            sb.append("\"limit\":").append(entry.getValue());
+            sb.append(",\"current\":").append(kanbanBoard.countInProgress(entry.getKey()));
+            sb.append("}");
+            firstLimit = false;
+        }
+        sb.append("\n  },\n");
+
+        // In-progress goals
+        sb.append("  \"inProgressGoals\": [\n");
+        boolean firstGoal = true;
+        for (var g : snap.inProgress()) {
+            if (!firstGoal) sb.append(",\n");
+            sb.append("    {\"description\":\"").append(jsonEscape(g.description())).append("\"");
+            sb.append(",\"serviceClass\":\"").append(g.serviceClass().name()).append("\"");
+            sb.append(",\"resourceType\":\"").append(g.resourceType().name()).append("\"");
+            sb.append(",\"priority\":").append(g.priority()).append("}");
+            firstGoal = false;
+        }
+        sb.append("\n  ],\n");
+
+        // Recent done with flow metrics
+        sb.append("  \"recentDone\": [\n");
+        boolean firstDone = true;
+        for (var fm : snap.recentDone()) {
+            if (!firstDone) sb.append(",\n");
+            sb.append("    {\"description\":\"").append(jsonEscape(fm.description())).append("\"");
+            sb.append(",\"serviceClass\":\"").append(fm.serviceClass().name()).append("\"");
+            sb.append(",\"resourceType\":\"").append(fm.resourceType().name()).append("\"");
+            sb.append(",\"leadTime\":\"").append(formatDuration(fm.leadTime())).append("\"");
+            sb.append(",\"cycleTime\":\"").append(formatDuration(fm.cycleTime())).append("\"");
+            sb.append(",\"retries\":").append(fm.retries()).append("}");
+            firstDone = false;
+        }
+        sb.append("\n  ]\n");
+        sb.append("}");
+
+        sendJson(exchange, 200, sb.toString());
+    }
+
+    private static String jsonEscape(String s) {
+        return s.replace("\\", "\\\\").replace("\"", "\\\"");
+    }
+
+    private static String formatDuration(java.time.Duration d) {
+        long s = d.getSeconds();
+        if (s < 60) return s + "s";
+        if (s < 3600) return (s / 60) + "m" + (s % 60) + "s";
+        return (s / 3600) + "h" + ((s % 3600) / 60) + "m";
     }
 }

@@ -7,6 +7,7 @@ import de.metis.kernel.action.LinuxExploreAction;
 import de.metis.kernel.action.ApiExplorerAction;
 import de.metis.kernel.action.JavaSandboxAction;
 import de.metis.kernel.action.ReadSourceAction;
+import de.metis.kernel.goal.KanbanBoard;
 import de.metis.kernel.persistence.KnowledgeStore;
 import de.metis.kernel.evolution.EvolutionManager;
 import de.metis.kernel.metrics.PerformanceMetrics;
@@ -694,6 +695,7 @@ public final class AgentMain {
         boolean evolution = false;
         boolean kernelEvolution = false;
         boolean requireApproval = true;
+        boolean kanbanEnabled = false;
         boolean voiceLoopEnabled = true;  // always-on for voice interaction
         int maxTicks = 0;
         int apiPort = 0;  // 0 = disabled
@@ -731,6 +733,7 @@ public final class AgentMain {
                 case "--mqtt-user" -> mqttUser = args[++i];
                 case "--mqtt-pass" -> mqttPass = args[++i];
                 case "--no-approval-gate" -> requireApproval = false;
+                case "--kanban" -> kanbanEnabled = true;
                 case "--voice-loop" -> voiceLoopEnabled = true;
                 case "--help", "-h" -> {
                     System.out.println("""
@@ -741,6 +744,7 @@ public final class AgentMain {
                               --evolution           Enable self-evolution (modules only)
                               --evolution           Enable module evolution (non-kernel)
                               --kernel-evolution    Enable kernel + module evolution
+                              --kanban              Enable Kanban goal board (WIP limits, pull system)
                               --max-ticks N         Stop after N ticks (default: unlimited)
                               --api-port N          Start Ollama-compatible HTTP API on port N
                               --planning-model M    Override auto-selected planning model
@@ -791,6 +795,14 @@ public final class AgentMain {
         // Human-in-the-loop: enable/disable approval gate for write actions
         agent.core().setRequireApprovalForWrite(requireApproval);
         LOG.info("Approval gate: " + (requireApproval ? "ENABLED (write actions blocked)" : "DISABLED"));
+
+        // ── Kanban Goal Board (WIP limits, pull system, service classes) ──
+        if (kanbanEnabled) {
+            var board = new KanbanBoard();
+            agent.core().goals().setKanbanBoard(board);
+            LOG.info("Kanban board enabled — WIP limits per resource type:");
+            LOG.info("  GPU_HEAVY=1  INFERENCE=2  CPU_HEAVY=2  LIGHT=4");
+        }
 
         // Register filesystem actions (kernel extensibility)
         agent.core().executor().register(
@@ -1031,6 +1043,9 @@ public final class AgentMain {
             httpServer.setKnowledgeStore(knowledgeStore);
             httpServer.setModelRegistry(modelRegistry);
             httpServer.setCoordinator(coordinator);
+            if (kanbanEnabled) {
+                httpServer.setKanbanBoard(agent.core().goals().kanbanBoard());
+            }
             httpServer.start();
         }
 

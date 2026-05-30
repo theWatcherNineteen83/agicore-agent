@@ -21,6 +21,9 @@ public class GoalManager {
     private final GoalConflictResolver resolver;
     private final List<java.util.function.Consumer<Goal>> goalListeners = new ArrayList<>();
 
+    /** Kanban board integration (optional — null = legacy mode). */
+    private volatile KanbanBoard kanbanBoard;
+
     /** Register a listener notified on every goal addition. */
     public void onGoalAdded(java.util.function.Consumer<Goal> listener) {
         goalListeners.add(listener);
@@ -41,7 +44,8 @@ public class GoalManager {
     }
 
     /**
-     * Register a new active goal.
+     * Register a new active goal. If a KanbanBoard is configured,
+     * the goal is also added to the BACKLOG column.
      *
      * @return the stored goal
      */
@@ -49,6 +53,10 @@ public class GoalManager {
         goals.put(goal.id(), goal);
         LOG.info(() -> "Goal added: " + goal);
         for (var l : goalListeners) { try { l.accept(goal); } catch (Exception e) {} }
+        if (kanbanBoard != null) {
+            kanbanBoard.add(goal);
+            kanbanBoard.promoteReady();
+        }
         return goal;
     }
 
@@ -69,8 +77,45 @@ public class GoalManager {
         }
     }
 
+    // ── Kanban Board integration ─────────────────────────────
+
+    /** Enable Kanban pull-based goal processing. */
+    public void setKanbanBoard(KanbanBoard board) {
+        this.kanbanBoard = board;
+    }
+
+    public KanbanBoard kanbanBoard() { return kanbanBoard; }
+
+    /**
+     * Pull the next goal from the Kanban board.
+     * Preferred over {@link #nextGoal()} when Kanban is enabled —
+     * respects WIP limits, service classes, and resource types.
+     *
+     * @return the pulled goal, or null if nothing can be pulled
+     */
+    public Goal pullFromBoard() {
+        if (kanbanBoard == null) return nextGoal();
+        return kanbanBoard.pull();
+    }
+
+    /**
+     * Mark a goal as completed on both the Goal registry and the Kanban board.
+     */
+    public GoalFlowMetrics completeOnBoard(UUID id) {
+        Goal old = goals.get(id);
+        if (old == null) return null;
+        Goal done = old.deactivate();
+        goals.put(id, done);
+        LOG.info(() -> "Goal completed: " + done);
+        if (kanbanBoard != null) {
+            return kanbanBoard.complete(id);
+        }
+        return null;
+    }
+
     /**
      * Mark a goal as completed (deactivated but retained).
+     * Legacy method — prefer {@link #completeOnBoard(UUID)} when Kanban is enabled.
      *
      * @return the updated goal, or {@code null} if not found
      */
@@ -81,6 +126,15 @@ public class GoalManager {
         goals.put(id, done);
         LOG.info(() -> "Goal completed: " + done);
         return done;
+    }
+
+    /**
+     * Requeue a failed goal on the Kanban board for retry.
+     */
+    public void requeueOnBoard(Goal goal) {
+        if (kanbanBoard != null) {
+            kanbanBoard.requeue(goal);
+        }
     }
 
     /**

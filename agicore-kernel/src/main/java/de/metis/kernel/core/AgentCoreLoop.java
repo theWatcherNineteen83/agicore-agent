@@ -140,33 +140,59 @@ public class AgentCoreLoop {
         // ── PERCEIVE ────────────────────────────────────────────
         currentPhase = CognitiveCycle.PERCEIVE;
 
-        // Hardening: extract attention keywords from broadcast
-        List<String> attentionKeywords = broadcast.stream()
-                .map(ContentItem::summary)
-                .flatMap(s -> java.util.Arrays.stream(s.toLowerCase().split("\\s+")))
-                .filter(w -> w.length() > 3)
-                .distinct()
-                .toList();
+        // ── Goal Selection: Kanban pull-first (WIP limits), legacy fallback ──
+        // Promote backlog goals to READY for pull consideration
+        if (goals.kanbanBoard() != null) {
+            goals.kanbanBoard().promoteReady();
+        }
 
-        // Hardening: workspace-biased goal selection
-        Goal goal = goals.nextGoalBiased(attentionKeywords, 25);
-        if (goal == null) {
-            // Hardening: idle exploration — create a curiosity goal
+        // 1. Try Kanban pull (respects WIP limits, service classes, resource types)
+        Goal kanbanResult = (goals.kanbanBoard() != null) ? goals.pullFromBoard() : null;
+        if (kanbanResult != null) {
+            final Goal kg = kanbanResult;
+            LOG.fine(() -> "Kanban pull: " + kg.description()
+                    + " [svc=" + kg.serviceClass() + " res=" + kg.resourceType() + "]"
+                    + " WIP=" + goals.kanbanBoard().totalWip()
+                    + "/" + goals.kanbanBoard().totalWipPercent() + "%");
+        }
+
+        // 2. Legacy fallback: workspace-biased selection (when Kanban returns null)
+        Goal legacyResult = null;
+        if (kanbanResult == null) {
+            List<String> attentionKeywords = broadcast.stream()
+                    .map(ContentItem::summary)
+                    .flatMap(s -> java.util.Arrays.stream(s.toLowerCase().split("\\s+")))
+                    .filter(w -> w.length() > 3)
+                    .distinct()
+                    .toList();
+            legacyResult = goals.nextGoalBiased(attentionKeywords, 25);
+        }
+
+        final Goal goal = kanbanResult != null ? kanbanResult : legacyResult;
+        Goal resolvedGoal = goal;
+
+        // Idle exploration: generate curiosity goal if nothing to do
+        if (resolvedGoal == null) {
             if (tickCount % 5 == 0 && idleGoalSupplier != null) {
                 var idleGoal = idleGoalSupplier.get();
                 if (idleGoal != null) {
-                    goal = goals.add(idleGoal);
+                    resolvedGoal = goals.add(idleGoal);
+                    // With Kanban: add to board and try to pull right away
+                    if (goals.kanbanBoard() != null) {
+                        goals.kanbanBoard().add(resolvedGoal);
+                        goals.kanbanBoard().promoteReady();
+                        resolvedGoal = goals.pullFromBoard();
+                    }
                     LOG.fine("Idle: curiosity-generated goal");
                 }
             }
         }
-        if (goal == null) {
+        if (resolvedGoal == null) {
             LOG.fine("No active goals — idle tick");
             metrics.recordTick(null, null, meta);
             return null;
         }
-        // Effectively final copy for lambda capture
-        final Goal currentGoal = goal;
+        final Goal currentGoal = resolvedGoal;
 
         // Attention bias: if self/world/meta content won, adjust perception
         Optional<ContentItem> focus = workspace.focus();
@@ -181,11 +207,15 @@ public class AgentCoreLoop {
         // ── PLAN ─────────────────────────────────────────────────
         currentPhase = CognitiveCycle.PLAN;
         // Fix #1: planner receives broadcast (causal workspace → planning)
-        List<String> plan = planner.plan(goal, recentHistory, broadcast, meta);
+        List<String> plan = planner.plan(currentGoal, recentHistory, broadcast, meta);
         if (plan.isEmpty()) {
-            LOG.warning(() -> "No plan for goal: " + currentGoal.description() + " — unachievable");
+            LOG.warning(() -> "No plan for goal: " + currentGoal.description() + " — deferring");
             goals.recordOutcome(currentGoal, false);
-            goals.complete(currentGoal.id());
+            if (goals.kanbanBoard() != null) {
+                goals.requeueOnBoard(currentGoal);
+            } else {
+                goals.complete(currentGoal.id());
+            }
             metrics.recordTick(currentGoal, null, meta);
             worldModel.observe("goal:" + currentGoal.description() + " has no plan", false);
             metaRepr.recordStrategy("keyword-match", false);
@@ -194,11 +224,15 @@ public class AgentCoreLoop {
 
         // Huyen Kap. 6 + 1.4: Plan validieren vor Ausführung
         // Enhanced with context-aware validation (goal relevance, confidence gate)
-        PlanValidator.ValidationResult validation = planValidator.validateWithContext(plan, goal, meta);
+        PlanValidator.ValidationResult validation = planValidator.validateWithContext(plan, currentGoal, meta);
         if (!validation.valid()) {
             LOG.warning("Plan rejected by validator: " + validation.reason());
             goals.recordOutcome(currentGoal, false);
-            goals.complete(currentGoal.id());
+            if (goals.kanbanBoard() != null) {
+                goals.requeueOnBoard(currentGoal);
+            } else {
+                goals.complete(currentGoal.id());
+            }
             metrics.recordTick(currentGoal, null, meta);
             return null;
         }
@@ -219,7 +253,11 @@ public class AgentCoreLoop {
             LOG.warning(() -> emoji + " " + level + " action blocked (" + reason + "): "
                     + actionName + " for goal: " + currentGoal.description());
             goals.recordOutcome(currentGoal, false);
-            goals.complete(currentGoal.id());
+            if (goals.kanbanBoard() != null) {
+                goals.requeueOnBoard(currentGoal);
+            } else {
+                goals.complete(currentGoal.id());
+            }
             metrics.recordTick(currentGoal, null, meta);
             return ActionResult.fail(actionName, "Blocked: " + reason, java.time.Instant.now());
         }
@@ -235,7 +273,7 @@ public class AgentCoreLoop {
         // ── OBSERVE ──────────────────────────────────────────────
         currentPhase = CognitiveCycle.OBSERVE;
         // Fix #2: prediction error = |expectedSuccess - actual|
-        double expectedSuccess = planner.expectedSuccess(goal, actionName);
+        double expectedSuccess = planner.expectedSuccess(currentGoal, actionName);
         double actualOutcome = result.success() ? 1.0 : 0.0;
         double predictionError = Math.abs(expectedSuccess - actualOutcome);
 
@@ -265,7 +303,7 @@ public class AgentCoreLoop {
         planner.learnFromOutcome(goal, plan, result);
         goals.recordOutcome(goal, result.success());
         metrics.recordTick(goal, result, meta);
-        causalModel.observe("action:" + result.name(), "goal:" + goal.description().substring(0, Math.min(goal.description().length(), 50)), result.success() ? "success" : "failure", result.success());
+        causalModel.observe("action:" + result.name(), "goal:" + currentGoal.description().substring(0, Math.min(currentGoal.description().length(), 50)), result.success() ? "success" : "failure", result.success());
 
         // Phase 3: update world model from observation
         worldModel.observe(
@@ -305,7 +343,19 @@ public class AgentCoreLoop {
         }
 
         if (result.success()) {
-            goals.complete(currentGoal.id());
+            if (goals.kanbanBoard() != null) {
+                var flowMetrics = goals.completeOnBoard(currentGoal.id());
+                if (flowMetrics != null) {
+                    LOG.info(() -> "Kanban flow: " + flowMetrics);
+                }
+            } else {
+                goals.complete(currentGoal.id());
+            }
+        } else {
+            // Requeue failed goals on Kanban board for retry
+            if (goals.kanbanBoard() != null) {
+                goals.requeueOnBoard(currentGoal);
+            }
         }
 
         LOG.info(() -> String.format("Tick %d: %s → %s [%s] err=%.2f conf=%.2f attn=%s ent=%.2f | %s",
