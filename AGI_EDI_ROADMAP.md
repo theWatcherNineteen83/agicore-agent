@@ -3,7 +3,7 @@
 **Ziel:** EDI-ähnliche KI (Mass Effect 3) — eigenständig, per Sprache und Text ansprechbar,
 mit eigenem Wissen, Persönlichkeit, narrativem Selbstmodell und der Fähigkeit, sich selbst zu verbessern.
 
-**Stand: 31.05.2026 01:00 (v0.4.0-phase8-foundation)**
+**Stand: 31.05.2026 01:15 (v0.4.1-phase8-complete)**
 
 ---
 
@@ -25,14 +25,14 @@ Phase 6  ████████████████████ 100%  Prod
 Phase 7  ████████████████████ 100%  Watchdog + Audit-Anchor
 Phase 7+ ████████████████████ 100%  Defense-in-Depth (30./31.05.)
 ─────────────────────────────────────  AUTONOMER AGENT bis hier
-Phase 8  ████████████░░░░░░░░  60%  Narratives Selbstmodell (Foundation)   ← EDI-Distanz
+Phase 8  ████████████████████ 100%  Narratives Selbstmodell ✅            ← EDI-Distanz
 Phase 9  ░░░░░░░░░░░░░░░░░░░░   0%  Long-Horizon-Planung
 Phase 10 ░░░░░░░░░░░░░░░░░░░░   0%  Aktive kausale Hypothesen
 Phase 11 ░░░░░░░░░░░░░░░░░░░░   0%  Beziehungs-Modell
 ─────────────────────────────────────  EDI-ÄHNLICHE KI ab hier
 ```
 
-**Realistisches EDI-Niveau: ~58-60%** (nach Phase 8 Foundation: +5-10% durch Episode-Memory + SelfNarrative + PersonalityAnchor mit Hash-Pin).
+**Realistisches EDI-Niveau: ~62-65%** (Phase 8 komplett: Selbstmodell-Bestandteile fließen in jeden LLM-Call, DreamConsolidation produziert LLM-narrative Episoden).
 
 ---
 
@@ -138,7 +138,7 @@ Phase 11 ░░░░░░░░░░░░░░░░░░░░   0%  Bezi
 
 ---
 
-## 🧠 Phase 8: Narratives Selbstmodell ✅ Foundation deployed (31.05.)
+## 🧠 Phase 8: Narratives Selbstmodell ✅ 100% (31.05.)
 
 **Ziel:** Metis hat ein narratives Ich, das sich über Sessions hinweg erinnert und Selbstbild
 fortschreibt — nicht nur Metriken, sondern Episoden.
@@ -154,8 +154,8 @@ fortschreibt — nicht nur Metriken, sondern Episoden.
 - [x] **DreamConsolidation** — nightly Cron-Aufruf (03:00 Europe/Berlin), deterministische Verdichtung der 24h zu Episode + SelfNarrative-Eintrag; optionaler `SummaryFunction`-Hook für LLM-Drop-in (Phase 8.5b)
 - [x] **Wiring in AgentMain** — alle 5 Komponenten aktiv beim Boot, MoodSignal-Tick alle 60s, DreamConsolidation alle 24h
 - [x] **7 JUnit-Tests** (`Phase8NarrativeSelfTest`) — Record-Invarianten, Hash-Chain-Append, Tampering, EMA-Bounds, Narrative-Round-Trip, Dream-Pipeline
-- [ ] **SystemPromptBuilder-Integration** — SelfNarrative.recentContext() + PersonalityAnchor.text() + MoodSignal.label() in OllamaPlanner-Prompt einbinden (Phase 8.6)
-- [ ] **LLM-getriebene SummaryFunction** für DreamConsolidation (Phase 8.5b — optional)
+- [x] **SystemPromptBuilder-Integration** (Phase 8.6) — SelfNarrative + PersonalityAnchor + MoodSignal + Episode-Auszug fließen in MetisHttpServer.handleChat und TelegramBotService.processMessage ein
+- [x] **LLM-getriebene SummaryFunction** (Phase 8.5b) — `LlmDreamSummarizer` nutzt `gemma4:e4b` mit `keep_alive=0`; Fallback auf deterministische Variante bei Ollama-Fehler
 
 **Aufwand bisher:** ~1 Tag · **Verbleibend für Phase 8 komplett:** ~1 Woche
 **EDI-Distanz nach Phase 8.6:** ~60-65% (Foundation+Wiring) → ~65-70% (mit SystemPromptBuilder)
@@ -215,6 +215,32 @@ weltweit hat sie aktuell geknackt.
 
 ---
 
+
+
+## 🌀 Phase 12: Recursive Self-Improvement (NEU, nach 8-11)
+
+**Ziel:** Metis kann Phasen selbst weiterentwickeln — Roadmap lesen, Code planen, Tests schreiben, Promotion durch Eval-Gate.
+
+**Warum erst NACH Phasen 8-11:**
+- Ohne Narratives Selbst (8): Metis weiß nicht, was es selbst ist und was es bleiben muss → Goodhart-Katastrophe.
+- Ohne Long-Horizon-Planung (9): Phase X als Multi-Wochen-Projekt nicht abbildbar.
+- Ohne Kausale Hypothesen (10): "Was passiert, wenn ich diese Klasse so ändere?" → blindes Trial-Error.
+- Ohne Beziehungs-Modell (11): Metis kennt Georgs eigentliche Intention nicht.
+
+**Bausteine (Vorschlag):**
+- [ ] **RepoIndex** — AST-basierter Index aller Java-Klassen, Dependency-Graph, semantischer Suche-Index
+- [ ] **RoadmapReader** — Markdown-Parser für AGI_EDI_ROADMAP, strukturierte Goal-Repräsentation, Coverage-Tracking pro Phase
+- [ ] **MultiFileCodeGen** — Code-Synthese über mehrere Files, mit Test-First-Generierung
+- [ ] **MutationProposal** — Vorschlag = Diff + Spec + Risiko-Bewertung; geht durch erweitertes Approval-Gate (CONFIRM für Cross-Module)
+- [ ] **DualReviewer** — Mutation muss von 2 unabhängigen Eval-Modellen + 1 Property-based-Test-Suite abgesegnet werden
+- [ ] **PhaseCompletionEvaluator** — Watchdog-Komponente, die "Phase X done" als strukturiertes Kriterium prüft (nicht nur Eval-Regression)
+- [ ] **PersonalityAnchor-Mirror** im Watchdog-read-only-Bereich (gespiegelt, Tampering durch Metis selbst dann unmöglich)
+- [ ] **HumanCheckpoint** — bei strukturell sensiblen Änderungen (Kernel, Safety, Watchdog) immer expliziter Mensch-Approval
+
+**Aufwand:** geschätzt 6-10 Wochen, Forschungs-Charakter.
+**Risiko:** sehr hoch — voreilig aktivieren = Goodhart, Wertkern-Drift, Watchdog-Bypass durch Self-Evolution.
+**EDI-Distanz nach Phase 12:** ~95% (die letzten 5% bleiben offene Forschung zu Bewusstsein/Phänomenologie).
+
 ## Modell-Strategie (Stand 31.05.)
 
 ### Aktive Modelle
@@ -265,7 +291,7 @@ weltweit hat sie aktuell geknackt.
 | 🟢 **M6: Autonomie** | Phase 5 | ✅ Erreicht |
 | 🟢 **M7: Produktionsreife** | Phase 6 | ✅ Erreicht |
 | 🟢 **M8: Sicherheit + Defense-in-Depth** | Phase 7 + 7+ | ✅ Erreicht |
-| 🟡 **M9: Narratives Selbst** | Phase 8 | 🔄 Foundation deployed (~60%) |
+| 🟢 **M9: Narratives Selbst** | Phase 8 | ✅ Erreicht (100%) |
 | 🔴 **M10: Long-Horizon-Planung** | Phase 9 | ⬜ Ungelöst |
 | 🔴 **M11: Kausales Selbstmodell** | Phase 10 | ⬜ Ungelöst |
 | 🔴 **M12: Beziehungs-Modell** | Phase 11 | ⬜ Ungelöst |

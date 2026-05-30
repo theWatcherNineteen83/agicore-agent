@@ -39,6 +39,8 @@ import de.metis.kernel.self.SelfNarrative;
 import de.metis.kernel.self.MoodSignal;
 import de.metis.kernel.self.PersonalityAnchor;
 import de.metis.kernel.self.DreamConsolidation;
+import de.metis.kernel.self.SystemPromptBuilder;
+import de.metis.modules.knowledge.LlmDreamSummarizer;
 import de.metis.modules.hardware.TornadoVmAction;
 import de.metis.modules.multiagent.AgentCoordinator;
 import de.metis.modules.CuriosityEngine;
@@ -1046,6 +1048,81 @@ public final class AgentMain {
 
         // ── Start HTTP API (OpenWebUI integration) ────────────
         MetisHttpServer httpServer = null;
+        // ── Phase 8: Narratives Selbstmodell ─────────────────────────
+        // EpisodicMemory + SelfNarrative + MoodSignal + PersonalityAnchor
+        // + DreamConsolidation (nightly tick at 03:00 local)
+        var personalityAnchor = new PersonalityAnchor();
+        if (personalityAnchor.isTampered()) {
+            LOG.severe("⚠️ PersonalityAnchor TAMPERED — running with degraded identity guarantee!");
+        }
+        var episodicMemory = new EpisodicMemory();
+        var selfNarrative  = new SelfNarrative();
+        var moodSignal     = new MoodSignal();
+        var dreamConsolidation = new DreamConsolidation(episodicMemory, selfNarrative, moodSignal);
+        dreamConsolidation.setSummarizer(new LlmDreamSummarizer(
+                "http://192.168.22.204:11434", "gemma4:e4b"));
+
+        // Update mood every minute from current metrics (cheap, deterministic)
+        var moodScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+            var t = new Thread(r, "mood-signal");
+            t.setDaemon(true);
+            return t;
+        });
+        moodScheduler.scheduleAtFixedRate(() -> {
+            try {
+                var m = agent.metrics();
+                double goalRate = m != null ? m.goalSuccessRate() : 0.5;
+                double surprise = 0.5; // CuriosityEngine surface not exported; placeholder
+                double evalOk   = 1.0; // Watchdog overrides at runtime if Eval fails
+                double recentEnergy = Math.min(1.0, (m != null ? m.totalTicks() : 0) / 10000.0);
+                moodSignal.update(null, goalRate, evalOk, surprise, recentEnergy);
+            } catch (Exception e) { /* mood updates are best-effort */ }
+        }, 30, 60, TimeUnit.SECONDS);
+
+        // Nightly dream consolidation at 03:00 local (Europe/Berlin).
+        // Initial delay aligned to next 03:00, then every 24h.
+        var dreamScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+            var t = new Thread(r, "dream-consolidation");
+            t.setDaemon(true);
+            return t;
+        });
+        long initialDreamDelaySec;
+        {
+            var zone = java.time.ZoneId.of("Europe/Berlin");
+            var now  = java.time.ZonedDateTime.now(zone);
+            var next = now.withHour(3).withMinute(0).withSecond(0).withNano(0);
+            if (!next.isAfter(now)) next = next.plusDays(1);
+            initialDreamDelaySec = java.time.Duration.between(now, next).toSeconds();
+        }
+        dreamScheduler.scheduleAtFixedRate(() -> {
+            try {
+                var m = agent.metrics();
+                var end = java.time.Instant.now();
+                var start = end.minus(java.time.Duration.ofHours(24));
+                var stats = new DreamConsolidation.DayStats(
+                        start, end,
+                        m != null ? m.totalTicks() : 0,
+                        agent.worldModel().beliefCount(),
+                        m != null ? (int) Math.round(m.goalSuccessRate() * 100) : 0,
+                        0,
+                        m != null ? m.goalSuccessRate() : 0.0,
+                        1.0,
+                        java.util.List.of(),
+                        java.util.List.of(),
+                        java.util.List.of(),
+                        null);
+                dreamConsolidation.consolidate(stats);
+                LOG.info("Nightly dream consolidated. Episodes total: " + episodicMemory.size());
+            } catch (Exception e) {
+                LOG.warning("Dream consolidation failed: " + e.getMessage());
+            }
+        }, initialDreamDelaySec, 24 * 3600, TimeUnit.SECONDS);
+        var systemPromptBuilder = new SystemPromptBuilder(
+                personalityAnchor, selfNarrative, moodSignal, episodicMemory);
+        LOG.info("Phase 8 wired — episodes=" + episodicMemory.size()
+                + ", anchor=" + (personalityAnchor.isTampered() ? "TAMPERED" : "verified")
+                + ", next dream in " + initialDreamDelaySec + "s");
+
         if (apiPort > 0) {
             httpServer = new MetisHttpServer(agent, apiPort);
             httpServer.setKnowledgeStore(knowledgeStore);
@@ -1053,8 +1130,9 @@ public final class AgentMain {
             httpServer.setCoordinator(coordinator);
             if (kanbanEnabled) {
                 httpServer.setKanbanBoard(agent.core().goals().kanbanBoard());
-        httpServer.setEmbeddingService(embedSvc);
             }
+            httpServer.setEmbeddingService(embedSvc);
+            httpServer.setSystemPromptBuilder(systemPromptBuilder);
             httpServer.start();
         }
 
@@ -1063,6 +1141,7 @@ public final class AgentMain {
         if (telegramToken != null && !telegramToken.isBlank()) {
             telegramBot = new TelegramBotService(telegramToken, agent);
             telegramBot.setKnowledgeStore(knowledgeStore);
+            telegramBot.setSystemPromptBuilder(systemPromptBuilder);
             telegramBot.start();
             LOG.info("Telegram bot active — direct messaging enabled");
         }
@@ -1135,76 +1214,6 @@ public final class AgentMain {
         eventTriggers.add(cameraPolling);
         LOG.info("Camera event trigger active — " + cameraPolling.description());
 
-        // ── Phase 8: Narratives Selbstmodell ─────────────────────────
-        // EpisodicMemory + SelfNarrative + MoodSignal + PersonalityAnchor
-        // + DreamConsolidation (nightly tick at 03:00 local)
-        var personalityAnchor = new PersonalityAnchor();
-        if (personalityAnchor.isTampered()) {
-            LOG.severe("⚠️ PersonalityAnchor TAMPERED — running with degraded identity guarantee!");
-        }
-        var episodicMemory = new EpisodicMemory();
-        var selfNarrative  = new SelfNarrative();
-        var moodSignal     = new MoodSignal();
-        var dreamConsolidation = new DreamConsolidation(episodicMemory, selfNarrative, moodSignal);
-
-        // Update mood every minute from current metrics (cheap, deterministic)
-        var moodScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
-            var t = new Thread(r, "mood-signal");
-            t.setDaemon(true);
-            return t;
-        });
-        moodScheduler.scheduleAtFixedRate(() -> {
-            try {
-                var m = agent.metrics();
-                double goalRate = m != null ? m.goalSuccessRate() : 0.5;
-                double surprise = 0.5; // CuriosityEngine surface not exported; placeholder
-                double evalOk   = 1.0; // Watchdog overrides at runtime if Eval fails
-                double recentEnergy = Math.min(1.0, (m != null ? m.totalTicks() : 0) / 10000.0);
-                moodSignal.update(null, goalRate, evalOk, surprise, recentEnergy);
-            } catch (Exception e) { /* mood updates are best-effort */ }
-        }, 30, 60, TimeUnit.SECONDS);
-
-        // Nightly dream consolidation at 03:00 local (Europe/Berlin).
-        // Initial delay aligned to next 03:00, then every 24h.
-        var dreamScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
-            var t = new Thread(r, "dream-consolidation");
-            t.setDaemon(true);
-            return t;
-        });
-        long initialDreamDelaySec;
-        {
-            var zone = java.time.ZoneId.of("Europe/Berlin");
-            var now  = java.time.ZonedDateTime.now(zone);
-            var next = now.withHour(3).withMinute(0).withSecond(0).withNano(0);
-            if (!next.isAfter(now)) next = next.plusDays(1);
-            initialDreamDelaySec = java.time.Duration.between(now, next).toSeconds();
-        }
-        dreamScheduler.scheduleAtFixedRate(() -> {
-            try {
-                var m = agent.metrics();
-                var end = java.time.Instant.now();
-                var start = end.minus(java.time.Duration.ofHours(24));
-                var stats = new DreamConsolidation.DayStats(
-                        start, end,
-                        m != null ? m.totalTicks() : 0,
-                        agent.worldModel().beliefCount(),
-                        m != null ? (int) Math.round(m.goalSuccessRate() * 100) : 0,
-                        0,
-                        m != null ? m.goalSuccessRate() : 0.0,
-                        1.0,
-                        java.util.List.of(),
-                        java.util.List.of(),
-                        java.util.List.of(),
-                        null);
-                dreamConsolidation.consolidate(stats);
-                LOG.info("Nightly dream consolidated. Episodes total: " + episodicMemory.size());
-            } catch (Exception e) {
-                LOG.warning("Dream consolidation failed: " + e.getMessage());
-            }
-        }, initialDreamDelaySec, 24 * 3600, TimeUnit.SECONDS);
-        LOG.info("Phase 8 wired — episodes=" + episodicMemory.size()
-                + ", anchor=" + (personalityAnchor.isTampered() ? "TAMPERED" : "verified")
-                + ", next dream in " + initialDreamDelaySec + "s");
 
         // Phase 4: Wikipedia Knowledge Acquisition (live API, no local dump needed)
         // Phase 4: Wikipedia Knowledge Acquisition (live API, no local dump needed)

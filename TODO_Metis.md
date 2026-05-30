@@ -1,6 +1,6 @@
 # TODO Metis — Aktueller Stand & Ehrliche Lücken-Analyse
 
-**Stand: 31.05.2026 01:05 · Tag: v0.4.0-phase8-foundation · Tests: 34 grün · Master: HEAD**
+**Stand: 31.05.2026 01:15 · Tag: v0.4.1-phase8-complete · Tests: 35 grün · Master: HEAD**
 
 ---
 
@@ -44,8 +44,8 @@ Phasen 1-7 + Defense-in-Depth = 100% — das ist ein **außerordentlich gut kons
 - [x] **DreamConsolidation** — nightly 03:00 Europe/Berlin, 24h-Verdichtung
 - [x] **AgentMain-Wiring** — alle 5 Komponenten aktiv, MoodSignal alle 60s, Dream alle 24h
 - [x] **7 JUnit-Tests** (Phase8NarrativeSelfTest), total 34 grün
-- [ ] **SystemPromptBuilder integriert SelfNarrative+Anchor+Mood** (Phase 8.6 — nächster Schritt)
-- [ ] **LLM-SummaryFunction** für DreamConsolidation (Phase 8.5b, optional)
+- [x] **SystemPromptBuilder integriert SelfNarrative+Anchor+Mood** (Phase 8.6 — kompletter Selbstmodell-Block in /api/chat + Telegram)
+- [x] **LLM-SummaryFunction** für DreamConsolidation (Phase 8.5b, LlmDreamSummarizer mit gemma4:e4b, Fallback auf deterministisch)
 
 #### Phase 9 — Long-Horizon-Planung (4-6 Wochen)
 - [ ] **GoalHierarchy** — Strategic/Tactical/Operational mit Parent-Child
@@ -77,9 +77,21 @@ Phasen 1-7 + Defense-in-Depth = 100% — das ist ein **außerordentlich gut kons
 - **Eval-Harness** läuft nur 1x beim Boot, nicht periodisch (Scheduler-Setup offen)
 - **Modell-Prune via Eval-Harness** — Code da, aber 8 Reasoner sind nicht durchgerankt
 
-### 🎯 Vorschlag für den nächsten Pass (Phase 8 starten)
 
-Phase 8 (Narratives Selbstmodell) ist der größte EDI-Hebel pro Aufwand. Wenn du das willst:
+### 🌀 Self-Evolution — kann Metis die Phasen selbst weiterentwickeln?
+
+**Heute: nein.** Phase 12 (Recursive Self-Improvement) braucht 8-11 als Vorbedingung.
+- Phase 8 ✅ liefert das Selbstmodell (was bleibt unverändert?)
+- Phase 9 ⬜ liefert Long-Horizon-Planung (Phase als Multi-Wochen-Projekt)
+- Phase 10 ⬜ liefert kausale Hypothesen (sichere Code-Mutationen)
+- Phase 11 ⬜ liefert Beziehungs-Modell (Georgs Intention verstehen)
+- Phase 12 ⬜ siehe Roadmap — 6-10 Wochen Forschung, sehr hohe Sicherheits-Anforderungen
+
+Details: [AGI_EDI_ROADMAP.md](AGI_EDI_ROADMAP.md) Abschnitt „Phase 12: Recursive Self-Improvement".
+
+### 🎯 Vorschlag für den nächsten Pass (Phase 9 starten)
+
+Phase 8 ist abgeschlossen. Nächster großer EDI-Hebel: Phase 9 — Long-Horizon-Planung. Wenn du das willst:
 - Tag 1: `EpisodicMemory` (1 Episode/Tag aus Goals+Experiences+Conversations)
 - Tag 2: `SelfNarrative` (Markdown-Format, persistiert, in Prompts integriert)
 - Tag 3: `MoodSignal` aus Fitness-Trends

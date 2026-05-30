@@ -1,6 +1,6 @@
 # Metis AGI — Feature-Katalog
 
-**Stand: 31.05.2026 01:05 · Version 0.4.0-phase8-foundation · 80+ Kernel-Klassen + 80+ Module-Klassen · 34 JUnit-Tests · GitHub-Actions CI**
+**Stand: 31.05.2026 01:15 · Version 0.4.1-phase8-complete · 80+ Kernel-Klassen + 80+ Module-Klassen · 35 JUnit-Tests · GitHub-Actions CI**
 
 ---
 
@@ -27,6 +27,8 @@
 | **MoodSignal** | `kernel/self/MoodSignal.java` | 4 Achsen (energy, satisfaction, confidence, curiosity), EMA mit α=0.1, deterministisch, kein LLM; `snapshot()`, `label()` (deutsche Stimmungs-Beschreibung) |
 | **PersonalityAnchor** | `kernel/self/PersonalityAnchor.java` | Markdown-Kern + SHA-256-Pin unter `metis.personality.anchor{,.hash}`; verifiziert beim Boot, `isTampered()` Tripwire |
 | **DreamConsolidation** | `kernel/self/DreamConsolidation.java` | Verdichtet 24h zu Episode + SelfNarrative-Eintrag; nightly 03:00 Europe/Berlin; deterministisch (optionaler `SummaryFunction`-Hook für LLM-Drop-in) |
+| **SystemPromptBuilder** | `kernel/self/SystemPromptBuilder.java` | Aggregiert PersonalityAnchor + MoodSignal + Episode-Auszug + SelfNarrative-Tail zu einem Selbstmodell-Block (~4-5 KB), `wrap(basePrompt)` prependet an `Persona.systemPrompt()` |
+| **LlmDreamSummarizer** | `modules/knowledge/LlmDreamSummarizer.java` | Phase 8.5b — `DreamConsolidation.SummaryFunction`-Impl mit `gemma4:e4b` (`keep_alive=0`), Fallback auf deterministische Variante bei Ollama-Fehler |
 
 **Live-Status nach v0.4.0-Boot:**
 - `PersonalityAnchor: hash pinned 696e848208fb...` (verifiziert)

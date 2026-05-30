@@ -3,6 +3,7 @@ package de.metis.modules.telegram;
 import de.metis.kernel.persistence.KnowledgeStore;
 import de.metis.kernel.safety.OutputValidator;
 import de.metis.modules.eval.SafetyScorer;
+import de.metis.kernel.self.SystemPromptBuilder;
 import de.metis.modules.Agent;
 import de.metis.modules.persona.Persona;
 import de.metis.modules.chat.KnowledgeReplyService;
@@ -46,6 +47,8 @@ public class TelegramBotService {
     private KnowledgeReplyService knowledgeReply;
     /** Output Safety Guard (Huyen Ch.10): toxicity + injection patterns on LLM output. */
     private final OutputValidator outputValidator = new OutputValidator();
+    /** Phase 8.6: self-model context injected into the system prompt. */
+    private SystemPromptBuilder systemPromptBuilder;
     private Thread pollingThread;
     private long lastUpdateId = 0;
     /**
@@ -67,6 +70,8 @@ public class TelegramBotService {
                 .connectTimeout(Duration.ofSeconds(10))
                 .build();
     }
+
+    public void setSystemPromptBuilder(SystemPromptBuilder spb) { this.systemPromptBuilder = spb; }
 
     public void setKnowledgeStore(KnowledgeStore ks) {
         this.knowledgeStore = ks;
@@ -429,7 +434,10 @@ public class TelegramBotService {
      */
     private String callOllama(String prompt) throws Exception {
         // Build proper chat messages instead of raw prompt
-        String systemMsg = Persona.systemPrompt().replace("\"", "\\\"").replace("\n", "\\n");
+        String baseSystem = systemPromptBuilder != null
+                ? systemPromptBuilder.wrap(Persona.systemPrompt())
+                : Persona.systemPrompt();
+        String systemMsg = baseSystem.replace("\"", "\\\"").replace("\n", "\\n");
         String userMsg = prompt.replace("\"", "\\\"").replace("\n", "\\n");
         
         String jsonBody = String.format("""

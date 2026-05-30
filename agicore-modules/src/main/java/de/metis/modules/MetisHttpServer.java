@@ -22,6 +22,7 @@ import de.metis.kernel.goal.KanbanBoard;
 import de.metis.modules.persona.Persona;
 import de.metis.modules.multiagent.AgentCoordinator;
 import de.metis.modules.eval.SafetyScorer;
+import de.metis.kernel.self.SystemPromptBuilder;
 
 /**
  * Ollama-compatible HTTP API with EDI persona for conversational AI.
@@ -54,6 +55,7 @@ public class MetisHttpServer {
     private BugfixingAgent bugfixingAgent;     // Phase 5: Auto-fix
     private KanbanBoard kanbanBoard;           // Kanban: Goal Board
     private de.metis.modules.evolution.OllamaEmbeddingService embeddingService;  // hardening v2
+    private SystemPromptBuilder systemPromptBuilder;  // Phase 8.6
 
     public MetisHttpServer(Agent agent, int port) throws IOException {
         this.agent = agent;
@@ -102,6 +104,7 @@ public class MetisHttpServer {
     public void setModelRegistry(de.metis.modules.evolution.ModelRegistry mr) { this.modelRegistry = mr; }
     public void setKanbanBoard(KanbanBoard kb) { this.kanbanBoard = kb; }
     public void setEmbeddingService(de.metis.modules.evolution.OllamaEmbeddingService es) { this.embeddingService = es; }
+    public void setSystemPromptBuilder(SystemPromptBuilder spb) { this.systemPromptBuilder = spb; }
 
     public void start() {
         server.start();
@@ -215,7 +218,9 @@ public class MetisHttpServer {
 
         try {
             // EDI persona for planning context only (not goal description)
-            String personaContext = Persona.systemPrompt();
+            String personaContext = systemPromptBuilder != null
+                    ? systemPromptBuilder.wrap(Persona.systemPrompt())
+                    : Persona.systemPrompt();
             String shortGoal = "Respond to chat: " + truncate(userMessage, 100);
 
             // Deduplication: skip if a chat goal is already in progress or ready
