@@ -1,6 +1,6 @@
 # Metis AGI — Feature-Katalog
 
-**Stand: 31.05.2026 01:00 · Version 0.3.3-defense-in-depth · 75+ Kernel-Klassen + 80+ Module-Klassen · 27 JUnit-Tests · GitHub-Actions CI**
+**Stand: 31.05.2026 01:05 · Version 0.4.0-phase8-foundation · 80+ Kernel-Klassen + 80+ Module-Klassen · 34 JUnit-Tests · GitHub-Actions CI**
 
 ---
 
@@ -14,6 +14,25 @@
 | **Build** | Maven Multi-Module, Java 25 (Zulu), fat JAR via maven-shade-plugin (~88 MB), CycloneDX SBOM, Reproducible Builds |
 | **CI** | GitHub Actions, Zulu 25, `mvn verify`, JAR-SHA256, SBOM-Upload |
 | **Defense-in-Depth** | Input-Safety-Guard + Output-Safety-Guard auf HTTP- und Telegram-Pfad, Watchdog mit stündlichen externen Anchors |
+
+---
+
+## 🧠 Narratives Selbstmodell (Phase 8, v0.4.0, 31.05.2026)
+
+| Komponente | Datei | Funktion |
+|---|---|---|
+| **Episode (Record)** | `kernel/self/Episode.java` | id, start/end, title, body, events, insights, openQuestions, people, moodAtClose, ticksCovered, beliefsLearned, goalsCompleted, goalsFailed, previousHash, hash |
+| **EpisodicMemory** | `kernel/self/EpisodicMemory.java` | Append-only JSONL mit schwacher SHA-256 Hash-Chain unter `metis.episodes.path` (default `/home/prometheus/metis/episodes.jsonl`); `append()`, `recent(n)`, `verify()` |
+| **SelfNarrative** | `kernel/self/SelfNarrative.java` | Markdown-Selbstext (append-only) unter `metis.self.narrative.path`, max 4 KB pro Eintrag; `recentContext(maxBytes)` für System-Prompt-Einbindung |
+| **MoodSignal** | `kernel/self/MoodSignal.java` | 4 Achsen (energy, satisfaction, confidence, curiosity), EMA mit α=0.1, deterministisch, kein LLM; `snapshot()`, `label()` (deutsche Stimmungs-Beschreibung) |
+| **PersonalityAnchor** | `kernel/self/PersonalityAnchor.java` | Markdown-Kern + SHA-256-Pin unter `metis.personality.anchor{,.hash}`; verifiziert beim Boot, `isTampered()` Tripwire |
+| **DreamConsolidation** | `kernel/self/DreamConsolidation.java` | Verdichtet 24h zu Episode + SelfNarrative-Eintrag; nightly 03:00 Europe/Berlin; deterministisch (optionaler `SummaryFunction`-Hook für LLM-Drop-in) |
+
+**Live-Status nach v0.4.0-Boot:**
+- `PersonalityAnchor: hash pinned 696e848208fb...` (verifiziert)
+- `EpisodicMemory: cold start` (erste Episode bei Dream-Tick)
+- `SelfNarrative initialized`
+- `Phase 8 wired — episodes=0, anchor=verified, next dream in 7333s`
 
 ---
 

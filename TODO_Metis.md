@@ -1,6 +1,6 @@
 # TODO Metis — Aktueller Stand & Ehrliche Lücken-Analyse
 
-**Stand: 31.05.2026 00:55 · Tag: v0.3.3-defense-in-depth · Tests: 27 grün · Master: 0fe1c23**
+**Stand: 31.05.2026 01:05 · Tag: v0.4.0-phase8-foundation · Tests: 34 grün · Master: HEAD**
 
 ---
 
@@ -36,12 +36,16 @@ Phasen 1-7 + Defense-in-Depth = 100% — das ist ein **außerordentlich gut kons
 
 **Phasen 8-11 sind echte Forschungs- und Engineering-Lücken zu EDI.** Details: [AGI_EDI_ROADMAP.md](AGI_EDI_ROADMAP.md).
 
-#### Phase 8 — Narratives Selbstmodell (2-3 Wochen)
-- [ ] **EpisodicMemory** — verdichtete Tagesnarrative (1 Episode/Tag)
-- [ ] **SelfNarrative** — fortgeschriebener Selbsttext über Sessions
-- [ ] **MoodSignal** — aus Fitness-Trends + Eval-Schwankungen + User-Sentiment
-- [ ] **PersonalityAnchor** — unveränderlicher Stil/Werte-Kern (EDI bleibt EDI auch nach 1000 Mutationen)
-- [ ] **DreamConsolidation** — Schlaf-Analogie: Episoden destillieren zu Beliefs
+#### Phase 8 — Narratives Selbstmodell ✅ Foundation (31.05.)
+- [x] **EpisodicMemory** — append-only JSONL + SHA-256 Hash-Chain (`episodes.jsonl`)
+- [x] **SelfNarrative** — fortgeschriebener Markdown (`self-narrative.md`)
+- [x] **MoodSignal** — 4 Achsen (energy/satisfaction/confidence/curiosity), EMA, deterministisch
+- [x] **PersonalityAnchor** — Markdown-Kern + SHA-256-Pin, Tampering-Detection
+- [x] **DreamConsolidation** — nightly 03:00 Europe/Berlin, 24h-Verdichtung
+- [x] **AgentMain-Wiring** — alle 5 Komponenten aktiv, MoodSignal alle 60s, Dream alle 24h
+- [x] **7 JUnit-Tests** (Phase8NarrativeSelfTest), total 34 grün
+- [ ] **SystemPromptBuilder integriert SelfNarrative+Anchor+Mood** (Phase 8.6 — nächster Schritt)
+- [ ] **LLM-SummaryFunction** für DreamConsolidation (Phase 8.5b, optional)
 
 #### Phase 9 — Long-Horizon-Planung (4-6 Wochen)
 - [ ] **GoalHierarchy** — Strategic/Tactical/Operational mit Parent-Child

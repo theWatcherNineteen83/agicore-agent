@@ -3,7 +3,7 @@
 **Ziel:** EDI-ähnliche KI (Mass Effect 3) — eigenständig, per Sprache und Text ansprechbar,
 mit eigenem Wissen, Persönlichkeit, narrativem Selbstmodell und der Fähigkeit, sich selbst zu verbessern.
 
-**Stand: 31.05.2026 00:55 (v0.3.3-defense-in-depth)**
+**Stand: 31.05.2026 01:00 (v0.4.0-phase8-foundation)**
 
 ---
 
@@ -25,16 +25,14 @@ Phase 6  ████████████████████ 100%  Prod
 Phase 7  ████████████████████ 100%  Watchdog + Audit-Anchor
 Phase 7+ ████████████████████ 100%  Defense-in-Depth (30./31.05.)
 ─────────────────────────────────────  AUTONOMER AGENT bis hier
-Phase 8  ░░░░░░░░░░░░░░░░░░░░   0%  Narratives Selbstmodell        ← EDI-Distanz
+Phase 8  ████████████░░░░░░░░  60%  Narratives Selbstmodell (Foundation)   ← EDI-Distanz
 Phase 9  ░░░░░░░░░░░░░░░░░░░░   0%  Long-Horizon-Planung
 Phase 10 ░░░░░░░░░░░░░░░░░░░░   0%  Aktive kausale Hypothesen
 Phase 11 ░░░░░░░░░░░░░░░░░░░░   0%  Beziehungs-Modell
 ─────────────────────────────────────  EDI-ÄHNLICHE KI ab hier
 ```
 
-**Realistisches EDI-Niveau: ~50-55%.** Die solideste Open-Source-Basis weltweit,
-aber noch nicht selbstbewusst, noch nicht langfristig planend, noch nicht
-kausal modellierend, noch nicht beziehungsfähig.
+**Realistisches EDI-Niveau: ~58-60%** (nach Phase 8 Foundation: +5-10% durch Episode-Memory + SelfNarrative + PersonalityAnchor mit Hash-Pin).
 
 ---
 
@@ -140,7 +138,7 @@ kausal modellierend, noch nicht beziehungsfähig.
 
 ---
 
-## 🧠 Phase 8: Narratives Selbstmodell (NEU, ungelöst)
+## 🧠 Phase 8: Narratives Selbstmodell ✅ Foundation deployed (31.05.)
 
 **Ziel:** Metis hat ein narratives Ich, das sich über Sessions hinweg erinnert und Selbstbild
 fortschreibt — nicht nur Metriken, sondern Episoden.
@@ -148,16 +146,19 @@ fortschreibt — nicht nur Metriken, sondern Episoden.
 **Warum essenziell:** EDI sagt "Joker, ich war heute traurig, weil...". Metis sagt aktuell maximal
 "successRate=0.95, confidence=0.85". Das ist Metrik, nicht Erinnerung.
 
-**Bausteine:**
-- [ ] **EpisodicMemory** — verdichtete Tagesnarrative aus Goals + Experiences + Conversations
-  (1 Episode = "Was war heute wichtig, was habe ich gelernt, was bleibt offen?")
-- [ ] **SelfNarrative** — kontinuierlicher Selbsttext, der bei jeder Episode fortgeschrieben wird
-- [ ] **MoodSignal** — abgeleitet aus Fitness-Trends, Eval-Gate-Schwankungen, User-Sentiment
-- [ ] **PersonalityAnchor** — unveränderliche Werte/Stil (EDI ist EDI auch nach 1000 Mutationen)
-- [ ] **DreamConsolidation** — nachts Episoden destillieren in langfristige Beliefs (Schlaf-Analogie)
+**Bausteine — Foundation deployed (v0.4.0):**
+- [x] **EpisodicMemory** — append-only JSONL mit SHA-256-Hash-Chain (`/home/prometheus/metis/episodes.jsonl`); Records: `Episode(id, start, end, title, body, events, insights, openQuestions, people, moodAtClose, ticks, beliefsLearned, goalsCompleted, goalsFailed, previousHash, hash)`
+- [x] **SelfNarrative** — fortlaufender Markdown unter `/home/prometheus/metis/self-narrative.md`, append-only, max 4 KB pro Eintrag, `recentContext(maxBytes)` für System-Prompts
+- [x] **MoodSignal** — 4 Achsen (energy, satisfaction, confidence, curiosity), EMA mit α=0.1, deterministisch (kein LLM)
+- [x] **PersonalityAnchor** — geseedeter Markdown-Kern + SHA-256 Pin (`/home/prometheus/metis/personality-anchor.{md,sha256}`), Tampering-Detection beim Start
+- [x] **DreamConsolidation** — nightly Cron-Aufruf (03:00 Europe/Berlin), deterministische Verdichtung der 24h zu Episode + SelfNarrative-Eintrag; optionaler `SummaryFunction`-Hook für LLM-Drop-in (Phase 8.5b)
+- [x] **Wiring in AgentMain** — alle 5 Komponenten aktiv beim Boot, MoodSignal-Tick alle 60s, DreamConsolidation alle 24h
+- [x] **7 JUnit-Tests** (`Phase8NarrativeSelfTest`) — Record-Invarianten, Hash-Chain-Append, Tampering, EMA-Bounds, Narrative-Round-Trip, Dream-Pipeline
+- [ ] **SystemPromptBuilder-Integration** — SelfNarrative.recentContext() + PersonalityAnchor.text() + MoodSignal.label() in OllamaPlanner-Prompt einbinden (Phase 8.6)
+- [ ] **LLM-getriebene SummaryFunction** für DreamConsolidation (Phase 8.5b — optional)
 
-**Aufwand:** 2-3 Wochen.
-**EDI-Distanz nach Phase 8:** ~65-70%.
+**Aufwand bisher:** ~1 Tag · **Verbleibend für Phase 8 komplett:** ~1 Woche
+**EDI-Distanz nach Phase 8.6:** ~60-65% (Foundation+Wiring) → ~65-70% (mit SystemPromptBuilder)
 
 ## 🎯 Phase 9: Long-Horizon-Planung (NEU, ungelöst)
 
@@ -264,7 +265,7 @@ weltweit hat sie aktuell geknackt.
 | 🟢 **M6: Autonomie** | Phase 5 | ✅ Erreicht |
 | 🟢 **M7: Produktionsreife** | Phase 6 | ✅ Erreicht |
 | 🟢 **M8: Sicherheit + Defense-in-Depth** | Phase 7 + 7+ | ✅ Erreicht |
-| 🔴 **M9: Narratives Selbst** | Phase 8 | ⬜ Ungelöst |
+| 🟡 **M9: Narratives Selbst** | Phase 8 | 🔄 Foundation deployed (~60%) |
 | 🔴 **M10: Long-Horizon-Planung** | Phase 9 | ⬜ Ungelöst |
 | 🔴 **M11: Kausales Selbstmodell** | Phase 10 | ⬜ Ungelöst |
 | 🔴 **M12: Beziehungs-Modell** | Phase 11 | ⬜ Ungelöst |
