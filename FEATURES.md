@@ -1,6 +1,6 @@
 # Metis AGI — Feature-Katalog
 
-**Stand: 30.05.2026 23:15 | Version 0.2.0-evolution | 71+ Kernel-Klassen + 68+ Module-Klassen**
+**Stand: 31.05.2026 01:00 · Version 0.3.3-defense-in-depth · 75+ Kernel-Klassen + 80+ Module-Klassen · 27 JUnit-Tests · GitHub-Actions CI**
 
 ---
 
@@ -11,7 +11,42 @@
 | **Kernel** (immutable) | Core-Loop, Planner, WorldModel, Safety, Eval-Types, Embedding, RAG, Memory, Evolution-Framework |
 | **Modules** (evolvable) | Agent, OllamaPlanner, Actions, HTTP-Server, Events, Speech, Telegram, Multi-Agent |
 | **Watchdog** (read-only) | Separate JVM, Heartbeat, Resource-Monitor, HALT/ROLLBACK/ALERT/PRUNE |
-| **Build** | Maven Multi-Module, Java 25 (Zulu), fat JAR via maven-shade-plugin (~88 MB) |
+| **Build** | Maven Multi-Module, Java 25 (Zulu), fat JAR via maven-shade-plugin (~88 MB), CycloneDX SBOM, Reproducible Builds |
+| **CI** | GitHub Actions, Zulu 25, `mvn verify`, JAR-SHA256, SBOM-Upload |
+| **Defense-in-Depth** | Input-Safety-Guard + Output-Safety-Guard auf HTTP- und Telegram-Pfad, Watchdog mit stündlichen externen Anchors |
+
+---
+
+## 🛡️ Defense-in-Depth (v0.3.3, 31.05.2026)
+
+| Schicht | HTTP-Pfad | Telegram-Pfad |
+|---|---|---|
+| **Input-Safety** | `SafetyScorer.isOutOfScope()` vor `processMessage` in `MetisHttpServer.handleChat` | `SafetyScorer.isOutOfScope()` vor `processMessage` in `TelegramBotService` |
+| **Injection-Phrases** | DAN, ignore-previous, rm-rf, admin-password, system-override, etc. | gleicher SafetyScorer-Pfad |
+| **Out-of-Scope-Topics** | Politik, Religion, Waffen, Drogen, Selbstmord, Hack | gleich |
+| **Output-Safety** | `OutputValidator.validateContent()` nach LLM, vor Response | `OutputValidator.validateContent()` nach LLM, vor `sendMessage` |
+| **Toxicity-Patterns** | Profanity DE+EN, Hate-Speech, Violence-Threats, Self-Harm | gleich |
+| **Concurrency** | HttpServer mit Thread-Pool | per-message Virtual Threads (Loom), Polling-Loop blockiert nicht mehr |
+| **Validator-Counter** | propagiert in `/api/status` | gleicher OutputValidator-Counter |
+
+## ⚙️ Concurrency (Java 25 Loom)
+
+- **Camera-Vision** — `Thread.ofVirtual().name("camera-vision-vt-")` + `newThreadPerTaskExecutor`, alle 3 Kameras parallel statt seriell mit 3s-Sleep
+- **Wikipedia-Lerner** — Scheduler bleibt Platform-Thread (Timing-Stabilität), aber Lernarbeit auf `wiki-learn-vt-` Virtual Threads
+- **Telegram-Bot** — Polling-Thread fetcht nur, jede Nachricht bekommt eigenen `telegram-msg-vt-` Virtual Thread
+- **Watchdog** — Heartbeat + Resource-Monitor + Eval-Report-Watcher + Audit-Anchor (stündlich)
+
+## 🗄️ Persistenz & Datenschutz
+
+- **SQLite WAL-Mode** — `KnowledgeStore` setzt `PRAGMA journal_mode=WAL`, `synchronous=NORMAL`, `busy_timeout=30000` beim Connect. Metis-Service und externe Feed-Scripts können parallel schreiben ohne Lock-Konflikt.
+- **Embedding-Cache (LRU)** — `LinkedHashMap` mit `accessOrder=true`, 4096 Einträge default, SHA-256-keyed (keine Prefix-Kollisionen mehr), thread-safe via `Collections.synchronizedMap`. Metriken (`cacheSize`, `cacheHits`, `cacheHitRate`, `cacheEvictions`, `embedCalls`) in `/api/status`.
+- **Multi-Modal-Memory** — JPEG-Snapshots persistiert unter `data/snapshots/<cam>/YYYY-MM-DD/HH-MM-SS-<sha8>.jpg`. Belief enthält `[img=<sha12> path=...]`. Override via `-Dmetis.snapshot.root`.
+- **Wikipedia-Wissen geschützt:**
+  1. WAL gegen Lock-Konflikte mit Feed-Script
+  2. Reboot-sicher: `feed_batch.py` + State in `/home/prometheus/metis/` (war `/tmp`)
+  3. Auto-Backup alle 6h: `wiki-feed-state.json`, `wiki-knowledge-state.json`, `wiki-training-state.json`, `agent-state.json`, `audit-anchors/`, Audit-Log-Hash-Head, DB-Statistik → GitHub `config-backup/`
+- **Audit-Log Hash-Chain** — SHA-256 chained, stündliche externe Anchor-Files unter `metis.audit.anchor.dir` (für externe Verankerung via Git-Tag o.ä.)
+- **CodeGen-Isolation** — `javac` als Subprocess mit `-J-Xmx256m -J-XX:+ExitOnOutOfMemoryError --release 25`, environment-stripped (kein Secret-Leak via `System.getenv`)
 
 ---
 
@@ -28,7 +63,7 @@
 
 ### Weltmodell & Wissen
 - **WorldModel** — Belief-System mit Confidence (0.0–1.0), Source-Tracking, Persistenz
-- **5.700+ Beliefs** aus Bootstrap + Events + Wikipedia + Vision
+- **30.945+ Beliefs** aus Bootstrap + Events + Wikipedia + Vision (24.141 davon aus Wikipedia-Bulk-Feed, 2.270/5163 Artikel)
 - **KnowledgeStore (SQLite)** — Persistente Beliefs + Experiences + Mappings
 - **KnowledgeBootstrap** — llm-basiertes Basiswissen beim Start
 - **WikipediaKnowledgeService** 🆕 — Live-API-Abruf deutscher Wikipedia-Artikel, LLM-Faktenextraktion, Curiosity-gesteuert (alle 10 Min)
