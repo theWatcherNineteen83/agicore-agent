@@ -4,9 +4,11 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.security.MessageDigest;
 import java.time.Duration;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
 /**
@@ -14,7 +16,11 @@ import java.util.logging.Logger;
  * <p>
  * Uses nomic-embed-text (768-dim) or falls back to llama3.2:3b (3072-dim).
  * Model is resolved via ModelRegistry; dimension is auto-detected on first call.
- * Results are cached to avoid redundant API calls.
+ * <p>
+ * Includes a bounded LRU cache (default 4096 entries) keyed by SHA-256 of the
+ * full input text — prevents the previous unbounded ConcurrentHashMap from
+ * leaking memory with high belief volume (5.700+ beliefs) and avoids cache
+ * collisions from prefix-truncated keys.
  */
 public class OllamaEmbeddingService {
 
@@ -24,36 +30,44 @@ public class OllamaEmbeddingService {
     private static final String DEFAULT_MODEL = "nomic-embed-text"; // 768-dim, preferred
     private static final String FALLBACK_MODEL = "llama3.2:3b";     // 3072-dim, legacy
     private static final Duration TIMEOUT = Duration.ofSeconds(30);
+    private static final int DEFAULT_CACHE_SIZE = 4096;
 
     private final HttpClient http = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(10))
             .build();
 
     private final String model;
+    private final int cacheCapacity;
     private int embeddingDimension = -1; // auto-detected on first call
 
-    /** Simple cache to avoid re-embedding the same text. */
-    private final Map<String, double[]> cache = new ConcurrentHashMap<>();
-    private int embedCount = 0;
-    private int cacheHits = 0;
+    /** Bounded LRU cache keyed by content hash. Synchronized for thread safety. */
+    private final Map<String, double[]> cache;
+    private volatile int embedCount = 0;
+    private volatile int cacheHits = 0;
+    private volatile int cacheEvictions = 0;
 
-    /**
-     * Create with default model (nomic-embed-text).
-     */
     public OllamaEmbeddingService() {
-        this(DEFAULT_MODEL);
+        this(DEFAULT_MODEL, DEFAULT_CACHE_SIZE);
     }
 
-    /**
-     * Create with a specific model. Use {@link #withModelRegistry(ModelRegistry)} for auto-selection.
-     */
     public OllamaEmbeddingService(String model) {
-        this.model = model != null ? model : DEFAULT_MODEL;
+        this(model, DEFAULT_CACHE_SIZE);
     }
 
-    /**
-     * Factory method: auto-select best embedding model from registry.
-     */
+    public OllamaEmbeddingService(String model, int cacheCapacity) {
+        this.model = model != null ? model : DEFAULT_MODEL;
+        this.cacheCapacity = Math.max(64, cacheCapacity);
+        this.cache = Collections.synchronizedMap(new LinkedHashMap<>(this.cacheCapacity, 0.75f, true) {
+            @Override
+            protected boolean removeEldestEntry(Map.Entry<String, double[]> eldest) {
+                boolean evict = size() > OllamaEmbeddingService.this.cacheCapacity;
+                if (evict) cacheEvictions++;
+                return evict;
+            }
+        });
+    }
+
+    /** Factory method: auto-select best embedding model from registry. */
     public static OllamaEmbeddingService withModelRegistry(ModelRegistry registry) {
         String model = registry.embeddingModel();
         LOG.info("EmbeddingService using model from registry: " + model);
@@ -66,24 +80,29 @@ public class OllamaEmbeddingService {
     /**
      * Generate an embedding vector for the given text.
      *
-     * @param text the text to embed (truncated to ~500 chars)
+     * @param text the text to embed (full text is hashed for cache key,
+     *             then truncated to ~200 chars for the API call to bound tokens)
      * @return embedding vector, or a zero vector on failure
      */
     public double[] embed(String text) {
-        // Truncate to avoid excessive tokens
-        String key = text.length() > 200 ? text.substring(0, 200) : text;
+        if (text == null) return new double[0];
 
-        // Cache check
+        // Cache key = SHA-256 of full text (no prefix collisions)
+        String key = sha256(text);
+
         double[] cached = cache.get(key);
         if (cached != null) {
             cacheHits++;
             return cached;
         }
 
+        // API input is still truncated to bound token usage
+        String apiInput = text.length() > 200 ? text.substring(0, 200) : text;
+
         try {
             String jsonBody = String.format("""
                     {"model": "%s", "prompt": %s}
-                    """, model, escapeJson(key));
+                    """, model, escapeJson(apiInput));
 
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(OLLAMA_URL))
@@ -107,7 +126,6 @@ public class OllamaEmbeddingService {
                 }
                 cache.put(key, vector);
                 embedCount++;
-                LOG.fine(() -> "Embedded " + vector.length + " dims for: " + key.substring(0, Math.min(50, key.length())));
             }
             return vector;
 
@@ -117,12 +135,10 @@ public class OllamaEmbeddingService {
         }
     }
 
-    /** Parse the "embedding" array from Ollama's JSON response. */
     private double[] parseEmbedding(String json) {
-        // Find "embedding":[...]
         int start = json.indexOf("\"embedding\":[");
         if (start < 0) return new double[0];
-        start += 13; // skip "embedding":[
+        start += 13;
         int end = json.indexOf(']', start);
         if (end < 0) return new double[0];
 
@@ -153,6 +169,24 @@ public class OllamaEmbeddingService {
         return sb.append('"').toString();
     }
 
+    private static String sha256(String s) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            byte[] hash = md.digest(s.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            StringBuilder hex = new StringBuilder(hash.length * 2);
+            for (byte b : hash) hex.append(String.format("%02x", b));
+            return hex.toString();
+        } catch (Exception e) {
+            return Integer.toHexString(s.hashCode());
+        }
+    }
+
     public int embedCount() { return embedCount; }
     public int cacheHits() { return cacheHits; }
+    public int cacheEvictions() { return cacheEvictions; }
+    public int cacheSize() { return cache.size(); }
+    public double cacheHitRate() {
+        int total = embedCount + cacheHits;
+        return total == 0 ? 0.0 : (double) cacheHits / total;
+    }
 }

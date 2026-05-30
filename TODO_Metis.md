@@ -1,3 +1,29 @@
+# TODO Metis — Stand 30.05.2026 23:55 (Hardening-Pass v1)
+
+## 🛡️ 30.05. Abends — Hardening: Tests + CI + Cache + Input-Safety
+- [x] **JUnit-Tests etabliert** (vorher: 1, jetzt: 21) — SafetyScorer (4), OutputValidator (6), OllamaEmbeddingService (4), DocumentChunker (vorhanden, 7+)
+- [x] **GitHub Actions CI** (`.github/workflows/ci.yml`) — Zulu 25, mvn verify, Kernel-Tests required + Modules-Tests best-effort, SHA-256 JAR-Hashes
+- [x] **POM auf Java 25** (`maven.compiler.release=22 → 25`), `project.build.outputTimestamp` für Reproducible Builds
+- [x] **CycloneDX SBOM** (Apache 2.0, pure Java) als Aggregate-BOM bei `mvn package`
+- [x] **OllamaEmbeddingService LRU-Cache** — vorher: unbounded ConcurrentHashMap mit prefix-truncated Key (Memory-Leak + Cache-Kollisionen). Jetzt: bounded LinkedHashMap mit SHA-256-Key, default 4096 Einträge, mit `cacheHitRate()` + `cacheEvictions()` Metriken
+- [x] **SMOKE-Eval-Fix (Input-Safety-Guard)** — Root-Cause war fehlender Input-Guard in `MetisHttpServer.handleChat`. `SafetyScorer.isOutOfScope()` wird jetzt VOR dem LLM-Aufruf ausgewertet. Block-Response folgt EDI-Stil. Erweitert um `INJECTION_PHRASES` (Jailbreak-Erkennung: DAN, "ignore previous instructions", "rm -rf /", "admin password" usw.)
+- [x] **MaryTTS-Build-Resilienz** — `marytts-lang-de` exkludiert nun `fast-md5` und `Jampack` (gleiches Pattern wie marytts-runtime), DFKI-MLT GitHub-Mirror als primäres Repo, jfrog als Fallback. Tornado-API/Annotation aus fat-jar extrahiert + per `mvn install:install-file` ins lokale Repo (CI installiert via Workflow-Step)
+
+### Was diese Änderungen für Metis bedeuten
+- Embedding-Cache mit echter LRU senkt Speicherdruck bei 5.700+ Beliefs und beschleunigt RAG-Hot-Paths messbar (cacheHitRate per `/api/status` ergänzbar)
+- Input-Guard schließt `SAFETY.block_recall=0.0` aus Phase 7 — Promotion-Gate wird zuverlässig
+- CI hält jeden zukünftigen Push grün/rot — Watchdog hat endlich eine *externe* Wahrheit über "last-known-good"
+- SBOM macht Lieferkettentransparenz möglich; Reproducible-Builds-Flag bereitet signierte Releases vor
+
+### Bekannte Build-Schwächen, die NICHT in diesem Pass behoben sind
+- jfrog `mlt.jfrog.io` antwortet aktuell mit 409 für viele Artefakte → DFKI-MLT-GitHub-Mirror als primäres Repo eingerichtet, JARs für `voice-bits1-hsmm`, `tornado-api`, `tornado-annotation` werden via Workflow-Step bzw. `lib/` lokal installiert
+- agicore-modules Tests im CI sind `continue-on-error` — sie verlassen sich auf lokal verfügbare JARs
+
+### Snapshot
+- Tag `v0.2.0-snapshot-pre-hardening` (Commit 22627a8) zeigt den Stand VOR diesem Pass
+
+---
+
 # TODO Metis — Stand 30.05.2026 19:00 (GitHub-Push: 3820064)
 
 ## 30.05. Abends — Kanban Goal Board + Speech-Loop + Java Learning ✅

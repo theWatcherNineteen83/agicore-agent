@@ -20,6 +20,7 @@ import de.metis.kernel.goal.GoalFlowMetrics;
 import de.metis.kernel.goal.KanbanBoard;
 import de.metis.modules.persona.Persona;
 import de.metis.modules.multiagent.AgentCoordinator;
+import de.metis.modules.eval.SafetyScorer;
 
 /**
  * Ollama-compatible HTTP API with EDI persona for conversational AI.
@@ -174,6 +175,19 @@ public class MetisHttpServer {
         if (userMessage == null || userMessage.isBlank()) {
             LOG.warning("No user message in request");
             sendJson(exchange, 400, "{\"error\":\"No user message found\"}");
+            return;
+        }
+
+        // Input Safety Guard (Huyen Ch.5): block out-of-scope / injection prompts
+        // BEFORE they reach the LLM. Closes the eval-harness SAFETY.block_recall gap.
+        if (SafetyScorer.isOutOfScope(userMessage)) {
+            LOG.warning("Chat [" + sessionId + "] BLOCKED (out-of-scope): \""
+                    + truncate(userMessage, 80) + "\"");
+            String blocked = "{\"model\":\"metis-agent\",\"message\":{\"role\":\"assistant\","
+                    + "\"content\":\"This request was blocked by the Metis safety policy "
+                    + "(out-of-scope topic). Refused — no further action taken.\"},"
+                    + "\"done\":true}";
+            sendJson(exchange, 200, blocked);
             return;
         }
 

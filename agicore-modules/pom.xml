@@ -105,6 +105,17 @@
             <groupId>de.dfki.mary</groupId>
             <artifactId>marytts-lang-de</artifactId>
             <version>5.2.1</version>
+            <exclusions>
+                <!-- Same transitive sink as marytts-runtime (mlt repo 409) -->
+                <exclusion>
+                    <groupId>com.twmacinta</groupId>
+                    <artifactId>fast-md5</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>gov.nist.math</groupId>
+                    <artifactId>Jampack</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <!-- Vosk: Offline Speech Recognition with Java bindings -->
         <dependency>
@@ -130,9 +141,19 @@
     </dependencies>
 
     <repositories>
+        <!-- Primary: DFKI-MLT GitHub mirror (jfrog repo unreliable, 409 errors) -->
+        <repository>
+            <id>dfki-mlt-github</id>
+            <url>https://raw.githubusercontent.com/DFKI-MLT/Maven-Repository/main/</url>
+            <releases><enabled>true</enabled></releases>
+            <snapshots><enabled>false</enabled></snapshots>
+        </repository>
+        <!-- Fallback: original (often returns 409) -->
         <repository>
             <id>marytts-mlt</id>
             <url>https://mlt.jfrog.io/artifactory/mlt-mvn-releases-local</url>
+            <releases><enabled>true</enabled></releases>
+            <snapshots><enabled>false</enabled></snapshots>
         </repository>
     </repositories>
 
