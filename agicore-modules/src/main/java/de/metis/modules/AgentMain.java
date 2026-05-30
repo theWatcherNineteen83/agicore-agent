@@ -6,6 +6,7 @@ import de.metis.kernel.action.NativeWebScraperAction;
 import de.metis.kernel.action.LinuxExploreAction;
 import de.metis.kernel.action.ApiExplorerAction;
 import de.metis.kernel.action.JavaSandboxAction;
+import de.metis.kernel.action.ReadSourceAction;
 import de.metis.kernel.persistence.KnowledgeStore;
 import de.metis.kernel.evolution.EvolutionManager;
 import de.metis.kernel.metrics.PerformanceMetrics;
@@ -809,6 +810,15 @@ public final class AgentMain {
         agent.core().executor().register(new JavaSandboxAction("System.out.println(\"Hello from Metis!\");"));
 
         // Linux-Lernmodus (Level 1-3)
+        // ── Source reading (self-introspection) ──
+        agent.core().executor().register(new ReadSourceAction(
+                "OllamaPlanner",
+                List.of(
+                        Path.of("agicore-kernel/src/main/java"),
+                        Path.of("agicore-modules/src/main/java"),
+                        Path.of("agicore-watchdog/src/main/java"))));
+        LOG.info("ReadSourceAction registered — Metis can read its own Java source code");
+
         agent.core().executor().register(new LinuxExploreAction(1));
         agent.core().executor().register(new LinuxExploreAction(2) {
             @Override public String name() { return "linux-explore-system"; }

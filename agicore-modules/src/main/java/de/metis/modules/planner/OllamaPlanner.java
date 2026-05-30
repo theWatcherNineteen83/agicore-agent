@@ -334,6 +334,7 @@ public class OllamaPlanner implements Planner {
                 - linux-explore-system: deep system probe (processes, memory, disk, network)
                 - memory-query: search the agent's own long-term knowledge base
                 - self-analyze: inspect agent's own performance metrics and state
+                - source-read: read own Java source code by class name or path — use to understand internal implementation before proposing changes
                 - javasandbox: execute safe, sandboxed Java code experiments
                 - prompt-chain: decompose complex multi-step goals into sequential sub-goals, execute each with context from previous results, and synthesize final answer (Pattern: Decompose→Execute→Aggregate)
                 """;
@@ -345,6 +346,7 @@ public class OllamaPlanner implements Planner {
                 ACTION CATALOG (with risk profiles):
                 - memory-query [LOW risk]: search agent's knowledge base — BEST for "what do I know" questions
                 - self-analyze [LOW risk]: inspect agent's own metrics — BEST for performance introspection
+                - source-read [LOW risk]: read own Java source code — BEST for understanding implementation before self-modification
                 - filesystem-list [LOW risk]: list directory contents — BEST for file discovery
                 - filesystem-read [LOW risk]: read file contents — BEST for accessing known paths
                 - http [LOW risk]: HTTP requests — BEST for API health checks, endpoint testing
@@ -644,6 +646,7 @@ public class OllamaPlanner implements Planner {
         sb.append("- linux-explore-system: deep system probe (processes, memory, disk, network)\n");
         sb.append("- memory-query: search the agent's own long-term knowledge base\n");
         sb.append("- self-analyze: inspect agent's own performance metrics and state\n");
+        sb.append("- source-read: read own Java source code by class name or path\n");
         sb.append("- javasandbox: execute safe, sandboxed Java code experiments\n");
         sb.append("- prompt-chain: decompose complex multi-step goals into sequential sub-goals, execute each with context from previous results, and synthesize final answer (Pattern: Decompose→Execute→Aggregate)\n\n");
 
@@ -658,6 +661,7 @@ public class OllamaPlanner implements Planner {
         sb.append("Goal: Get detailed system resource overview → {\"thought\":\"Deep system probe covers multiple resource dimensions\",\"action\":\"linux-explore-system\",\"reasoning\":\"deep system probe for resources\",\"confidence\":0.85}\n");
         sb.append("Goal: What do I know about network configuration? → {\"thought\":\"This is a knowledge retrieval task, not an active probe\",\"action\":\"memory-query\",\"reasoning\":\"search agent's long-term knowledge base\",\"confidence\":0.80}\n");
         sb.append("Goal: How well am I performing lately? → {\"thought\":\"Self-analysis inspects the agent's own metrics, not external systems\",\"action\":\"self-analyze\",\"reasoning\":\"self-analysis of performance metrics\",\"confidence\":0.85}\n");
+        sb.append("Goal: How does the EvolutionManager work internally? → {\"thought\":\"Reading source code reveals implementation details for targeted optimisation\",\"action\":\"source-read\",\"reasoning\":\"reading own source to understand evolution pipeline\",\"confidence\":0.90}\n");
         sb.append("Goal: Run a Java math experiment safely → {\"thought\":\"Safe code execution needs sandbox, not raw shell\",\"action\":\"javasandbox\",\"reasoning\":\"sandboxed Java execution for safe code\",\"confidence\":0.90}\n");
         sb.append("Goal: Research a topic and create a structured report → {\"thought\":\"Complex multi-step task needs decomposition — web research, extract, structure, save\",\"action\":\"prompt-chain\",\"reasoning\":\"multi-step research task best handled by prompt chaining\",\"confidence\":0.85}\n");
         sb.append("Goal: Investigate system security and generate audit report → {\"thought\":\"System audit requires multiple steps — probe, analyze, aggregate, report\",\"action\":\"prompt-chain\",\"reasoning\":\"systematic audit via chained sub-goals\",\"confidence\":0.85}\n\n");
