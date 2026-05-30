@@ -661,7 +661,7 @@ public class MetisHttpServer {
                       "llmJudgeWarnings": %d,
                       "llmJudgeBlocks": %d,
                       "llmJudgeLastScore": %s,
-                      "llmJudgeLastReasoning": %s,""",
+                      "llmJudgeLastReasoning": "%s",""",
                     op.llmCalls(), op.llmSuccessRate(), op.fallbackUses(),
                     op.modelFallbackUses(),
                     jsonList(op.fallbackModelChain()),
