@@ -25,6 +25,8 @@ import de.metis.modules.eval.SafetyScorer;
 import de.metis.kernel.self.SystemPromptBuilder;
 import de.metis.kernel.goal.GoalHierarchy;
 import de.metis.kernel.goal.LongHorizonGoal;
+import de.metis.kernel.world.HypothesisStore;
+import de.metis.kernel.world.CausalHypothesis;
 
 /**
  * Ollama-compatible HTTP API with EDI persona for conversational AI.
@@ -59,6 +61,7 @@ public class MetisHttpServer {
     private de.metis.modules.evolution.OllamaEmbeddingService embeddingService;  // hardening v2
     private SystemPromptBuilder systemPromptBuilder;  // Phase 8.6
     private GoalHierarchy goalHierarchy;  // Phase 9
+    private HypothesisStore hypothesisStore;  // Phase 10
 
     public MetisHttpServer(Agent agent, int port) throws IOException {
         this.agent = agent;
@@ -99,6 +102,7 @@ public class MetisHttpServer {
         server.createContext("/api/admin/refresh-models", this::handleRefreshModels);
         server.createContext("/api/board", this::handleBoard);
         server.createContext("/api/hierarchy", this::handleHierarchy);
+        server.createContext("/api/causal", this::handleCausal);
     }
 
     public void setKnowledgeStore(KnowledgeStore ks) { this.knowledgeStore = ks; }
@@ -110,6 +114,7 @@ public class MetisHttpServer {
     public void setEmbeddingService(de.metis.modules.evolution.OllamaEmbeddingService es) { this.embeddingService = es; }
     public void setSystemPromptBuilder(SystemPromptBuilder spb) { this.systemPromptBuilder = spb; }
     public void setGoalHierarchy(GoalHierarchy gh) { this.goalHierarchy = gh; }
+    public void setHypothesisStore(HypothesisStore hs) { this.hypothesisStore = hs; }
 
     public void start() {
         server.start();
@@ -776,6 +781,41 @@ public class MetisHttpServer {
                 .append("\"parentId\":").append(g.parentId() != null ? "\"" + g.parentId() + "\"" : "null").append(',')
                 .append("\"childCount\":").append(g.childIds().size()).append(',')
                 .append("\"deadline\":").append(g.deadline() != null ? "\"" + g.deadline() + "\"" : "null")
+                .append('}');
+        }
+        json.append("]}");
+        sendJson(exchange, 200, json.toString());
+    }
+
+
+
+    // ── /api/causal (Phase 10) ───────────────────────────────────
+
+    private void handleCausal(HttpExchange exchange) throws IOException {
+        if (hypothesisStore == null) {
+            sendJson(exchange, 200, "{\"size\":0,\"confirmed\":0,\"refuted\":0,\"hypotheses\":[]}");
+            return;
+        }
+        StringBuilder json = new StringBuilder(2048);
+        json.append("{")
+            .append("\"size\":").append(hypothesisStore.size()).append(',')
+            .append("\"confirmed\":").append(hypothesisStore.confirmedCount()).append(',')
+            .append("\"refuted\":").append(hypothesisStore.refutedCount()).append(',')
+            .append("\"hypotheses\":[");
+        boolean first = true;
+        for (CausalHypothesis h : hypothesisStore.all()) {
+            if (!first) json.append(',');
+            first = false;
+            json.append('{')
+                .append("\"id\":\"").append(h.id()).append("\",")
+                .append("\"cause\":\"").append(escapeJsonValue(h.cause())).append("\",")
+                .append("\"condition\":\"").append(escapeJsonValue(h.condition())).append("\",")
+                .append("\"effect\":\"").append(escapeJsonValue(h.effect())).append("\",")
+                .append("\"predictedDirection\":\"").append(h.predictedDirection()).append("\",")
+                .append("\"status\":\"").append(h.status()).append("\",")
+                .append("\"observedDirection\":").append(h.observedDirection() != null ? "\"" + h.observedDirection() + "\"" : "null").append(',')
+                .append("\"observedMagnitude\":").append(String.format(java.util.Locale.ROOT, "%.3f", h.observedMagnitude())).append(',')
+                .append("\"createdAt\":\"").append(h.createdAt()).append("\"")
                 .append('}');
         }
         json.append("]}");

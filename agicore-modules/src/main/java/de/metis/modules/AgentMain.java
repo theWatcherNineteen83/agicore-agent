@@ -47,6 +47,11 @@ import de.metis.kernel.goal.GoalRevisionEngine;
 import de.metis.kernel.goal.LongHorizonGoal;
 import de.metis.kernel.goal.GoalHorizon;
 import de.metis.kernel.goal.HorizonKanbanBridge;
+import de.metis.kernel.world.HypothesisStore;
+import de.metis.kernel.world.HypothesisGenerator;
+import de.metis.kernel.world.InterventionRunner;
+import de.metis.kernel.world.Counterfactual;
+import de.metis.kernel.world.CausalModel;
 import de.metis.modules.knowledge.LlmDreamSummarizer;
 import de.metis.modules.knowledge.LlmHorizonDecomposer;
 import de.metis.modules.hardware.TornadoVmAction;
@@ -1171,6 +1176,16 @@ public final class AgentMain {
 
         LOG.info("Phase 9 wired — hierarchy=" + goalHierarchy.size() + " goals");
 
+        // ── Phase 10: Aktive kausale Hypothesen ──────────────────────
+        var hypothesisStore = new HypothesisStore();
+        var hypothesisGenerator = new HypothesisGenerator(hypothesisStore);
+        var causalModel = new CausalModel();
+        var interventionRunner = new InterventionRunner(hypothesisStore, causalModel);
+        var counterfactual = new Counterfactual(causalModel);
+        LOG.info("Phase 10 wired — hypotheses=" + hypothesisStore.size()
+                + ", confirmed=" + hypothesisStore.confirmedCount()
+                + ", refuted=" + hypothesisStore.refutedCount());
+
         // Phase 9.3b — LLM decomposer drop-in (falls Ollama down: deterministischer Fallback)
         horizonPlanner.setDecomposer(new LlmHorizonDecomposer(
                 "http://192.168.22.204:11434", "gemma4:e4b"));
@@ -1216,6 +1231,7 @@ public final class AgentMain {
             httpServer.setEmbeddingService(embedSvc);
             httpServer.setSystemPromptBuilder(systemPromptBuilder);
             httpServer.setGoalHierarchy(goalHierarchy);
+            httpServer.setHypothesisStore(hypothesisStore);
             httpServer.start();
         }
 
