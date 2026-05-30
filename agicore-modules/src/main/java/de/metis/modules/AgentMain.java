@@ -46,7 +46,9 @@ import de.metis.kernel.goal.CommitmentRegister;
 import de.metis.kernel.goal.GoalRevisionEngine;
 import de.metis.kernel.goal.LongHorizonGoal;
 import de.metis.kernel.goal.GoalHorizon;
+import de.metis.kernel.goal.HorizonKanbanBridge;
 import de.metis.modules.knowledge.LlmDreamSummarizer;
+import de.metis.modules.knowledge.LlmHorizonDecomposer;
 import de.metis.modules.hardware.TornadoVmAction;
 import de.metis.modules.multiagent.AgentCoordinator;
 import de.metis.modules.CuriosityEngine;
@@ -1168,6 +1170,33 @@ public final class AgentMain {
         }, 5, 30, TimeUnit.MINUTES);
 
         LOG.info("Phase 9 wired — hierarchy=" + goalHierarchy.size() + " goals");
+
+        // Phase 9.3b — LLM decomposer drop-in (falls Ollama down: deterministischer Fallback)
+        horizonPlanner.setDecomposer(new LlmHorizonDecomposer(
+                "http://192.168.22.204:11434", "gemma4:e4b"));
+
+        // Phase 9.6b — Brücke Long-Horizon → Kanban-Board
+        var horizonKanbanBridge = (agent.core().goals().kanbanBoard() != null)
+                ? new HorizonKanbanBridge(goalHierarchy, agent.core().goals().kanbanBoard())
+                : null;
+        if (horizonKanbanBridge != null) {
+            var bridgeScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+                var t = new Thread(r, "horizon-kanban-bridge");
+                t.setDaemon(true);
+                return t;
+            });
+            bridgeScheduler.scheduleAtFixedRate(() -> {
+                try {
+                    int n = horizonKanbanBridge.promoteDueGoals();
+                    if (n > 0) {
+                        LOG.info("HorizonKanbanBridge: promoted " + n + " goals -> BACKLOG");
+                    }
+                } catch (Exception e) {
+                    LOG.warning("HorizonKanbanBridge tick failed: " + e.getMessage());
+                }
+            }, 60, 300, TimeUnit.SECONDS);
+            LOG.info("Phase 9.6b wired — HorizonKanbanBridge scheduled every 5 min");
+        }
 
         var systemPromptBuilder = new SystemPromptBuilder(
                 personalityAnchor, selfNarrative, moodSignal, episodicMemory);
