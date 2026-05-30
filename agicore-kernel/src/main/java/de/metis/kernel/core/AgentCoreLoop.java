@@ -27,6 +27,7 @@ import de.metis.kernel.world.CausalModel;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.logging.Logger;
 
 /**
@@ -50,6 +51,16 @@ public class AgentCoreLoop {
     private final CausalModel causalModel = new CausalModel();
 
     private static final Logger LOG = Logger.getLogger(AgentCoreLoop.class.getName());
+
+    /** Categories the CoreLoop can execute. Others (speech-loop, wikipedia-learn, java-learn)
+     * are handled by specialized schedulers. */
+    private static final Set<String> CORE_CATEGORIES = Set.of(
+            "shell", "http", "filesystem", "webscrape", "linux-explore",
+            "api-explore", "hw-profile", "deepnetts", "tornadovm",
+            "exploration", "meta", "chat", "mqtt-event", "ha-event",
+            "weather", "weather-trend", "webcam", "adsb", "adsb-unusual",
+            "adsb-proximity", "shadow", "unknown", "analysis"
+    );
 
     private static final int CONSOLIDATION_INTERVAL = 10;
     private static final int ADAPTATION_INTERVAL = 15;
@@ -147,7 +158,19 @@ public class AgentCoreLoop {
         }
 
         // 1. Try Kanban pull (respects WIP limits, service classes, resource types)
-        Goal kanbanResult = (goals.kanbanBoard() != null) ? goals.pullFromBoard() : null;
+        //    Only pull goals the CoreLoop can execute (shell, http, filesystem, exploration, meta)
+        //    Specialized goals (speech-loop, wikipedia-learn, java-learn) are handled by their schedulers
+        Goal kanbanResult = null;
+        if (goals.kanbanBoard() != null) {
+            var board = goals.kanbanBoard();
+            // Find first READY goal in a category the CoreLoop can handle
+            Goal readyGoal = board.snapshot().ready().stream()
+                    .filter(g -> CORE_CATEGORIES.contains(g.category()))
+                    .findFirst().orElse(null);
+            if (readyGoal != null) {
+                kanbanResult = board.pull();
+            }
+        }
         if (kanbanResult != null) {
             final Goal kg = kanbanResult;
             LOG.fine(() -> "Kanban pull: " + kg.description()

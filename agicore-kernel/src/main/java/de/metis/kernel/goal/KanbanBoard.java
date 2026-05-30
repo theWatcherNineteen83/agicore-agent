@@ -292,6 +292,7 @@ public class KanbanBoard {
         return new BoardSnapshot(
                 backlogSize(), readySize(), inProgressSize(), doneSize(),
                 totalCompleted, totalExpedites, totalWipPercent(),
+                List.copyOf(ready),
                 List.copyOf(inProgress.values()),
                 recentDone(20),
                 WIP_LIMITS);
@@ -300,6 +301,7 @@ public class KanbanBoard {
     public record BoardSnapshot(
             int backlogSize, int readySize, int inProgressSize, int doneSize,
             int totalCompleted, int totalExpedites, int wipPercent,
+            Collection<Goal> ready,
             Collection<Goal> inProgress,
             List<GoalFlowMetrics> recentDone,
             Map<Goal.ResourceType, Integer> wipLimits) {}

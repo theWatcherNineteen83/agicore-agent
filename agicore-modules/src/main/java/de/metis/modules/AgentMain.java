@@ -1157,59 +1157,75 @@ public final class AgentMain {
                         .collect(java.util.stream.Collectors.toList());
                 wikiKnowledge.addCuriosityTopics(topics);
 
-                // Kanban: create and flow a Wikipedia learning goal through the board
-                Goal wikiGoal = null;
+                // Kanban: add Wikipedia/Speech goals to BACKLOG, Metis pulls when ready
+                // CoreLoop promotes BACKLOG → READY on each tick (WIP-respecting)
                 boolean isSpeechGoal = RANDOM.nextDouble() < 0.05; // ~5% speech-loop
 
                 if (agent.core().goals().kanbanBoard() != null) {
                     var board = agent.core().goals().kanbanBoard();
-                    if (isSpeechGoal && board.countInProgress(Goal.ResourceType.CPU_HEAVY) < 2) {
-                        // Speech-loop: speak → listen → compare → learn vocabulary
-                        wikiGoal = new Goal(
+                    // Add to BACKLOG only — Metis pulls independently
+                    if (isSpeechGoal) {
+                        Goal speechGoal = new Goal(
                                 "Speech-Loop: Wikipedia article (speak→listen→learn)",
                                 "speech-loop", 55, 0.6, 2,
                                 Goal.ServiceClass.STANDARD, Goal.ResourceType.CPU_HEAVY, null);
-                        board.add(wikiGoal);
-                        board.promoteReady();
-                        wikiGoal = board.pull();
-                        if (wikiGoal != null) {
-                            LOG.info("Kanban: Speech-Loop goal pulled — will speak Wikipedia excerpt");
-                        } else {
-                            // WIP blocked — fall back to regular learning
-                            isSpeechGoal = false;
-                        }
-                    }
-                    if (!isSpeechGoal && board.countInProgress(Goal.ResourceType.INFERENCE) < 2) {
-                        wikiGoal = new Goal(
+                        board.add(speechGoal);
+                        LOG.fine("Kanban: BACKLOG ← Speech-Loop goal");
+                    } else {
+                        Goal wikiGoal = new Goal(
                                 "Learn Wikipedia article (curiosity-driven)",
                                 "wikipedia-learn", 50, 0.5, 1,
                                 Goal.ServiceClass.STANDARD, Goal.ResourceType.INFERENCE, null);
-                        board.add(wikiGoal);           // BACKLOG
-                        board.promoteReady();           // → READY
-                        wikiGoal = board.pull();        // → IN_PROGRESS (respects WIP)
-                        if (wikiGoal == null) {
-                            LOG.fine("Wikipedia goal blocked by WIP limits");
-                        }
+                        board.add(wikiGoal);
+                        LOG.fine("Kanban: BACKLOG ← Wikipedia learning goal");
                     }
                 }
 
-                int learned;
-                if (isSpeechGoal && wikiGoal != null) {
-                    // Speech-loop: pick a random article snippet and run the speech loop
-                    learned = runSpeechLoop(wikiKnowledge, wikiGoal, agent);
-                } else {
-                    learned = wikiKnowledge.learnOneArticle();
-                }
-                if (learned > 0) {
-                    // Complete the Wikipedia goal on the board (moves IN_PROGRESS → DONE)
-                    if (wikiGoal != null && agent.core().goals().kanbanBoard() != null) {
-                        agent.core().goals().kanbanBoard().complete(wikiGoal.id());
+                // Pull from READY: check if a goal of our type is ready to execute
+                Goal pulledGoal = null;
+                int learned = 0;
+                if (agent.core().goals().kanbanBoard() != null) {
+                    var board = agent.core().goals().kanbanBoard();
+                    var snapshot = board.snapshot();
+                    // Try speech-loop first (higher priority)
+                    pulledGoal = snapshot.ready().stream()
+                            .filter(g -> g.category().equals("speech-loop"))
+                            .findFirst().orElse(null);
+                    if (pulledGoal == null) {
+                        pulledGoal = snapshot.ready().stream()
+                                .filter(g -> g.category().equals("wikipedia-learn"))
+                                .findFirst().orElse(null);
                     }
-                    LOG.info("Wikipedia curiosity: learned " + learned + " facts (total: "
-                            + wikiKnowledge.factsLearned() + " from " + wikiKnowledge.articlesProcessed() + " articles)");
-                } else if (wikiGoal != null && agent.core().goals().kanbanBoard() != null) {
-                    // Nothing learned — requeue the goal (IN_PROGRESS → READY) for retry
-                    agent.core().goals().kanbanBoard().requeue(wikiGoal);
+                    if (pulledGoal != null) {
+                        pulledGoal = board.pull(); // READY → IN_PROGRESS (respects WIP)
+                    }
+                }
+
+                if (pulledGoal != null) {
+                    boolean isSpeech = pulledGoal.category().equals("speech-loop");
+                    if (isSpeech) {
+                        learned = runSpeechLoop(wikiKnowledge, pulledGoal, agent);
+                    } else {
+                        learned = wikiKnowledge.learnOneArticle();
+                    }
+                    // Complete or requeue
+                    if (agent.core().goals().kanbanBoard() != null) {
+                        if (learned > 0) {
+                            agent.core().goals().kanbanBoard().complete(pulledGoal.id());
+                            LOG.info("Wikipedia: learned " + learned + " facts (total: "
+                                    + wikiKnowledge.factsLearned() + " from " + wikiKnowledge.articlesProcessed() + " articles)");
+                        } else {
+                            agent.core().goals().kanbanBoard().requeue(pulledGoal);
+                            LOG.fine("Wikipedia: nothing learned — requeued");
+                        }
+                    }
+                } else {
+                    // No READY goal — just feed knowledge directly
+                    learned = wikiKnowledge.learnOneArticle();
+                    if (learned > 0) {
+                        LOG.info("Wikipedia curiosity: learned " + learned + " facts (total: "
+                                + wikiKnowledge.factsLearned() + " from " + wikiKnowledge.articlesProcessed() + " articles)");
+                    }
                 }
             } catch (Exception e) {
                 LOG.fine("Wikipedia learning cycle: " + e.getMessage());
@@ -1248,18 +1264,24 @@ public final class AgentMain {
         });
         javaScheduler.scheduleAtFixedRate(() -> {
             try {
-                // Create Kanban goal for Java learning
                 if (agent.core().goals().kanbanBoard() != null) {
                     var board = agent.core().goals().kanbanBoard();
-                    if (board.countInProgress(Goal.ResourceType.CPU_HEAVY) < 2) {
-                        Goal javaGoal = new Goal(
-                                "Learn Java: Zulu JDK 25 exploration",
-                                "java-learn", 45, 0.45, 1,
-                                Goal.ServiceClass.STANDARD, Goal.ResourceType.CPU_HEAVY, null);
-                        board.add(javaGoal);
-                        board.promoteReady();
-                        javaGoal = board.pull();
-                        if (javaGoal != null) {
+                    // Add to BACKLOG — Metis pulls when ready
+                    Goal javaGoal = new Goal(
+                            "Learn Java: Zulu JDK 25 exploration",
+                            "java-learn", 45, 0.45, 1,
+                            Goal.ServiceClass.STANDARD, Goal.ResourceType.CPU_HEAVY, null);
+                    board.add(javaGoal);
+                    LOG.fine("Kanban: BACKLOG ← Java learning goal");
+
+                    // Pull from READY: check if a java-learn goal is ready
+                    var snapshot = board.snapshot();
+                    Goal readyGoal = snapshot.ready().stream()
+                            .filter(g -> g.category().equals("java-learn"))
+                            .findFirst().orElse(null);
+                    if (readyGoal != null) {
+                        readyGoal = board.pull(); // READY → IN_PROGRESS (respects WIP)
+                        if (readyGoal != null) {
                             int result;
                             if (RANDOM.nextDouble() < 0.3 && javaLearnService.commandsSucceeded() >= 5) {
                                 result = javaLearnService.tryCompileAndRun();
@@ -1267,17 +1289,16 @@ public final class AgentMain {
                                 result = javaLearnService.exploreOneTool();
                             }
                             if (result >= 0) {
-                                board.complete(javaGoal.id());
+                                board.complete(readyGoal.id());
                             } else {
-                                board.requeue(javaGoal);
+                                board.requeue(readyGoal);
                             }
                             LOG.info("JavaLearn: " + result + " beliefs, "
                                     + javaLearnService.commandsSucceeded() + "/"
-                                    + javaLearnService.commandsTried() + " success rate");
+                                    + javaLearnService.commandsTried() + " success");
                         }
                     }
                 } else {
-                    // Fallback: learn without Kanban
                     javaLearnService.exploreOneTool();
                 }
             } catch (Exception e) {
