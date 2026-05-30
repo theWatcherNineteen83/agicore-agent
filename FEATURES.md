@@ -1,6 +1,6 @@
 # Metis AGI — Feature-Katalog
 
-**Stand: 29.05.2026 21:45 | Version 0.2.0-evolution | 70+ Kernel-Klassen + 67+ Module-Klassen**
+**Stand: 30.05.2026 19:00 | Version 0.2.0-evolution | 71+ Kernel-Klassen + 68+ Module-Klassen**
 
 ---
 
@@ -63,7 +63,7 @@
 
 ---
 
-## 🤖 Actions (21 registriert)
+## 🤖 Actions (22 registriert)
 
 ### System & Shell
 | Action | Beschreibung |
@@ -86,6 +86,7 @@
 |---|---|
 | `javasandbox` | Java-Code sandboxed ausführen (JShell) |
 | `code-generation` | LLM→javac→deploy (autonome Code-Generierung) |
+| `source-read` 🆕 | Eigenen Java-Quellcode lesen (Klassenname oder Pfad) |
 | `deepnetts` | Neuronale Netze trainieren (Deep Netts CE) |
 | `tornadovm` | GPU-Computing via TornadoVM |
 | `hardware-profile` | Hardware-Profil erstellen |
@@ -166,6 +167,8 @@
 
 - **EvolutionManager** — Mutations-Zyklen mit Shadow-Environment
 - **OllamaMutationService** — LLM-basierter Code-Mutator (qwen3.6:27b-q4_K_M)
+- **ReadSourceAction** 🆕 — Metis kann eigenen Java-Quellcode lesen (Klassenname oder Pfad)
+- **CodeGenerationAction** — LLM→javac→deploy, sandboxed Kompilation
 - **PromptBank** — Few-Shot aus erfolgreichen Mutationen
 - **ABTestService** — Z-test, Traffic-Split 50/50, Auto-Promote (~500 lines)
 - **DataFlywheelService** — User-Korrekturen → gelabelte Beispiele → Few-Shot-Export (~560 lines)
@@ -269,7 +272,14 @@
 
 ---
 
-## ✅ Heute erledigt (29.05.)
+## ✅ Heute erledigt (30.05.)
+
+- 📖 **ReadSourceAction**: Metis kann eigenen Java-Quellcode lesen (Klassenname oder Pfad)
+- 🔧 OllamaPlanner: `source-read` in allen 3 Action-Katalogen + Few-Shot
+- 🔧 AgentMain: ReadSourceAction mit 3 Source-Roots (kernel, modules, watchdog) registriert
+- 📋 README.md + FEATURES.md aktualisiert
+
+## ✅ Erledigt (29.05.)
 
 - 🔧 Telegram-Chat: Markdown-Cleanup, gemma4:e4b, temp=0.3, Deutsch primär, MQTT-Kontext
 - 📡 WikipediaKnowledgeService: API-basiert, Curiosity-gesteuert, alle 10 Min

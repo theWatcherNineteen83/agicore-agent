@@ -1,4 +1,17 @@
-# TODO Metis — Stand 29.05.2026 17:45 (GitHub-Push: 31341b7)
+# TODO Metis — Stand 30.05.2026 19:00 (GitHub-Push: 3820064)
+
+## 🆕 30.05. — ReadSourceAction ✅
+- [x] **ReadSourceAction** (kernel/action/) — Metis kann eigenen Java-Quellcode lesen
+  - FIND-Modus: Klassenname (z.B. "EvolutionManager")
+  - READ-Modus: relativer Pfad (z.B. "de/metis/kernel/evolution/EvolutionManager.java")
+  - 3 Source-Roots: kernel, modules, watchdog
+  - Sicherheit: read-only, AUTO approval, nur .java, max 100KB
+- [x] OllamaPlanner: `source-read` in allen 3 Action-Katalogen + Few-Shot
+- [x] AgentMain: ReadSourceAction registriert
+- [x] Deployed auf miniedi (PID 573562)
+- [ ] Metis nutzt source-read im Live-Betrieb → beobachten via actionUsageCount
+- [ ] CodeGenerationAction.approvalLevel() von FORBIDDEN → CONFIRM lockern
+- [ ] Kernel-Evolution mit --kernel-evolution aktivieren (nach Eval-Kalibrierung)
 
 ## 📚 Buch-Abgleich 28.05. — Prompting-Kurz&Gut + GenKI-Systeme
 
