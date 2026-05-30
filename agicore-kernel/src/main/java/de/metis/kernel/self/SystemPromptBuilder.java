@@ -1,5 +1,9 @@
 package de.metis.kernel.self;
 
+import de.metis.kernel.goal.GoalHierarchy;
+import de.metis.kernel.goal.GoalHorizon;
+import de.metis.kernel.goal.LongHorizonGoal;
+
 import java.util.Locale;
 
 /**
@@ -30,6 +34,7 @@ public class SystemPromptBuilder {
     private final SelfNarrative narrative;
     private final MoodSignal mood;
     private final EpisodicMemory episodes;
+    private GoalHierarchy hierarchy;  // Phase 9 — optional
 
     public SystemPromptBuilder(PersonalityAnchor anchor,
                                SelfNarrative narrative,
@@ -46,6 +51,9 @@ public class SystemPromptBuilder {
      * to a base system prompt. Returns "" if no self-model is available
      * (e. g. early boot, components disabled).
      */
+    /** Phase 9: inject the goal hierarchy into the self-prompt. */
+    public void setGoalHierarchy(GoalHierarchy h) { this.hierarchy = h; }
+
     public String buildPromptHeader() {
         StringBuilder sb = new StringBuilder(4096);
 
@@ -87,6 +95,31 @@ public class SystemPromptBuilder {
             }
         }
 
+
+        if (hierarchy != null && hierarchy.size() > 0) {
+            var strategic = hierarchy.openByHorizon(GoalHorizon.STRATEGIC);
+            var tactical  = hierarchy.openByHorizon(GoalHorizon.TACTICAL);
+            var commitments = hierarchy.all().stream()
+                    .filter(g -> g.tags().contains("commitment") && g.isOpen())
+                    .toList();
+            if (!strategic.isEmpty() || !tactical.isEmpty() || !commitments.isEmpty()) {
+                sb.append("\n=== AKTUELLE LANG-ZEIT-ZIELE ===\n");
+                for (LongHorizonGoal g : strategic) {
+                    sb.append("STRATEGIC ").append(progressBar(g.progress()))
+                            .append(" ").append(g.title()).append('\n');
+                }
+                for (LongHorizonGoal g : tactical) {
+                    sb.append("TACTICAL  ").append(progressBar(g.progress()))
+                            .append(" ").append(g.title()).append('\n');
+                }
+                for (LongHorizonGoal g : commitments) {
+                    sb.append("COMMIT    @").append(g.owner())
+                            .append(g.deadline() != null ? " (due " + g.deadline() + ")" : "")
+                            .append(" — ").append(g.title()).append('\n');
+                }
+            }
+        }
+
         if (narrative != null) {
             String tail = narrative.recentContext(2048);
             if (tail != null && !tail.isBlank()) {
@@ -101,6 +134,11 @@ public class SystemPromptBuilder {
     /**
      * Convenience: prepend the self-model block to an existing base prompt.
      */
+    private static String progressBar(double p) {
+        int filled = (int) Math.round(Math.max(0.0, Math.min(1.0, p)) * 10);
+        return "[" + "=".repeat(filled) + " ".repeat(10 - filled) + "]";
+    }
+
     public String wrap(String basePrompt) {
         String header = buildPromptHeader();
         if (header.isEmpty()) return basePrompt == null ? "" : basePrompt;

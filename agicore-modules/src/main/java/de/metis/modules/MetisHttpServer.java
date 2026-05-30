@@ -23,6 +23,8 @@ import de.metis.modules.persona.Persona;
 import de.metis.modules.multiagent.AgentCoordinator;
 import de.metis.modules.eval.SafetyScorer;
 import de.metis.kernel.self.SystemPromptBuilder;
+import de.metis.kernel.goal.GoalHierarchy;
+import de.metis.kernel.goal.LongHorizonGoal;
 
 /**
  * Ollama-compatible HTTP API with EDI persona for conversational AI.
@@ -56,6 +58,7 @@ public class MetisHttpServer {
     private KanbanBoard kanbanBoard;           // Kanban: Goal Board
     private de.metis.modules.evolution.OllamaEmbeddingService embeddingService;  // hardening v2
     private SystemPromptBuilder systemPromptBuilder;  // Phase 8.6
+    private GoalHierarchy goalHierarchy;  // Phase 9
 
     public MetisHttpServer(Agent agent, int port) throws IOException {
         this.agent = agent;
@@ -95,6 +98,7 @@ public class MetisHttpServer {
         server.createContext("/api/admin/prune", this::handlePrune);
         server.createContext("/api/admin/refresh-models", this::handleRefreshModels);
         server.createContext("/api/board", this::handleBoard);
+        server.createContext("/api/hierarchy", this::handleHierarchy);
     }
 
     public void setKnowledgeStore(KnowledgeStore ks) { this.knowledgeStore = ks; }
@@ -105,6 +109,7 @@ public class MetisHttpServer {
     public void setKanbanBoard(KanbanBoard kb) { this.kanbanBoard = kb; }
     public void setEmbeddingService(de.metis.modules.evolution.OllamaEmbeddingService es) { this.embeddingService = es; }
     public void setSystemPromptBuilder(SystemPromptBuilder spb) { this.systemPromptBuilder = spb; }
+    public void setGoalHierarchy(GoalHierarchy gh) { this.goalHierarchy = gh; }
 
     public void start() {
         server.start();
@@ -743,6 +748,38 @@ public class MetisHttpServer {
         );
 
         sendJson(exchange, 200, json);
+    }
+
+
+
+    // ── /api/hierarchy (Phase 9) ─────────────────────────────────
+
+    private void handleHierarchy(HttpExchange exchange) throws IOException {
+        if (goalHierarchy == null) {
+            sendJson(exchange, 200, "{\"size\":0,\"goals\":[]}");
+            return;
+        }
+        StringBuilder json = new StringBuilder(2048);
+        json.append("{\"size\":").append(goalHierarchy.size()).append(",\"goals\":[");
+        boolean first = true;
+        for (LongHorizonGoal g : goalHierarchy.all()) {
+            if (!first) json.append(',');
+            first = false;
+            json.append('{')
+                .append("\"id\":\"").append(g.id()).append("\",")
+                .append("\"title\":\"").append(escapeJsonValue(g.title())).append("\",")
+                .append("\"horizon\":\"").append(g.horizon()).append("\",")
+                .append("\"status\":\"").append(g.status()).append("\",")
+                .append("\"progress\":").append(String.format(java.util.Locale.ROOT, "%.3f", g.progress())).append(',')
+                .append("\"priority\":").append(g.priority()).append(',')
+                .append("\"owner\":\"").append(escapeJsonValue(g.owner())).append("\",")
+                .append("\"parentId\":").append(g.parentId() != null ? "\"" + g.parentId() + "\"" : "null").append(',')
+                .append("\"childCount\":").append(g.childIds().size()).append(',')
+                .append("\"deadline\":").append(g.deadline() != null ? "\"" + g.deadline() + "\"" : "null")
+                .append('}');
+        }
+        json.append("]}");
+        sendJson(exchange, 200, json.toString());
     }
 
     // ── Utility ──────────────────────────────────────────────────

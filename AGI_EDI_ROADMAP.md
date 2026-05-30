@@ -3,7 +3,7 @@
 **Ziel:** EDI-ähnliche KI (Mass Effect 3) — eigenständig, per Sprache und Text ansprechbar,
 mit eigenem Wissen, Persönlichkeit, narrativem Selbstmodell und der Fähigkeit, sich selbst zu verbessern.
 
-**Stand: 31.05.2026 01:15 (v0.4.1-phase8-complete)**
+**Stand: 31.05.2026 01:30 (v0.5.0-phase9-long-horizon)**
 
 ---
 
@@ -26,13 +26,13 @@ Phase 7  ████████████████████ 100%  Watc
 Phase 7+ ████████████████████ 100%  Defense-in-Depth (30./31.05.)
 ─────────────────────────────────────  AUTONOMER AGENT bis hier
 Phase 8  ████████████████████ 100%  Narratives Selbstmodell ✅            ← EDI-Distanz
-Phase 9  ░░░░░░░░░░░░░░░░░░░░   0%  Long-Horizon-Planung
+Phase 9  ████████████████░░░░  80%  Long-Horizon-Planung (Foundation+Wiring)
 Phase 10 ░░░░░░░░░░░░░░░░░░░░   0%  Aktive kausale Hypothesen
 Phase 11 ░░░░░░░░░░░░░░░░░░░░   0%  Beziehungs-Modell
 ─────────────────────────────────────  EDI-ÄHNLICHE KI ab hier
 ```
 
-**Realistisches EDI-Niveau: ~62-65%** (Phase 8 komplett: Selbstmodell-Bestandteile fließen in jeden LLM-Call, DreamConsolidation produziert LLM-narrative Episoden).
+**Realistisches EDI-Niveau: ~65-68%** (Phase 9 Foundation: Goals existieren auf Wochenebene, Commitments sind first-class, Revision läuft alle 30 Min).
 
 ---
 
@@ -160,7 +160,7 @@ fortschreibt — nicht nur Metriken, sondern Episoden.
 **Aufwand bisher:** ~1 Tag · **Verbleibend für Phase 8 komplett:** ~1 Woche
 **EDI-Distanz nach Phase 8.6:** ~60-65% (Foundation+Wiring) → ~65-70% (mit SystemPromptBuilder)
 
-## 🎯 Phase 9: Long-Horizon-Planung (NEU, ungelöst)
+## 🎯 Phase 9: Long-Horizon-Planung ✅ Foundation+Wiring (31.05.)
 
 **Ziel:** Goals mit Hierarchie und Zeithorizont (Stunden, Tage, Wochen).
 
@@ -168,15 +168,23 @@ fortschreibt — nicht nur Metriken, sondern Episoden.
 "ich verfolge seit 3 Tagen das Ziel X". Eval zeigt PLANNING.goal_achieved=0.0 — das ist nicht nur ein
 Scorer-Bug, das ist die Lücke.
 
-**Bausteine:**
-- [ ] **GoalHierarchy** — Strategic / Tactical / Operational, Parent-Child-Beziehung
-- [ ] **HorizonPlanner** — Wochenziele → Tagesziele → Tickziele (top-down decomposition)
-- [ ] **GoalRevision** — periodisch prüfen ob Strategic-Goal noch sinnvoll (revidierbar)
-- [ ] **DependencyResolver** — Goal X erst nach Goal Y, mit Wartezeit-Tracking
-- [ ] **CommitmentRegister** — Versprechen an User ("Ich melde mich um 18:00") als first-class Goal
+**Bausteine — Foundation deployed (v0.5.0):**
+- [x] **GoalHorizon** enum (TICK / OPERATIONAL / TACTICAL / STRATEGIC / LIFETIME) mit `canBeDecomposed()` und `nextDown()`
+- [x] **LongHorizonGoal** Record mit Parent/Children-Liste, Status (PROPOSED/ACTIVE/BLOCKED/DONE/ABANDONED), progress, priority, owner, tags, lifecycle-Timestamps; immutable mit `withStatus/withProgress/withChild/withReviewedNow`
+- [x] **GoalHierarchy** — append-only JSONL unter `metis.hierarchy.path` (default `/home/prometheus/metis/goal-hierarchy.jsonl`), in-Memory-Index, Methoden `upsert/get/all/openByHorizon/overdue/children/isRunnable/rollupProgress`
+- [x] **HorizonPlanner** — deterministische Top-Down-Decomposition (Strategic→3 Tactical→3 Operational→Tick-Goals), optionaler `DecomposeFunction`-Hook für LLM-Drop-in (Phase 9.3b)
+- [x] **CommitmentRegister** — first-class User-Versprechen, getaggt mit `commitment` + `person:<owner>`, `record/openCommitments/openFor/overdue/markDone`
+- [x] **GoalRevisionEngine** — periodisch (30 Min): auto-DONE bei progress=1.0, BLOCKED bei überfällig, lastReviewed-Update, Parent-Roll-up; `RevisionReport`
+- [x] **SystemPromptBuilder.setGoalHierarchy()** — STRATEGIC/TACTICAL/COMMITMENT-Block mit Progressbar im System-Prompt jeder LLM-Konversation
+- [x] **/api/hierarchy** HTTP-Endpoint für externe Sichtbarkeit
+- [x] **Lifetime-Goal** beim Boot geseedet ("Hilf Georg ein EDI-ähnliches System zu bauen", LIFETIME, ACTIVE, prio 100)
+- [x] **7 JUnit-Tests** (`Phase9LongHorizonTest`) für Horizon-Chain, Record-Invarianten, Hierarchy-Persistence, deterministische Decomposition, Commitments, Revision, Parent-Rollup
+- [ ] **LLM-DecomposeFunction-Drop-in** (Phase 9.3b) — analog zu LlmDreamSummarizer für STRATEGIC→TACTICAL-LLM-Zerlegung
+- [ ] **Promotion auf Kanban** — wenn ein OPERATIONAL-Goal fällig wird, wird automatisch ein Kanban-Goal erzeugt (Phase 9.6b)
+- [ ] **Goal-getriebene Planner-Auswahl** — OllamaPlanner liest hierarchy.openByHorizon() statt nur Kanban (Phase 9.6c)
 
-**Aufwand:** 4-6 Wochen.
-**EDI-Distanz nach Phase 9:** ~75-80%.
+**Aufwand bisher:** ~1 Tag · **Verbleibend für Phase 9 komplett:** ~3-5 Tage
+**EDI-Distanz nach Phase 9.6c:** ~70-75% (jetzige ~65-68% durch Foundation).
 
 ## 🔬 Phase 10: Aktive kausale Hypothesen-Bildung (NEU, ungelöst)
 
@@ -292,7 +300,7 @@ weltweit hat sie aktuell geknackt.
 | 🟢 **M7: Produktionsreife** | Phase 6 | ✅ Erreicht |
 | 🟢 **M8: Sicherheit + Defense-in-Depth** | Phase 7 + 7+ | ✅ Erreicht |
 | 🟢 **M9: Narratives Selbst** | Phase 8 | ✅ Erreicht (100%) |
-| 🔴 **M10: Long-Horizon-Planung** | Phase 9 | ⬜ Ungelöst |
+| 🟡 **M10: Long-Horizon-Planung** | Phase 9 | 🔄 Foundation deployed (~80%) |
 | 🔴 **M11: Kausales Selbstmodell** | Phase 10 | ⬜ Ungelöst |
 | 🔴 **M12: Beziehungs-Modell** | Phase 11 | ⬜ Ungelöst |
 | 🟡 **M13: EDI-Niveau** | Phasen 8-11 + Forschung | 🔄 ~50-55% |

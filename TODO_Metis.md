@@ -1,6 +1,6 @@
 # TODO Metis — Aktueller Stand & Ehrliche Lücken-Analyse
 
-**Stand: 31.05.2026 01:15 · Tag: v0.4.1-phase8-complete · Tests: 35 grün · Master: HEAD**
+**Stand: 31.05.2026 01:30 · Tag: v0.5.0-phase9-long-horizon · Tests: 47 grün · Master: HEAD**
 
 ---
 
@@ -47,12 +47,20 @@ Phasen 1-7 + Defense-in-Depth = 100% — das ist ein **außerordentlich gut kons
 - [x] **SystemPromptBuilder integriert SelfNarrative+Anchor+Mood** (Phase 8.6 — kompletter Selbstmodell-Block in /api/chat + Telegram)
 - [x] **LLM-SummaryFunction** für DreamConsolidation (Phase 8.5b, LlmDreamSummarizer mit gemma4:e4b, Fallback auf deterministisch)
 
-#### Phase 9 — Long-Horizon-Planung (4-6 Wochen)
-- [ ] **GoalHierarchy** — Strategic/Tactical/Operational mit Parent-Child
-- [ ] **HorizonPlanner** — Wochenziele → Tagesziele → Tickziele (top-down)
-- [ ] **GoalRevision** — periodische Strategic-Goal-Revision
-- [ ] **DependencyResolver** — Goal X erst nach Goal Y
-- [ ] **CommitmentRegister** — User-Versprechen als first-class Goal
+#### Phase 9 — Long-Horizon-Planung ✅ Foundation+Wiring (31.05.)
+- [x] **GoalHorizon enum** (TICK/OPERATIONAL/TACTICAL/STRATEGIC/LIFETIME)
+- [x] **LongHorizonGoal Record** (parent/children, status, progress, deadline, owner, tags)
+- [x] **GoalHierarchy** — JSONL-persistent, Index nach Status/Horizon, Parent-Rollup
+- [x] **HorizonPlanner** — deterministische Top-Down-Decomposition (3-fan-out), LLM-Hook
+- [x] **CommitmentRegister** — first-class User-Versprechen
+- [x] **GoalRevisionEngine** — alle 30 Min: auto-DONE, BLOCKED-overdue, Parent-Rollup
+- [x] **SystemPromptBuilder** zeigt STRATEGIC/TACTICAL/COMMITMENT in jedem LLM-Prompt
+- [x] **/api/hierarchy** HTTP-Endpoint
+- [x] **Lifetime-Goal** beim Boot geseedet
+- [x] **7 JUnit-Tests** (Phase9LongHorizonTest), total 47 grün
+- [ ] **LLM-DecomposeFunction** (Phase 9.3b)
+- [ ] **Promotion auf Kanban-Board** wenn OPERATIONAL fällig (Phase 9.6b)
+- [ ] **OllamaPlanner liest Hierarchy** statt nur Kanban (Phase 9.6c)
 
 #### Phase 10 — Aktive kausale Hypothesen (6-8 Wochen, Forschung)
 - [ ] **HypothesisGenerator** — aus Surprise konkrete kausale Hypothese

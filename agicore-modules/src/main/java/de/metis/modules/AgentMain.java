@@ -40,6 +40,12 @@ import de.metis.kernel.self.MoodSignal;
 import de.metis.kernel.self.PersonalityAnchor;
 import de.metis.kernel.self.DreamConsolidation;
 import de.metis.kernel.self.SystemPromptBuilder;
+import de.metis.kernel.goal.GoalHierarchy;
+import de.metis.kernel.goal.HorizonPlanner;
+import de.metis.kernel.goal.CommitmentRegister;
+import de.metis.kernel.goal.GoalRevisionEngine;
+import de.metis.kernel.goal.LongHorizonGoal;
+import de.metis.kernel.goal.GoalHorizon;
 import de.metis.modules.knowledge.LlmDreamSummarizer;
 import de.metis.modules.hardware.TornadoVmAction;
 import de.metis.modules.multiagent.AgentCoordinator;
@@ -1117,8 +1123,55 @@ public final class AgentMain {
                 LOG.warning("Dream consolidation failed: " + e.getMessage());
             }
         }, initialDreamDelaySec, 24 * 3600, TimeUnit.SECONDS);
+        // ── Phase 9: Long-Horizon-Planung ────────────────────────────
+        var goalHierarchy = new GoalHierarchy();
+        var horizonPlanner = new HorizonPlanner(goalHierarchy);
+        var commitmentRegister = new CommitmentRegister(goalHierarchy);
+        var revisionEngine = new GoalRevisionEngine(goalHierarchy);
+
+        // Seed a lifetime goal once (idempotent: only if hierarchy is empty)
+        if (goalHierarchy.size() == 0) {
+            goalHierarchy.upsert(new LongHorizonGoal(
+                    null, "Hilf Georg ein EDI-ähnliches System zu bauen",
+                    "Lifetime-Goal aus PersonalityAnchor abgeleitet.",
+                    GoalHorizon.LIFETIME,
+                    LongHorizonGoal.Status.ACTIVE,
+                    null, java.util.List.of(),
+                    null, null, null, null, 0.5,
+                    100, "metis",
+                    java.util.List.of("lifetime", "edi")));
+            LOG.info("GoalHierarchy: seeded lifetime goal");
+        }
+
+        // Periodic revision every 30 min — auto-blocks overdue, auto-completes,
+        // rolls up parent progress. Result is logged + appended to SelfNarrative
+        // when something actually changes.
+        var revisionScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+            var t = new Thread(r, "goal-revision");
+            t.setDaemon(true);
+            return t;
+        });
+        revisionScheduler.scheduleAtFixedRate(() -> {
+            try {
+                var rep = revisionEngine.revise();
+                if (rep.anyChange()) {
+                    LOG.info("GoalRevision: overdue=" + rep.overdue()
+                            + " autoDone=" + rep.autoCompleted()
+                            + " stale=" + rep.reviewedStale()
+                            + " parentRolled=" + rep.parentRolled());
+                    selfNarrative.append("revision",
+                            "Goal-Revision: " + String.join("; ", rep.notes()));
+                }
+            } catch (Exception e) {
+                LOG.warning("GoalRevision failed: " + e.getMessage());
+            }
+        }, 5, 30, TimeUnit.MINUTES);
+
+        LOG.info("Phase 9 wired — hierarchy=" + goalHierarchy.size() + " goals");
+
         var systemPromptBuilder = new SystemPromptBuilder(
                 personalityAnchor, selfNarrative, moodSignal, episodicMemory);
+        systemPromptBuilder.setGoalHierarchy(goalHierarchy);
         LOG.info("Phase 8 wired — episodes=" + episodicMemory.size()
                 + ", anchor=" + (personalityAnchor.isTampered() ? "TAMPERED" : "verified")
                 + ", next dream in " + initialDreamDelaySec + "s");
@@ -1133,6 +1186,7 @@ public final class AgentMain {
             }
             httpServer.setEmbeddingService(embedSvc);
             httpServer.setSystemPromptBuilder(systemPromptBuilder);
+            httpServer.setGoalHierarchy(goalHierarchy);
             httpServer.start();
         }
 

@@ -6,7 +6,7 @@ Sie denkt in kognitiven Zyklen (Perceive → Plan → Execute → Observe → Le
 
 ## Status
 
-**Version:** 0.3.3-defense-in-depth · **Stand:** 31.05.2026 00:55 · **Tests:** 27 grün · **Phasen 1-7+:** ✅ 100%
+**Version:** 0.5.0-phase9-long-horizon · **Stand:** 31.05.2026 01:30 · **Tests:** 47 grün · **Phasen 1-7+:** ✅ 100% · **Phase 8:** ✅ 100% · **Phase 9:** 🟡 80% (Foundation+Wiring)
 
 → Details: **[FEATURES.md](FEATURES.md)** · **[AGI_EDI_ROADMAP.md](AGI_EDI_ROADMAP.md)** · **[RUNBOOK.md](RUNBOOK.md)** · **[TODO_Metis.md](TODO_Metis.md)**
 
@@ -117,6 +117,7 @@ URL: http://<host>:11735
 | `POST /api/admin/prune` | Modell aus Registry entfernen |
 | `POST /api/admin/refresh-models` | Ollama-Modelle live aktualisieren |
 | `/api/board` | Kanban-Board Live-View (Spalten, WIP, Flow-Metriken) |
+| `/api/hierarchy` | Long-Horizon-Goals (Phase 9): id, horizon, status, progress, deadline, owner |
 
 ## Modell-Strategie
 

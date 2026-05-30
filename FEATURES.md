@@ -1,6 +1,6 @@
 # Metis AGI — Feature-Katalog
 
-**Stand: 31.05.2026 01:15 · Version 0.4.1-phase8-complete · 80+ Kernel-Klassen + 80+ Module-Klassen · 35 JUnit-Tests · GitHub-Actions CI**
+**Stand: 31.05.2026 01:30 · Version 0.5.0-phase9-long-horizon · 85+ Kernel-Klassen + 80+ Module-Klassen · 47 JUnit-Tests · GitHub-Actions CI**
 
 ---
 
@@ -35,6 +35,28 @@
 - `EpisodicMemory: cold start` (erste Episode bei Dream-Tick)
 - `SelfNarrative initialized`
 - `Phase 8 wired — episodes=0, anchor=verified, next dream in 7333s`
+
+---
+
+## 🎯 Long-Horizon-Planung (Phase 9, v0.5.0, 31.05.2026)
+
+| Komponente | Datei | Funktion |
+|---|---|---|
+| **GoalHorizon** (enum) | `kernel/goal/GoalHorizon.java` | TICK / OPERATIONAL / TACTICAL / STRATEGIC / LIFETIME; `canBeDecomposed()`, `nextDown()` |
+| **LongHorizonGoal** (Record) | `kernel/goal/LongHorizonGoal.java` | parent/children, Status (PROPOSED/ACTIVE/BLOCKED/DONE/ABANDONED), progress, priority, deadline, owner, tags; `withStatus`, `withProgress`, `withChild`, `withReviewedNow` |
+| **GoalHierarchy** | `kernel/goal/GoalHierarchy.java` | JSONL-persistent unter `metis.hierarchy.path`, Index nach Horizon/Status, `isRunnable`, `rollupProgress` |
+| **HorizonPlanner** | `kernel/goal/HorizonPlanner.java` | Top-Down-Decomposition (Strategic→3 Tactical→3 Operational→Tick), optional LLM-DecomposeFunction-Hook |
+| **CommitmentRegister** | `kernel/goal/CommitmentRegister.java` | First-class User-Versprechen, mit Deadline + Owner + Tag `commitment` |
+| **GoalRevisionEngine** | `kernel/goal/GoalRevisionEngine.java` | Periodisch (30 Min): auto-DONE bei 100%, BLOCKED bei overdue, Parent-Rollup |
+| **/api/hierarchy** | `MetisHttpServer.handleHierarchy` | JSON-Export aller Long-Horizon-Goals mit progress/status/deadline |
+| **SystemPromptBuilder** Phase 9 | `kernel/self/SystemPromptBuilder.java` | Zeigt STRATEGIC/TACTICAL/COMMITMENT-Block mit Progressbar in jedem System-Prompt |
+| **Lifetime-Goal Seed** | `AgentMain` | Beim Boot 1x: "Hilf Georg ein EDI-ähnliches System zu bauen" |
+
+**Live-Status nach v0.5.0-Boot:**
+- `GoalHierarchy: seeded lifetime goal`
+- `Phase 9 wired — hierarchy=1 goals`
+- `/api/hierarchy` → 1 goal (LIFETIME, ACTIVE, prio 100, owner=metis)
+- GoalRevision-Scheduler aktiv, alle 30 Min
 
 ---
 
