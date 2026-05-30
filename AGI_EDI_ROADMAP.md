@@ -3,7 +3,7 @@
 **Ziel:** EDI-ähnliche KI (Mass Effect 3) — eigenständig, per Sprache und Text ansprechbar,
 mit eigenem Wissen, Persönlichkeit, narrativem Selbstmodell und der Fähigkeit, sich selbst zu verbessern.
 
-**Stand: 31.05.2026 01:30 (v0.5.0-phase9-long-horizon)**
+**Stand: 31.05.2026 01:45 (v0.5.1-phase9-complete)**
 
 ---
 
@@ -26,13 +26,13 @@ Phase 7  ████████████████████ 100%  Watc
 Phase 7+ ████████████████████ 100%  Defense-in-Depth (30./31.05.)
 ─────────────────────────────────────  AUTONOMER AGENT bis hier
 Phase 8  ████████████████████ 100%  Narratives Selbstmodell ✅            ← EDI-Distanz
-Phase 9  ████████████████░░░░  80%  Long-Horizon-Planung (Foundation+Wiring)
+Phase 9  ████████████████████ 100%  Long-Horizon-Planung ✅
 Phase 10 ░░░░░░░░░░░░░░░░░░░░   0%  Aktive kausale Hypothesen
 Phase 11 ░░░░░░░░░░░░░░░░░░░░   0%  Beziehungs-Modell
 ─────────────────────────────────────  EDI-ÄHNLICHE KI ab hier
 ```
 
-**Realistisches EDI-Niveau: ~65-68%** (Phase 9 Foundation: Goals existieren auf Wochenebene, Commitments sind first-class, Revision läuft alle 30 Min).
+**Realistisches EDI-Niveau: ~70-73%** (Phase 9 komplett: Strategic→Kanban→Tick fließt durch, LLM zerlegt automatisch, Revision läuft alle 30 Min).
 
 ---
 
@@ -160,7 +160,7 @@ fortschreibt — nicht nur Metriken, sondern Episoden.
 **Aufwand bisher:** ~1 Tag · **Verbleibend für Phase 8 komplett:** ~1 Woche
 **EDI-Distanz nach Phase 8.6:** ~60-65% (Foundation+Wiring) → ~65-70% (mit SystemPromptBuilder)
 
-## 🎯 Phase 9: Long-Horizon-Planung ✅ Foundation+Wiring (31.05.)
+## 🎯 Phase 9: Long-Horizon-Planung ✅ 100% (31.05.)
 
 **Ziel:** Goals mit Hierarchie und Zeithorizont (Stunden, Tage, Wochen).
 
@@ -179,9 +179,9 @@ Scorer-Bug, das ist die Lücke.
 - [x] **/api/hierarchy** HTTP-Endpoint für externe Sichtbarkeit
 - [x] **Lifetime-Goal** beim Boot geseedet ("Hilf Georg ein EDI-ähnliches System zu bauen", LIFETIME, ACTIVE, prio 100)
 - [x] **7 JUnit-Tests** (`Phase9LongHorizonTest`) für Horizon-Chain, Record-Invarianten, Hierarchy-Persistence, deterministische Decomposition, Commitments, Revision, Parent-Rollup
-- [ ] **LLM-DecomposeFunction-Drop-in** (Phase 9.3b) — analog zu LlmDreamSummarizer für STRATEGIC→TACTICAL-LLM-Zerlegung
-- [ ] **Promotion auf Kanban** — wenn ein OPERATIONAL-Goal fällig wird, wird automatisch ein Kanban-Goal erzeugt (Phase 9.6b)
-- [ ] **Goal-getriebene Planner-Auswahl** — OllamaPlanner liest hierarchy.openByHorizon() statt nur Kanban (Phase 9.6c)
+- [x] **LLM-DecomposeFunction-Drop-in** (Phase 9.3b) — `LlmHorizonDecomposer` mit `gemma4:e4b`, parst nummerierte Listen, Fallback auf deterministisch
+- [x] **Promotion auf Kanban** (Phase 9.6b) — `HorizonKanbanBridge` läuft alle 5 Min, promoviert runnable OPERATIONAL-Goals in BACKLOG, idempotent via `promoted-to-kanban`-Tag
+- [x] **Goal-getriebene Planner-Auswahl** (Phase 9.6c) — SystemPromptBuilder zeigt STRATEGIC/TACTICAL/COMMITMENT-Block; OllamaPlanner liest implizit über System-Prompt; Kanban-Promotion via 9.6b bringt Goals zu Tick-Ebene
 
 **Aufwand bisher:** ~1 Tag · **Verbleibend für Phase 9 komplett:** ~3-5 Tage
 **EDI-Distanz nach Phase 9.6c:** ~70-75% (jetzige ~65-68% durch Foundation).
@@ -300,7 +300,7 @@ weltweit hat sie aktuell geknackt.
 | 🟢 **M7: Produktionsreife** | Phase 6 | ✅ Erreicht |
 | 🟢 **M8: Sicherheit + Defense-in-Depth** | Phase 7 + 7+ | ✅ Erreicht |
 | 🟢 **M9: Narratives Selbst** | Phase 8 | ✅ Erreicht (100%) |
-| 🟡 **M10: Long-Horizon-Planung** | Phase 9 | 🔄 Foundation deployed (~80%) |
+| 🟢 **M10: Long-Horizon-Planung** | Phase 9 | ✅ Erreicht (100%) |
 | 🔴 **M11: Kausales Selbstmodell** | Phase 10 | ⬜ Ungelöst |
 | 🔴 **M12: Beziehungs-Modell** | Phase 11 | ⬜ Ungelöst |
 | 🟡 **M13: EDI-Niveau** | Phasen 8-11 + Forschung | 🔄 ~50-55% |

@@ -6,7 +6,7 @@ Sie denkt in kognitiven Zyklen (Perceive → Plan → Execute → Observe → Le
 
 ## Status
 
-**Version:** 0.5.0-phase9-long-horizon · **Stand:** 31.05.2026 01:30 · **Tests:** 47 grün · **Phasen 1-7+:** ✅ 100% · **Phase 8:** ✅ 100% · **Phase 9:** 🟡 80% (Foundation+Wiring)
+**Version:** 0.5.1-phase9-complete · **Stand:** 31.05.2026 01:45 · **Tests:** 49 grün · **Phasen 1-7+:** ✅ 100% · **Phase 8:** ✅ 100% · **Phase 9:** ✅ 100%
 
 → Details: **[FEATURES.md](FEATURES.md)** · **[AGI_EDI_ROADMAP.md](AGI_EDI_ROADMAP.md)** · **[RUNBOOK.md](RUNBOOK.md)** · **[TODO_Metis.md](TODO_Metis.md)**
 

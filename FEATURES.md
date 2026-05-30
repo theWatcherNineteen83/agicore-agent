@@ -1,6 +1,6 @@
 # Metis AGI — Feature-Katalog
 
-**Stand: 31.05.2026 01:30 · Version 0.5.0-phase9-long-horizon · 85+ Kernel-Klassen + 80+ Module-Klassen · 47 JUnit-Tests · GitHub-Actions CI**
+**Stand: 31.05.2026 01:45 · Version 0.5.1-phase9-complete · 86+ Kernel-Klassen + 81+ Module-Klassen · 49 JUnit-Tests · GitHub-Actions CI**
 
 ---
 
@@ -51,6 +51,8 @@
 | **/api/hierarchy** | `MetisHttpServer.handleHierarchy` | JSON-Export aller Long-Horizon-Goals mit progress/status/deadline |
 | **SystemPromptBuilder** Phase 9 | `kernel/self/SystemPromptBuilder.java` | Zeigt STRATEGIC/TACTICAL/COMMITMENT-Block mit Progressbar in jedem System-Prompt |
 | **Lifetime-Goal Seed** | `AgentMain` | Beim Boot 1x: "Hilf Georg ein EDI-ähnliches System zu bauen" |
+| **HorizonKanbanBridge** | `kernel/goal/HorizonKanbanBridge.java` | Phase 9.6b — promoviert runnable OPERATIONAL-Goals in Kanban-BACKLOG; idempotent via `promoted-to-kanban`-Tag; alle 5 Min |
+| **LlmHorizonDecomposer** | `modules/knowledge/LlmHorizonDecomposer.java` | Phase 9.3b — HorizonPlanner.DecomposeFunction mit `gemma4:e4b`; parst nummerierte Listen; Fallback auf deterministische Zerlegung |
 
 **Live-Status nach v0.5.0-Boot:**
 - `GoalHierarchy: seeded lifetime goal`

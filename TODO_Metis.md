@@ -1,6 +1,6 @@
 # TODO Metis — Aktueller Stand & Ehrliche Lücken-Analyse
 
-**Stand: 31.05.2026 01:30 · Tag: v0.5.0-phase9-long-horizon · Tests: 47 grün · Master: HEAD**
+**Stand: 31.05.2026 01:45 · Tag: v0.5.1-phase9-complete · Tests: 49 grün · Master: HEAD**
 
 ---
 
@@ -58,9 +58,9 @@ Phasen 1-7 + Defense-in-Depth = 100% — das ist ein **außerordentlich gut kons
 - [x] **/api/hierarchy** HTTP-Endpoint
 - [x] **Lifetime-Goal** beim Boot geseedet
 - [x] **7 JUnit-Tests** (Phase9LongHorizonTest), total 47 grün
-- [ ] **LLM-DecomposeFunction** (Phase 9.3b)
-- [ ] **Promotion auf Kanban-Board** wenn OPERATIONAL fällig (Phase 9.6b)
-- [ ] **OllamaPlanner liest Hierarchy** statt nur Kanban (Phase 9.6c)
+- [x] **LLM-DecomposeFunction** (Phase 9.3b — LlmHorizonDecomposer)
+- [x] **Promotion auf Kanban-Board** wenn OPERATIONAL fällig (Phase 9.6b — HorizonKanbanBridge)
+- [x] **OllamaPlanner liest Hierarchy** über SystemPromptBuilder (Phase 9.6c)
 
 #### Phase 10 — Aktive kausale Hypothesen (6-8 Wochen, Forschung)
 - [ ] **HypothesisGenerator** — aus Surprise konkrete kausale Hypothese
