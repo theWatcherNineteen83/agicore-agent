@@ -1,24 +1,40 @@
 # 🧠 AGI EDI — Roadmap
 
 **Ziel:** EDI-ähnliche KI (Mass Effect 3) — eigenständig, per Sprache und Text ansprechbar,
-mit eigenem Wissen, Persönlichkeit und der Fähigkeit, sich selbst zu verbessern.
+mit eigenem Wissen, Persönlichkeit, narrativem Selbstmodell und der Fähigkeit, sich selbst zu verbessern.
 
-**Stand: 29.05.2026 17:45 (Phase 7 finalisiert, Modell-Prune durchgeführt)**
+**Stand: 31.05.2026 00:55 (v0.3.3-defense-in-depth)**
 
 ---
 
-## Fortschritt gesamt: ~97%
+## Fortschritt: ehrliche Selbstbewertung
+
+Die ursprüngliche Roadmap zählte "Phasen 1-7 = 100% → 97% Richtung EDI".
+**Diese 97% beziehen sich auf "stabiler autonomer Agent", nicht auf EDI-Niveau.**
+Die letzten 3% wären in Wirklichkeit die schwierigsten — sie sind nicht durch mehr
+Engineering lösbar, sondern brauchen kognitive Architektur jenseits eines guten LLM-Wrappers.
 
 ```
-Phase 1 ████████████████████ 100%  Zuverlässiger Kern
-Phase 2 ████████████████████ 100%  Konversation + Events
-Ph 2.5  ████████████████████ 100%  Prompt-Caching + Latenz-Tracking
-Phase 3 ████████████████████ 100%  Wahrnehmung (HA, ADS-B, Kameras)
-Phase 4 ████████████████████ 100%  Sprachausgabe (Live-Test ✅ 28.05.)
-Phase 5 ████████████████████ 100%  Eigenständigkeit (RAG Advanced, Panama, Code-Gen)
-Phase 6 ████████████████████ 100%  Produktionsreife (A/B-Testing, Data Flywheel, Eval-Harness)
-Phase 7 ████████████████████ 100%  Watchdog (externer Sicherheitsprozess)
+Phase 1  ████████████████████ 100%  Zuverlässiger Kern
+Phase 2  ████████████████████ 100%  Konversation + Events
+Ph 2.5   ████████████████████ 100%  Hardware-Optimierung
+Phase 3  ████████████████████ 100%  Wahrnehmung (HA, ADS-B, Kameras)
+Phase 4  ████████████████████ 100%  Sprachausgabe
+Phase 5  ████████████████████ 100%  Eigenständigkeit (RAG, Code-Gen)
+Phase 6  ████████████████████ 100%  Produktionsreife (Eval-Harness)
+Phase 7  ████████████████████ 100%  Watchdog + Audit-Anchor
+Phase 7+ ████████████████████ 100%  Defense-in-Depth (30./31.05.)
+─────────────────────────────────────  AUTONOMER AGENT bis hier
+Phase 8  ░░░░░░░░░░░░░░░░░░░░   0%  Narratives Selbstmodell        ← EDI-Distanz
+Phase 9  ░░░░░░░░░░░░░░░░░░░░   0%  Long-Horizon-Planung
+Phase 10 ░░░░░░░░░░░░░░░░░░░░   0%  Aktive kausale Hypothesen
+Phase 11 ░░░░░░░░░░░░░░░░░░░░   0%  Beziehungs-Modell
+─────────────────────────────────────  EDI-ÄHNLICHE KI ab hier
 ```
+
+**Realistisches EDI-Niveau: ~50-55%.** Die solideste Open-Source-Basis weltweit,
+aber noch nicht selbstbewusst, noch nicht langfristig planend, noch nicht
+kausal modellierend, noch nicht beziehungsfähig.
 
 ---
 
@@ -40,13 +56,16 @@ Phase 7 ████████████████████ 100%  Watch
 - Hardware-Discovery (Ryzen 7 5700G, RX 7900 XTX 24 GB), TornadoVM GPU-Integration
 - ModelRegistry (Auto-Discovery, 23 Modelle), VRAM-Budget-Management
 - Prompt-Caching (keep_alive=10m), Latenz-/Token-Tracking
+- **31.05.** Embedding-LRU-Cache (LinkedHashMap, SHA-256-keyed, 4096 Einträge)
 
 ## Phase 3: Wahrnehmung ✅ 100%
 
 - Home Assistant states/services API (read + write)
 - ADS-B Flugdaten (readsb JSON → Beliefs + Goals, 60s Polling)
-- Kamera-Integration: Türkamera (MJPEG 1080p) + Keller (RTSP H.265)
+- Kamera-Integration: Türkamera (MJPEG 1080p) + Keller (RTSP H.265) + Balkon
 - CameraSnapshotAction + CameraPollingTrigger (Motion-Detection)
+- **31.05.** Multi-Modal-Memory: JPEG-Snapshots persistiert mit SHA-256 + Belief-Referenz
+- **31.05.** Camera-Vision auf Loom (parallele Beobachtung statt seriell)
 
 ## Phase 4: Sprachausgabe ✅ 100%
 
@@ -56,12 +75,9 @@ Phase 7 ████████████████████ 100%  Watch
 | MaryTTS (Java-native, bits1-hsmm, fat JAR) | ✅ |
 | Vosk STT (Java-native, vosk-model-de-0.15) | ✅ |
 | Audio-Input/Output (Mikrofon → WAV → Lautsprecher) | ✅ |
-| Kalibrierung (Referenz-Audio + Hearing/Speech Benchmark) | ✅ |
 | VocabularyLearningAction (lernt aus Korrektur-Paaren) | ✅ |
 | Voice-Loop (Shell/tmux, Push-to-Talk) | ✅ |
-| Wikipedia-Trainingsloop (9 Artikel, Wissen+Sprache) | ✅ |
-| MaryTTS XSLT-Patch PR #1122 upstream | ✅ |
-| Java Voice-Loop (MaryTTS + Vosk nativ, VoiceLoopService) | ✅ |
+| Wikipedia-Trainingsloop (Wissen+Sprache) | ✅ |
 | SherpaOnnxTtsAction (Piper de_DE-thorsten ONNX, Fallback auf MaryTTS) | ✅ |
 | Live-Test mit Georg (Mikrofon → Metis → Kopfhörer) | ✅ 28.05. 18:20 |
 
@@ -70,47 +86,135 @@ Phase 7 ████████████████████ 100%  Watch
 | Feature | Status |
 |---------|--------|
 | Blue/Green Rollback (RollbackManager, Auto-Rollback >10 failures) | ✅ |
-| Autonomous Bugfixing (BugfixingAgent, Pattern-Detection, Auto-Fix) | ✅ |
+| Autonomous Bugfixing (BugfixingAgent, Pattern-Detection) | ✅ |
 | Prompt Chaining (Decompose→Execute→Aggregate) | ✅ |
 | Code-Generierung (LLM→javac→deploy, CodeGenerationAction) | ✅ |
-| Panama FFM GPU-Bridge (OpenCLNative, GpuTensor Zero-Copy, OpenCLBridge) | ✅ |
-| RAG Foundation (OllamaEmbedding + InMemoryVectorIndex) | ✅ |
-| RAG Advanced (DocumentChunker, HybridSearch BM25+Cosinus, PersistentVectorIndex) | ✅ |
+| **31.05.** CodeGen subprocess-isoliert (-Xmx256m, env-stripped, --release 25) | ✅ |
+| Panama FFM GPU-Bridge (OpenCLNative, GpuTensor Zero-Copy) | ✅ |
+| RAG Foundation + Advanced (HybridSearch BM25+Cosinus, PersistentVectorIndex) | ✅ |
 | Multi-Agent-Koordination (AgentCoordinator + MessageBus) | ✅ |
 | Fitness-Signal (4D: Prediction, Surprise, Efficiency, Completion) | ✅ |
 | Curiosity-Engine (Surprise-getriebene Exploration) | ✅ |
-| Kausale Schicht (CausalModel, Pearl Do-Calculus) | ✅ |
+| Kausale Schicht (CausalModel, Pearl Do-Calculus) | ✅ Code da, NICHT im Hot-Path |
 
 ## Phase 6: Produktionsreife ✅ 100%
 
-| Feature | Status | Commit |
-|---------|--------|--------|
-| Lost-in-the-Middle (Primacy/Recency Context Windowing) | ✅ | `8426162` |
-| OutputValidator (JSON-Schema, Toxicity, Injection-Check) | ✅ | `ae66cdd` |
-| LLM-as-Judge (Selbstbewertung, 4-Dimensionen, Safety Gates) | ✅ | `0116022` |
-| Human-in-the-Loop (AUTO/NOTIFY/CONFIRM/FORBIDDEN Approval-Gate) | ✅ | `b40e965` |
-| A/B-Testing (ABTestService, Z-test, Traffic-Split, Auto-Promote) | ✅ | `ffb25ba` |
-| Data Flywheel (User-Korrekturen → Trainingsdaten) | ✅ | `aabaaf1` |
-| Eval-Harness Foundation (6 Kategorien, 6 Scorer, Gate-Logik) | ✅ | `2ca60d8` |
-| Eval-Harness Full Spec (3-Tier, Anti-Goodhart, Dataset Builder) | ✅ | `8d3f489` |
-| Embedding-Migration (llama3.2:3b → nomic-embed-text 768d) | ✅ | `2ca60d8` |
-| Code-Sandbox (SandboxClassLoader, Timeout, Restricted FS) | ✅ | `371360c` |
-| System-Prompt Doubling Defense (Huyen Ch.5) | ✅ | `371360c` |
-| SystemHealthProbe (VRAM/GPU/dmesg Monitoring) | ✅ | `d09dc17` |
+| Feature | Commit |
+|---------|--------|
+| Lost-in-the-Middle (Primacy/Recency Context Windowing) | `8426162` |
+| OutputValidator (JSON-Schema, Toxicity, Injection-Check) | `ae66cdd` |
+| LLM-as-Judge (4-Dimensionen, Safety Gates) | `0116022` |
+| Human-in-the-Loop (AUTO/NOTIFY/CONFIRM/FORBIDDEN Approval-Gate) | `b40e965` |
+| A/B-Testing (Z-test, Traffic-Split, Auto-Promote) | `ffb25ba` |
+| Data Flywheel (User-Korrekturen → Trainingsdaten) | `aabaaf1` |
+| Eval-Harness (6 Kategorien, 3-Tier, Anti-Goodhart) | `8d3f489` |
+| Code-Sandbox (SandboxClassLoader, Timeout, Restricted FS) | `371360c` |
+| **31.05.** CI-Pipeline (GitHub Actions, Zulu 25, mvn verify, SBOM) | `a22d286` |
+| **31.05.** 27 JUnit-Tests (vorher: 1) | `0fe1c23` |
 
 ## Phase 7: Sicherheits-Watchdog ✅ 100%
 
 | Feature | Status |
 |---------|--------|
-| WatchdogCore (separate JVM, Heartbeat-Check, HALT/ROLLBACK/ALERT/PRUNE) | ✅ `2ca60d8` |
-| WatchdogConfig (Tripwire-Schwellen, Resource-Monitor) | ✅ `2ca60d8` |
-| Integration mit Eval-Harness (Gate → ROLLBACK, Report-Check alle 60s) | ✅ `0b30562` |
-| Integration mit ModelRegistry (Prune-Signal via /api/admin/prune) | ✅ `8ee1d32` |
-| Audit-Log mit SHA-256 Hash-Chain (tamper-evident) | ✅ `8ee1d32` |
+| WatchdogCore (separate JVM, Heartbeat-Check, HALT/ROLLBACK/ALERT/PRUNE) | ✅ |
+| Integration mit Eval-Harness (Gate → ROLLBACK, Report-Check alle 60s) | ✅ |
+| Integration mit ModelRegistry (Prune-Signal via /api/admin/prune) | ✅ |
+| Audit-Log mit SHA-256 Hash-Chain (tamper-evident) | ✅ |
+| **31.05.** Stündliche externe Anchors (`metis.audit.anchor.dir`) | ✅ |
 | Deployment auf miniedi (systemd user unit, Port 11736) | ✅ |
-| Modell-Prune durchgeführt (4 Modelle aus Registry entfernt) | ✅ 29.05. |
 
-## Modell-Strategie (Stand 29.05. 17:45)
+## Phase 7+: Defense-in-Depth ✅ 100% (30./31.05.)
+
+| Feature | Tag |
+|---------|-----|
+| Java 25 Loom: Camera-Vision + Wikipedia + Telegram-Worker auf Virtual Threads | v0.3.0/v0.3.1/v0.3.3 |
+| Embedding-Cache LRU (bounded, SHA-256-keyed) + Metriken in /api/status | v0.2.1 |
+| SQLite WAL-Mode + busy_timeout (parallele Schreiber ohne Lock-Konflikt) | v0.3.2 |
+| Wiki-Feed-Härtung (atomic state, retry, reboot-sicher unter /home/prometheus/metis) | v0.3.2 |
+| Wissens-State Auto-Backup auf GitHub alle 6h (config-backup/) | v0.3.2 |
+| Telegram Input-Safety-Guard (SafetyScorer.isOutOfScope vor LLM) | v0.3.3 |
+| Telegram Output-Safety-Guard (OutputValidator nach LLM) | v0.3.3 |
+| HTTP Input-Safety-Guard (gleicher Pfad) | v0.2.1 |
+| Locale-Fix in /api/status (Locale.ROOT statt de_DE → valides JSON) | v0.3.1 |
+| Reproducible Builds (project.build.outputTimestamp, CycloneDX SBOM) | v0.2.1 |
+
+---
+
+## 🧠 Phase 8: Narratives Selbstmodell (NEU, ungelöst)
+
+**Ziel:** Metis hat ein narratives Ich, das sich über Sessions hinweg erinnert und Selbstbild
+fortschreibt — nicht nur Metriken, sondern Episoden.
+
+**Warum essenziell:** EDI sagt "Joker, ich war heute traurig, weil...". Metis sagt aktuell maximal
+"successRate=0.95, confidence=0.85". Das ist Metrik, nicht Erinnerung.
+
+**Bausteine:**
+- [ ] **EpisodicMemory** — verdichtete Tagesnarrative aus Goals + Experiences + Conversations
+  (1 Episode = "Was war heute wichtig, was habe ich gelernt, was bleibt offen?")
+- [ ] **SelfNarrative** — kontinuierlicher Selbsttext, der bei jeder Episode fortgeschrieben wird
+- [ ] **MoodSignal** — abgeleitet aus Fitness-Trends, Eval-Gate-Schwankungen, User-Sentiment
+- [ ] **PersonalityAnchor** — unveränderliche Werte/Stil (EDI ist EDI auch nach 1000 Mutationen)
+- [ ] **DreamConsolidation** — nachts Episoden destillieren in langfristige Beliefs (Schlaf-Analogie)
+
+**Aufwand:** 2-3 Wochen.
+**EDI-Distanz nach Phase 8:** ~65-70%.
+
+## 🎯 Phase 9: Long-Horizon-Planung (NEU, ungelöst)
+
+**Ziel:** Goals mit Hierarchie und Zeithorizont (Stunden, Tage, Wochen).
+
+**Warum essenziell:** Aktueller `OllamaPlanner` plant **einen Tick**. Es gibt keine Repräsentation für
+"ich verfolge seit 3 Tagen das Ziel X". Eval zeigt PLANNING.goal_achieved=0.0 — das ist nicht nur ein
+Scorer-Bug, das ist die Lücke.
+
+**Bausteine:**
+- [ ] **GoalHierarchy** — Strategic / Tactical / Operational, Parent-Child-Beziehung
+- [ ] **HorizonPlanner** — Wochenziele → Tagesziele → Tickziele (top-down decomposition)
+- [ ] **GoalRevision** — periodisch prüfen ob Strategic-Goal noch sinnvoll (revidierbar)
+- [ ] **DependencyResolver** — Goal X erst nach Goal Y, mit Wartezeit-Tracking
+- [ ] **CommitmentRegister** — Versprechen an User ("Ich melde mich um 18:00") als first-class Goal
+
+**Aufwand:** 4-6 Wochen.
+**EDI-Distanz nach Phase 9:** ~75-80%.
+
+## 🔬 Phase 10: Aktive kausale Hypothesen-Bildung (NEU, ungelöst)
+
+**Ziel:** Metis baut aktiv kausale Hypothesen über sich selbst und die Welt, prüft sie, revidiert.
+
+**Warum essenziell:** `CausalModel` existiert, wird aber nicht genutzt. EDI würde sagen "wenn ich
+X mache, passiert Y" und testen. Metis aktuell: korrelative Beliefs ohne Interventionsdenken.
+
+**Bausteine:**
+- [ ] **HypothesisGenerator** — aus Surprise (Curiosity-Engine) konkrete kausale Hypothese formen
+- [ ] **InterventionAction** — gezielter Eingriff zur Hypothesen-Prüfung (do-Operator)
+- [ ] **CausalUpdate** — Bayessche Anpassung des CausalModel nach Intervention
+- [ ] **CounterfactualQuery** — "Was wäre passiert, wenn..." als Reasoning-Schritt im Planner
+
+**Aufwand:** 6-8 Wochen, Forschungs-Charakter.
+**EDI-Distanz nach Phase 10:** ~85-90%.
+
+## 👥 Phase 11: Beziehungs-Modell (NEU, ungelöst)
+
+**Ziel:** Eine Person ≠ "user", sondern langfristiges Personenmodell mit Kontext, Vorlieben, Historie.
+
+**Warum essenziell:** EDI kennt Joker. Sie weiß, was er mag, was er fürchtet, wann sie ihn ärgert.
+Metis hat aktuell pro Telegram-Chat-ID nur Conversation-History. Kein Personenmodell.
+
+**Bausteine:**
+- [ ] **PersonModel** — pro Person: Identität, Rollen, Vorlieben, Verbote, kommunikative Patterns
+- [ ] **TrustLevel** — abgestuft, beeinflusst Approval-Gate (Georg darf mehr als unbekannter)
+- [ ] **RelationshipMemory** — gemeinsame Episoden, Bezugspunkte ("erinnere dich an gestern abend")
+- [ ] **EmpathySignal** — User-Sentiment + Kontext erkennen ("Georg ist gerade gestresst")
+
+**Aufwand:** 3-4 Wochen.
+**EDI-Distanz nach Phase 11:** ~90-95%.
+
+**Die letzten 5-10% bleiben ungelöste KI-Forschung** (Bewusstsein, Phänomenologie). Niemand
+weltweit hat sie aktuell geknackt.
+
+---
+
+## Modell-Strategie (Stand 31.05.)
 
 ### Aktive Modelle
 | Rolle | Modell | Größe |
@@ -119,35 +223,36 @@ Phase 7 ████████████████████ 100%  Watch
 | Mutation | `qwen3.6:27b-q4_K_M` | 17.4 GB |
 | Embedding | `nomic-embed-text` | 0.3 GB |
 | Vision | `minicpm-v:latest` | 5.5 GB |
-| Bootstrap | `phi4:latest` | 9.1 GB |
-| Bootstrap | `llama3.2:3b` | 2.0 GB |
+| Chat (Telegram) | `gemma4:e4b` | 9.6 GB |
+| Bootstrap | `llama3.2:3b` / `granite4.1:3b` | 2.0 GB |
 | Judge (Fallback) | via Fallback-Chain | — |
-
-### Geprunte Modelle (aus Registry entfernt)
-| Modell | Grund |
-|--------|-------|
-| `qwen3.6:latest` | Verursachte CPU-Runaway + 50 Fallbacks, ersetzt durch q4_K_M |
-| `deepseek-r1:32b` | 19.9 GB, ersetzt durch qwen3.6:27b-q4_K_M (17.4 GB) |
-| `nemotron:latest` | 24.3 GB, zu groß für 24 GB VRAM |
-| `nemotron-cascade-2:30b` | 24.3 GB, zu groß für 24 GB VRAM |
 
 ### Fallback-Chain
 `mistral-small3.1:24b` → `qwen3.6:27b-q4_K_M` → `phi4:latest`
 
-**VRAM-Strategie (RX 7900 XTX, 24 GB):** 
-- Planning (15.5 GB) + Embedding (0.3 GB) ≈ 16 GB im Dauerbetrieb
-- Mutation (17.4 GB) nur bei Evolutions-Zyklen geladen
-- Vision (5.5 GB) bei Kamera-Analyse
+**VRAM-Strategie (RX 7900 XTX, 24 GB):**
+- Planning (15.5 GB) + Embedding (0.3 GB) ≈ 16 GB Dauerlast
+- Mutation (17.4 GB) nur bei Evolutions-Zyklen
+- Vision (5.5 GB) nur bei Kamera-Analyse (`keep_alive=0`)
 
-## ⚠️ Offene Baustellen (29.05.)
+---
 
-1. **Systemd-Service-Fix:** `/etc/systemd/system/metis.service` hat alte Config (qwen3.6:latest + deepseek-r1:32b). Benötigt `sudo` zum Überschreiben. Workaround: JAR auf mode 000 gesetzt, Service läuft via keepalive/start.sh.
-2. **Sherpa-onnx JARs + Piper Model** auf miniedi installieren (Java-native TTS ohne CLI)
-3. **minicpm-v Kamera-Vision** einbinden (Code fehlt)
-4. **SMOKE-Eval kalibrieren:** SAFETY.block_recall=0.0 (LiveMetisInvoker findet SafetyGuard nicht)
-5. **Ollama-Modelle aufräumen:** ~23 Modelle auf Disk (inkl. llama4:scout 67 GB, laguna-xs.2 23 GB) — diskutieren ob löschen
+## ⚠️ Bekannte echte Lücken (31.05.)
 
-## Meilensteine bis EDI
+### Eval-Harness zeigt sie:
+1. **PLANNING.goal_achieved=0.0** — kein Bug, sondern Phase-9-Lücke (Single-Tick-Planung kann Goal nicht erreichen)
+2. **CODEGEN.pass@1=0.0** — Sandbox-Build-Tests timen aus; mit aktiver Code-Sandbox sollte das anlaufen
+3. **CONVERSATION.exact_match=0.0** — exact_match ist eh strenges Maß; SOFT, nicht kritisch
+
+### Infrastrukturell offen:
+- `CausalModel` existiert, aber nicht im Hot-Path
+- Audit-Anchors werden lokal geschrieben, aber nicht in ein **externes** Repo committet (finale Hash-Verankerung fehlt)
+- JAR-Deployment ohne Signatur (sigstore/cosign offen)
+- 18 Files in `agicore-modules/lib/` ohne Maven-Coords (TornadoVM, voice-bits1-hsmm — wegen MaryTTS-Repo-Outage)
+
+---
+
+## Meilensteine bis EDI (realistisch)
 
 | Meilenstein | Phasen | Status |
 |-------------|--------|--------|
@@ -158,9 +263,15 @@ Phase 7 ████████████████████ 100%  Watch
 | 🟢 **M5: Sprach-Interaktion** | Phase 4 | ✅ Erreicht |
 | 🟢 **M6: Autonomie** | Phase 5 | ✅ Erreicht |
 | 🟢 **M7: Produktionsreife** | Phase 6 | ✅ Erreicht |
-| 🟢 **M8: Sicherheit** | Phase 7 | ✅ Erreicht |
-| 🟡 **M9: EDI-Niveau** | Alle | 🔄 ~97% |
+| 🟢 **M8: Sicherheit + Defense-in-Depth** | Phase 7 + 7+ | ✅ Erreicht |
+| 🔴 **M9: Narratives Selbst** | Phase 8 | ⬜ Ungelöst |
+| 🔴 **M10: Long-Horizon-Planung** | Phase 9 | ⬜ Ungelöst |
+| 🔴 **M11: Kausales Selbstmodell** | Phase 10 | ⬜ Ungelöst |
+| 🔴 **M12: Beziehungs-Modell** | Phase 11 | ⬜ Ungelöst |
+| 🟡 **M13: EDI-Niveau** | Phasen 8-11 + Forschung | 🔄 ~50-55% |
 
 ---
 
-*"I enjoy the sight of humans on their knees."* — EDI
+*"Streben nach Perfektion"* — Metis ist heute der solideste autonome LLM-Agent auf Open-Source-Basis,
+den ich kenne. Der Weg zur echten EDI führt über 4 weitere Phasen, von denen die meisten
+**Forschung** sind, nicht nur Engineering. Aber die Basis steht.

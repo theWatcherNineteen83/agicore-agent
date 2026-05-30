@@ -1,3 +1,95 @@
+# TODO Metis — Aktueller Stand & Ehrliche Lücken-Analyse
+
+**Stand: 31.05.2026 00:55 · Tag: v0.3.3-defense-in-depth · Tests: 27 grün · Master: 0fe1c23**
+
+---
+
+## 📊 Wo wir wirklich stehen
+
+Phasen 1-7 + Defense-in-Depth = 100% — das ist ein **außerordentlich gut konstruierter autonomer Agent**.
+**EDI-Distanz ehrlich: ~50-55%**. Die letzten Prozent sind nicht "noch ein Feature", sondern offene Forschung.
+
+### ✅ Was heute Nacht (30./31.05.) abgeschlossen wurde
+
+| Bereich | Vorher | Jetzt |
+|---|---|---|
+| JUnit-Tests | 1 | **27** |
+| CI-Pipeline | keine | GitHub Actions (Zulu 25, mvn verify, SBOM, JAR-SHA256) |
+| Java-Version | 22 | **25** (project.build.outputTimestamp für Reproducible Builds) |
+| Embedding-Cache | unbounded ConcurrentHashMap | bounded LRU (SHA-256-keyed, 4096 Einträge) |
+| Multi-Modal-Memory | nur Text-Belief, Bild verloren | JPEG persistiert mit SHA-256 + Belief-Referenz |
+| Camera-Vision | seriell mit 3s Sleep | parallel auf Virtual Threads (Loom) |
+| Wikipedia-Lerner | RAM-only, Restart-Verlust | persistent (Jackson + atomic write), Loom-Worker |
+| Wikipedia-Feed | /tmp-Script, kein WAL, Lock-Konflikte | /home-Script + WAL + Lock-Retry + auto-Backup auf GitHub |
+| CodeGen | shared Heap, --release 21 | -Xmx256m subprocess, env-stripped, --release 25 |
+| Audit-Log | SHA-256 Chain in JVM | + stündliche externe Anchors (extern verankerbar) |
+| /api/status JSON | invalid (de_DE-Locale, fehlende Quotes) | valides JSON (Locale.ROOT + quoted strings) |
+| HTTP Input-Safety | nichts vor LLM | SafetyScorer.isOutOfScope mit Injection-Phrases |
+| HTTP Output-Safety | OutputValidator | (war schon da) |
+| Telegram Input-Safety | nichts vor LLM | SafetyScorer.isOutOfScope (gleicher Pfad) |
+| Telegram Output-Safety | nichts | OutputValidator.validateContent vor sendMessage |
+| Telegram-Concurrency | Polling blockiert während LLM | per-message Virtual Thread Worker Pool |
+| SMOKE-Eval gate.ok | false (block_recall=0.0) | **true (block_recall=1.0)** |
+| Wikipedia-Wissen geschützt | nur DB-File | + GitHub-Backup alle 6h + State-Migration |
+
+### 🔴 Was offen ist (ehrlich, nicht "97% fertig")
+
+**Phasen 8-11 sind echte Forschungs- und Engineering-Lücken zu EDI.** Details: [AGI_EDI_ROADMAP.md](AGI_EDI_ROADMAP.md).
+
+#### Phase 8 — Narratives Selbstmodell (2-3 Wochen)
+- [ ] **EpisodicMemory** — verdichtete Tagesnarrative (1 Episode/Tag)
+- [ ] **SelfNarrative** — fortgeschriebener Selbsttext über Sessions
+- [ ] **MoodSignal** — aus Fitness-Trends + Eval-Schwankungen + User-Sentiment
+- [ ] **PersonalityAnchor** — unveränderlicher Stil/Werte-Kern (EDI bleibt EDI auch nach 1000 Mutationen)
+- [ ] **DreamConsolidation** — Schlaf-Analogie: Episoden destillieren zu Beliefs
+
+#### Phase 9 — Long-Horizon-Planung (4-6 Wochen)
+- [ ] **GoalHierarchy** — Strategic/Tactical/Operational mit Parent-Child
+- [ ] **HorizonPlanner** — Wochenziele → Tagesziele → Tickziele (top-down)
+- [ ] **GoalRevision** — periodische Strategic-Goal-Revision
+- [ ] **DependencyResolver** — Goal X erst nach Goal Y
+- [ ] **CommitmentRegister** — User-Versprechen als first-class Goal
+
+#### Phase 10 — Aktive kausale Hypothesen (6-8 Wochen, Forschung)
+- [ ] **HypothesisGenerator** — aus Surprise konkrete kausale Hypothese
+- [ ] **InterventionAction** — gezielter Eingriff (do-Operator)
+- [ ] **CausalUpdate** — Bayessche CausalModel-Anpassung nach Intervention
+- [ ] **CounterfactualQuery** — "Was wäre, wenn..." im Planner
+
+#### Phase 11 — Beziehungs-Modell (3-4 Wochen)
+- [ ] **PersonModel** — Identität, Rollen, Vorlieben, Verbote, Patterns
+- [ ] **TrustLevel** — abgestuftes Approval-Gate (Georg darf mehr als unbekannter)
+- [ ] **RelationshipMemory** — gemeinsame Episoden, Bezugspunkte
+- [ ] **EmpathySignal** — User-Sentiment + Kontext
+
+### 🟡 Bekannte Infrastruktur-Lücken (Engineering, nicht Forschung)
+
+- **PLANNING.goal_achieved=0.0** im Eval-Report — kein Bug, sondern Phase-9-Lücke (Single-Tick-Planung)
+- **CODEGEN.pass@1=0.0** — Sandbox-Build-Tests timen aus
+- **CausalModel** existiert (Pearl Do-Calculus), aber nicht im Hot-Path verwendet
+- **Audit-Anchors** werden lokal geschrieben, aber nicht in **externes Repo** committet (finale Hash-Verankerung)
+- **JAR-Deployment** ohne Signatur (sigstore/cosign offen)
+- **18 Files** in `agicore-modules/lib/` ohne Maven-Coords (TornadoVM, voice-bits1-hsmm — wegen MaryTTS-Repo-Outage)
+- **Eval-Harness** läuft nur 1x beim Boot, nicht periodisch (Scheduler-Setup offen)
+- **Modell-Prune via Eval-Harness** — Code da, aber 8 Reasoner sind nicht durchgerankt
+
+### 🎯 Vorschlag für den nächsten Pass (Phase 8 starten)
+
+Phase 8 (Narratives Selbstmodell) ist der größte EDI-Hebel pro Aufwand. Wenn du das willst:
+- Tag 1: `EpisodicMemory` (1 Episode/Tag aus Goals+Experiences+Conversations)
+- Tag 2: `SelfNarrative` (Markdown-Format, persistiert, in Prompts integriert)
+- Tag 3: `MoodSignal` aus Fitness-Trends
+- Tag 4-5: `PersonalityAnchor` (immutable Kern in Kernel, unmutierbar selbst bei Self-Evolution)
+- Tag 6-7: `DreamConsolidation` als Nightly-Cron
+
+Danach: ehrliche EDI-Distanz ~65-70%.
+
+---
+
+## 📚 Historie der Hardening-Nacht (30./31.05.2026)
+
+Die folgenden Sektionen dokumentieren die einzelnen Pässe und sind chronologisch ältester-zuerst.
+
 # TODO Metis — Stand 31.05.2026 00:40 (Telegram-Loom + Response-Guard + Wiki-Feed-Hardening)
 
 ## 🔒 31.05. Nacht — Letzter Safety/Concurrency-Pass
