@@ -1,6 +1,6 @@
 # Metis AGI — Feature-Katalog
 
-**Stand: 31.05.2026 01:45 · Version 0.5.1-phase9-complete · 86+ Kernel-Klassen + 81+ Module-Klassen · 49 JUnit-Tests · GitHub-Actions CI**
+**Stand: 31.05.2026 02:00 · Repo-Tag v0.6.0-phase10-causal · 86+ Kernel-Klassen + 81+ Module-Klassen · 57 JUnit-Tests grün (43 Kernel + 14 Modules, gemessen mit `mvn test`) · GitHub-Actions CI**
 
 ---
 
@@ -108,7 +108,7 @@
 
 ### Weltmodell & Wissen
 - **WorldModel** — Belief-System mit Confidence (0.0–1.0), Source-Tracking, Persistenz
-- **30.945+ Beliefs** aus Bootstrap + Events + Wikipedia + Vision (24.141 davon aus Wikipedia-Bulk-Feed, 2.270/5163 Artikel)
+- **Belief-Store** — gewachsen aus Bootstrap, Events, Wikipedia und Vision. Live-Stand über `/api/status -> beliefCount`. Snapshot 31.05. 02:00: 32.897 Beliefs. Wikipedia-Bulk-Feed Live-Stand in `/home/prometheus/metis/wiki-feed-state.json` (Snapshot 31.05. 02:00: 2450/5163 Artikel).
 - **KnowledgeStore (SQLite)** — Persistente Beliefs + Experiences + Mappings
 - **KnowledgeBootstrap** — llm-basiertes Basiswissen beim Start
 - **WikipediaKnowledgeService** 🆕 — Live-API-Abruf deutscher Wikipedia-Artikel, LLM-Faktenextraktion, Curiosity-gesteuert (alle 10 Min)
@@ -399,16 +399,22 @@
 
 ---
 
-## 📐 Metriken (Live, Stand 29.05.)
+## 📐 Metriken (Live-Snapshot 31.05.2026 02:00, direkt aus `/api/status`)
 
-| Metrik | Wert |
-|---|---|
-| Ticks | 100+ pro Lauf |
-| Success-Rate | 100% |
-| Fallbacks | 0 |
-| Beliefs | 5.700+ |
-| Planner-Calls | ~550 (gesamt) |
-| Ø Latenz | ~32s (inkl. Ollama-Inferenz) |
-| Vektoren | 5.092 (768d, 34 MB) |
-| Evolution-Zyklen | 2+ |
-| SMOKE-Eval | PASS ✅ |
+| Metrik | Wert | Quelle |
+|---|---|---|
+| Ticks (laufender Prozess) | 63 | `/api/status -> totalTicks` |
+| Success-Rate (laufender Prozess) | 1.000 | `/api/status -> successRate` |
+| Planning-Effizienz | 0.379 | `/api/status -> planningEfficiency` |
+| Confidence | 0.928 | `/api/status -> confidence` |
+| Beliefs | 32.897 | `/api/status -> beliefCount` |
+| Planner-LLM-Calls (gesamt) | 23 | `/api/status -> plannerLlmCalls` |
+| Planner-LLM-Success-Rate | 1.00 | `/api/status -> plannerLlmSuccessRate` |
+| Planner-Fallbacks | 0 | `/api/status -> plannerFallbacks` |
+| Ø Latenz | 6.958 ms | `/api/status -> avgLatencyMs` |
+| Aktive Long-Horizon-Goals | 1 (LIFETIME, geseedet) | `/api/hierarchy` |
+| LLM-Judge-Status | `judge model unavailable (non-blocking)` | `/api/status -> llmJudgeLastReasoning` |
+| Validator: Outputs / blockiert | 8 / 0 | `/api/status -> validatorOutputs`, `validatorBlocked` |
+| Wiki-Feed | 2450/5163 | `/home/prometheus/metis/wiki-feed-state.json` |
+
+> Diese Werte schwanken über Restarts und Wartungszyklen. Sie sind hier als Snapshot zum genannten Zeitpunkt dokumentiert, nicht als Dauer- oder Best-Case-Werte.

@@ -1,6 +1,8 @@
 # TODO Metis — Aktueller Stand & Ehrliche Lücken-Analyse
 
-**Stand: 31.05.2026 01:45 · Tag: v0.5.1-phase9-complete · Tests: 49 grün · Master: HEAD**
+**Stand: 31.05.2026 02:00 · Repo-Tag: v0.6.0-phase10-causal · Tests: 57 grün (43 Kernel + 14 Modules, `mvn test`) · Master: HEAD**
+
+> Hinweis: ältere Einträge unten zeigen die Test-Zahlen zum jeweiligen Zeitpunkt (z. B. “total 47 grün” nach Phase 9-Foundation). Das ist als historisches Protokoll gewollt, nicht als aktuelle Aussage.
 
 ---
 

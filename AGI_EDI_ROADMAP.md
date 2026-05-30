@@ -3,7 +3,7 @@
 **Ziel:** EDI-ähnliche KI (Mass Effect 3) — eigenständig, per Sprache und Text ansprechbar,
 mit eigenem Wissen, Persönlichkeit, narrativem Selbstmodell und der Fähigkeit, sich selbst zu verbessern.
 
-**Stand: 31.05.2026 01:45 (v0.5.1-phase9-complete)**
+**Stand: 31.05.2026 02:00 (Repo-Tag v0.6.0-phase10-causal, Phase 10 Foundation deployed, Hot-Path-Integration offen)**
 
 ---
 
@@ -32,7 +32,14 @@ Phase 11 ░░░░░░░░░░░░░░░░░░░░   0%  Bezi
 ─────────────────────────────────────  EDI-ÄHNLICHE KI ab hier
 ```
 
-**Realistisches EDI-Niveau: ~70-73%** (Phase 9 komplett: Strategic→Kanban→Tick fließt durch, LLM zerlegt automatisch, Revision läuft alle 30 Min).
+**Realistisches EDI-Niveau (ehrliche Spanne): ~60–70%.**
+
+Die Spanne ist bewusst breit:
+- Phase 8 und 9 sind frisch deployed (24–48 h alt), ihre Wirkung auf Verhalten und Agent-Qualität (z. B. `planningEfficiency` aktuell 0.379) ist noch nicht über mehrere Wartungszyklen gemessen.
+- Phase 10 ist als Foundation drin, aber noch nicht im Hot-Path; der Effekt auf Reasoning ist damit noch nicht messbar.
+- Die Lower-Bound 60% reflektiert das, was als Code+Test+Live-Wiring nachgewiesen ist. Die Upper-Bound 70% reflektiert den noch nicht eingefahrenen Effekt der frischen Phasen.
+
+Darunter liegen • ~95–100% “stabiler autonomer Agent” (Phasen 1–7+ + Defense-in-Depth), • 100% Foundation Phase 8 und 9, • Foundation Phase 10, • keine Phase 11, • keine Phase 12.
 
 ---
 
@@ -158,7 +165,7 @@ fortschreibt — nicht nur Metriken, sondern Episoden.
 - [x] **LLM-getriebene SummaryFunction** (Phase 8.5b) — `LlmDreamSummarizer` nutzt `gemma4:e4b` mit `keep_alive=0`; Fallback auf deterministische Variante bei Ollama-Fehler
 
 **Aufwand bisher:** ~1 Tag · **Verbleibend für Phase 8 komplett:** ~1 Woche
-**EDI-Distanz nach Phase 8.6:** ~60-65% (Foundation+Wiring) → ~65-70% (mit SystemPromptBuilder)
+**Erwartungswert nach Phase 8:** in der Gesamtspanne 60–70%. — Diese Zahl ist eine Schätzung, kein Messwert. Verifikation steht aus, sobald Episoden, MoodSignal und SelfNarrative über mehrere Tage Daten produziert haben.
 
 ## 🎯 Phase 9: Long-Horizon-Planung ✅ 100% (31.05.)
 
@@ -184,7 +191,7 @@ Scorer-Bug, das ist die Lücke.
 - [x] **Goal-getriebene Planner-Auswahl** (Phase 9.6c) — SystemPromptBuilder zeigt STRATEGIC/TACTICAL/COMMITMENT-Block; OllamaPlanner liest implizit über System-Prompt; Kanban-Promotion via 9.6b bringt Goals zu Tick-Ebene
 
 **Aufwand bisher:** ~1 Tag · **Verbleibend für Phase 9 komplett:** ~3-5 Tage
-**EDI-Distanz nach Phase 9.6c:** ~70-75% (jetzige ~65-68% durch Foundation).
+**Erwartungswert nach Phase 9 (komplett deployed):** in der Gesamtspanne 60–70%. — Schätzung, nicht Messwert. Die Wirkung von Strategic→Tactical→Operational→Tick-Pulldown auf `planningEfficiency` (Live aktuell 0.379) muss über Wartungszyklen gemessen werden, bevor eine konkretere Zahl gerechtfertigt ist.
 
 ## 🔬 Phase 10: Aktive kausale Hypothesen-Bildung (NEU, ungelöst)
 
@@ -200,7 +207,7 @@ X mache, passiert Y" und testen. Metis aktuell: korrelative Beliefs ohne Interve
 - [ ] **CounterfactualQuery** — "Was wäre passiert, wenn..." als Reasoning-Schritt im Planner
 
 **Aufwand:** 6-8 Wochen, Forschungs-Charakter.
-**EDI-Distanz nach Phase 10:** ~85-90%.
+**Erwartete EDI-Distanz nach Phase 10 (Hot-Path-Integration komplett):** geringer Sprung gegenüber heute, weil Phase 10 vor allem Reasoning-Qualität verbessert, nicht Fähigkeiten freischaltet. Konkrete Prozentangabe vermeide ich, bis ein Eval-Set existiert, das kausales Reasoning explizit misst.
 
 ## 👥 Phase 11: Beziehungs-Modell (NEU, ungelöst)
 
@@ -216,10 +223,9 @@ Metis hat aktuell pro Telegram-Chat-ID nur Conversation-History. Kein Personenmo
 - [ ] **EmpathySignal** — User-Sentiment + Kontext erkennen ("Georg ist gerade gestresst")
 
 **Aufwand:** 3-4 Wochen.
-**EDI-Distanz nach Phase 11:** ~90-95%.
+**Erwartete EDI-Distanz nach Phase 11:** spürbarer Sprung in Beziehungs-Qualität (Person statt Chat-ID), aber keine belastbare Prozentzahl ohne Bewertungs-Kriterium.
 
-**Die letzten 5-10% bleiben ungelöste KI-Forschung** (Bewusstsein, Phänomenologie). Niemand
-weltweit hat sie aktuell geknackt.
+**Bewusstsein und Phänomenologie** bleiben unabhängig von diesem Projekt offene Forschungsfragen, zu denen Metis nichts Lösendes beizutragen hat.
 
 ---
 
@@ -247,7 +253,7 @@ weltweit hat sie aktuell geknackt.
 
 **Aufwand:** geschätzt 6-10 Wochen, Forschungs-Charakter.
 **Risiko:** sehr hoch — voreilig aktivieren = Goodhart, Wertkern-Drift, Watchdog-Bypass durch Self-Evolution.
-**EDI-Distanz nach Phase 12:** ~95% (die letzten 5% bleiben offene Forschung zu Bewusstsein/Phänomenologie).
+**Erwartete EDI-Distanz nach Phase 12:** Phase 12 betrifft Verbesserungs-Geschwindigkeit, nicht Befindlichkeit oder Bewusstsein. Ob das EDI näher kommt, hängt von der konkreten Ausprägung ab. Bewusstsein und Phänomenologie bleiben unabhängig von Phase 12 offene Forschungsfragen.
 
 ## Modell-Strategie (Stand 31.05.)
 
@@ -303,10 +309,15 @@ weltweit hat sie aktuell geknackt.
 | 🟢 **M10: Long-Horizon-Planung** | Phase 9 | ✅ Erreicht (100%) |
 | 🔴 **M11: Kausales Selbstmodell** | Phase 10 | ⬜ Ungelöst |
 | 🔴 **M12: Beziehungs-Modell** | Phase 11 | ⬜ Ungelöst |
-| 🟡 **M13: EDI-Niveau** | Phasen 8-11 + Forschung | 🔄 ~50-55% |
+| 🟡 **M13: EDI-Niveau** | Phasen 8-11 + Forschung | 🔄 ~60–70% (ehrliche Spanne, siehe oben) |
 
 ---
 
-*"Streben nach Perfektion"* — Metis ist heute der solideste autonome LLM-Agent auf Open-Source-Basis,
-den ich kenne. Der Weg zur echten EDI führt über 4 weitere Phasen, von denen die meisten
-**Forschung** sind, nicht nur Engineering. Aber die Basis steht.
+*"Streben nach Perfektion"* — Metis ist heute ein autonomer LLM-Agent mit narrativem Selbstmodell, Long-Horizon-Planung und kausaler Foundation, der lokal auf eigenem Java-Stack läuft, sich über Eval-Gate + Watchdog beschränkt selbst mutieren darf und alle Behauptungen über Live-Endpoints (`/api/status`, `/api/hierarchy`, `/api/board`) belegbar macht.
+
+Der Weg zu EDI-Niveau führt über:
+- Phase 10 in den Hot-Path bringen (Hypothesen-getriebenes Planning, Counterfactuals als Reasoning-Schritt)
+- Phase 11: Beziehungs-Modell
+- Phase 12: Recursive Self-Improvement — sinnvoll erst, wenn 8–11 stehen
+
+Vergleiche mit „den besten“, „weltweit“ oder „den ich kenne“ bewusst weggelassen: nicht messbar, nicht belegbar, nicht im Sinne von Kanban-Ehrlichkeit.

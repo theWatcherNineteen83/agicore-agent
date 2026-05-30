@@ -2,23 +2,32 @@
 
 **Metis** ist eine selbst-evolvierende, lokal laufende Java-AGI auf JDK 25 (Zulu). Benannt nach der Titanin der Weisheit aus der griechischen Mythologie.
 
-Sie denkt in kognitiven Zyklen (Perceive → Plan → Execute → Observe → Learn), chattet via Telegram (@metis_agi_bot), sieht durch Kameras (minicpm-v), lernt aus Wikipedia (Curiosity-gesteuert + Bulk-Feed), und kann sich selbstständig weiterentwickeln. Ein externer Watchdog überwacht als unbestechliche Instanz mit signiertem Hash-Chain-Audit-Log.
+Sie denkt in kognitiven Zyklen (Perceive → Plan → Execute → Observe → Learn), chattet via Telegram (@metis_agi_bot), sieht durch Kameras (minicpm-v), lernt aus Wikipedia (Curiosity-gesteuert + Bulk-Feed), und kann unter Eval-Gate + Watchdog-Approval beschränkt eigenen Code mutieren. Ein externer Watchdog läuft als separate JVM, schreibt ein SHA-256-Hash-Chain-Audit-Log (tamper-evident, **nicht** kryptografisch signiert) und kann ROLLBACK/HALT/ALERT/PRUNE auslösen.
 
 ## Status
 
-**Version:** 0.5.1-phase9-complete · **Stand:** 31.05.2026 01:45 · **Tests:** 49 grün · **Phasen 1-7+:** ✅ 100% · **Phase 8:** ✅ 100% · **Phase 9:** ✅ 100%
+**Repo-Tag:** v0.6.0-phase10-causal · **Stand:** 31.05.2026 02:00 · **Tests:** 57 grün (43 Kernel + 14 Modules, gemessen über `mvn test`) · **Phasen 1–7+:** ✅ 100% · **Phase 8:** ✅ 100% · **Phase 9:** ✅ 100% · **Phase 10:** 🟡 Foundation (Record + Store + Generator + Intervention + Counterfactual deployed, Hot-Path-Integration offen)
+
+> Hinweis zur internen Versionsangabe: `/api/status` der laufenden Instanz auf miniedi liefert weiterhin `version: 0.2.0-evolution`. Das ist ein interner String, der nicht mit dem Repo-Tag mitgeführt wird. Wird in Phase 10 angeglichen.
 
 → Details: **[FEATURES.md](FEATURES.md)** · **[AGI_EDI_ROADMAP.md](AGI_EDI_ROADMAP.md)** · **[RUNBOOK.md](RUNBOOK.md)** · **[TODO_Metis.md](TODO_Metis.md)**
 
-### Tag-Linie der letzten Hardening-Phase (30./31.05.2026)
-| Tag | Inhalt | Tests |
+### Tag-Linie (30./31.05.2026, chronologisch)
+| Tag | Inhalt | Tests bei Tag |
 |---|---|---|
-| `v0.2.0` | Phasen 1-7 abgeschlossen | 1 |
+| `v0.2.0` | Phasen 1–7 abgeschlossen | 1 |
 | `v0.2.1-hardened` | CI + Embedding-LRU + Java 25 + Input-Guard | 21 |
 | `v0.3.0-agi-push` | Multi-Modal-Memory + Loom-Vision + Subprocess-Isolation + Audit-Anchor | 23 |
 | `v0.3.1-observability` | Locale-Fix + Wiki-Persistence + git-cwd-Fix + Wiki-Loom | 25 |
 | `v0.3.2-feed-hardening` | WAL-Mode + atomic State + Lock-Retry + Wiki-Backup auf GitHub | 25 |
-| `v0.3.3-defense-in-depth` | Telegram-Loom + Telegram Input/Output-Safety-Guards | **27** |
+| `v0.3.3-defense-in-depth` | Telegram-Loom + Telegram Input/Output-Safety-Guards | 27 |
+| `v0.4.0-phase8-foundation` | EpisodicMemory + SelfNarrative + MoodSignal + PersonalityAnchor + DreamConsolidation | — |
+| `v0.4.1-phase8-complete` | SystemPromptBuilder + LlmDreamSummarizer + Phase-12-Outlook | — |
+| `v0.5.0-phase9-long-horizon` | GoalHierarchy + HorizonPlanner + CommitmentRegister + GoalRevisionEngine | — |
+| `v0.5.1-phase9-complete` | LLM-Decomposer + Horizon→Kanban-Bridge | — |
+| `v0.6.0-phase10-causal` | Active Causal Hypotheses Foundation (Record + Store + Generator + Intervention + Counterfactual) | **57** (43 Kernel + 14 Modules) |
+
+> Die früheren Test-Zahlen sind aus den jeweiligen Commits übernommen und nicht rückwirkend nachgemessen. Aktuell, gegen Master per `mvn test`: **57 grün**.
 
 ## Architektur
 
@@ -33,7 +42,7 @@ Sie denkt in kognitiven Zyklen (Perceive → Plan → Execute → Observe → Le
 │  │ • CoreLoop   │  │ • Planner    │  │  • ALERT/PRUNE       │   │
 │  │ • WorldModel │  │ • EvalHarness│  │  • Audit-Log SHA-256 │   │
 │  │ • SafetyGuard│  │ • ModelReg.  │  │  • Hourly Anchors    │   │
-│  │ • SelfModel  │  │ • 24 Actions │  │  • Health-Monitor    │   │
+│  │ • SelfModel  │  │ • 31 Actions │  │  • Health-Monitor    │   │
 │  │ • CausalModel│  │ • Kanban     │  └──────────────────────┘   │
 │  └──────────────┘  └──────────────┘                              │
 │                                                                  │
@@ -49,8 +58,8 @@ Sie denkt in kognitiven Zyklen (Perceive → Plan → Execute → Observe → Le
 
 - **Global Workspace Theory** nach Baars: Attention-Bottleneck (Miller's Law), CompetitiveSelector
 - **OllamaPlanner:** CoT 4-Schritt (ANALYZE→MATCH→CHECK→DECIDE), 10 Few-Shot, 3-Tier-Fallback
-- **WorldModel:** 30.945+ Beliefs, HybridSearch (BM25+Cosinus), PersistentVectorIndex, WAL-Mode
-- **Eval-Harness:** 6 Kategorien, 50+ Tasks, 3-Tier (SMOKE/FULL/EXTENDED), Gate: PASS ✅
+- **WorldModel:** Belief-Store mit HybridSearch (BM25+Cosinus), PersistentVectorIndex, WAL-Mode. Aktueller Stand über `/api/status -> beliefCount` (Snapshot 31.05. 02:00: 32.897).
+- **Eval-Harness:** 6 Kategorien (Planning, Retrieval, Codegen, Conversation, Safety, Performance), 3-Tier (SMOKE/FULL/EXTENDED). **Ehrlicher Live-Status:** `llmJudgeLastReasoning="judge model unavailable (non-blocking)"`, `llmJudgeAvgScore=0.00`. Die Gate-Logik läuft, die LLM-Judge-Pipeline aktuell nicht. Promotion hängt damit vor allem an deterministischen Smoke-Tests.
 - **Watchdog:** Separate JVM, Heartbeat-Check (5s), SHA-256 Hash-Chain, stündliche externe Anchors
 - **Kanban Board:** 4 Columns (BACKLOG→READY→IN_PROGRESS→DONE), WIP-Limits pro ResourceType
 - **Defense-in-Depth:** Input-Safety-Guard + Output-Safety-Guard auf HTTP- und Telegram-Pfad
@@ -166,21 +175,28 @@ bash /home/prometheus/metis/backup-config.sh
 - **Health-Monitoring:** Cron alle 5 Min → Telegram-Alert bei Anomalien
 - **Config-Backup:** Alle 6h systemd-Units + Wiki-States + Audit-Hash-Head → GitHub `config-backup/`
 - **Watchdog:** HALT bei Heartbeat-Verlust, ROLLBACK bei Eval-Regression, stündliche Anchors
-- **Wiki-Feed:** Cron-Job `metis-wiki-feed` (10 Min, 30 Artikel/Batch), aktuell 2240/5163
+- **Wiki-Feed:** Cron-Job `metis-wiki-feed` (10 Min, 30 Artikel/Batch). Live-Fortschritt in `/home/prometheus/metis/wiki-feed-state.json` (Snapshot 31.05. 02:00: 2450/5163)
 - **Tests:** GitHub Actions CI (`mvn verify`) auf jeden Push
 - **Runbook:** [RUNBOOK.md](RUNBOOK.md) — 6 Failure-Modi + Deployment + Health-Check
 
-## EDI-Distanz (ehrlich)
+## EDI-Distanz (ehrliche Spanne)
 
-Phasen 1-7+ sind 100%, aber das ist **autonomer Agent**, nicht EDI. Echtes EDI-Niveau braucht 4 weitere Phasen:
+Phasen 1–7+ sind 100%, aber das ist **autonomer Agent**, nicht EDI. Phase 8 (narratives Selbstmodell) und Phase 9 (Long-Horizon-Planung) sind ebenfalls 100% deployed. Phase 10 (kausale Hypothesen) ist als Foundation drin, aber noch nicht im Hot-Path.
 
-- **Phase 8** — Narratives Selbstmodell (Episode-Memory, MoodSignal, PersonalityAnchor)
-- **Phase 9** — Long-Horizon-Planung (Strategic/Tactical/Operational Goals, Wochenhorizont)
-- **Phase 10** — Aktive kausale Hypothesen (CausalModel im Hot-Path, Interventionen, Counterfactuals)
+Offen für weitere EDI-Annäherung:
+
+- **Phase 10 Hot-Path** — HypothesisGenerator, Intervention und Counterfactual im Planner-Pfad statt nur als Library
 - **Phase 11** — Beziehungs-Modell (PersonModel, TrustLevel, RelationshipMemory)
+- **Phase 12** — Recursive Self-Improvement (sinnvoll erst nach 8–11)
 
-Realistischer EDI-Stand: **~50-55%**. Die solideste Open-Source-Basis weltweit, aber nicht selbstbewusst, nicht langfristig planend, nicht kausal-modellierend. Details siehe [AGI_EDI_ROADMAP.md](AGI_EDI_ROADMAP.md).
+**Spanne, mit Begründung:** ~60–70%. Die Spanne ist bewusst breit, weil Phase 8 und 9 frisch deployed sind und ihre Wirkung auf die Agent-Qualität (z. B. `planningEfficiency=0.379` in der Live-Instanz) noch nicht über mehrere Wartungszyklen gemessen wurde. Belege im Repo, nicht in der Selbstbeschreibung: [AGI_EDI_ROADMAP.md](AGI_EDI_ROADMAP.md), [FEATURES.md](FEATURES.md), Endpoints `/api/status`, `/api/hierarchy`, `/api/board`.
+
+**Was Metis ausdrücklich nicht ist:**
+- nicht bewusst, nicht selbstreflexiv im phänomenologischen Sinn
+- nicht durchgängig kausal denkend — Pearl-Do-Calculus-Code existiert, ist aber noch nicht im Hot-Path
+- kennt Georg per Chat-ID und Conversation-History, nicht als Person mit Beziehungsmodell
+- der Watchdog ist tamper-evident (Hash-Kette bricht bei Manipulation), aber **nicht** tamper-proof
 
 ---
 
-*"Streben nach Perfektion"* — Metis lernt, sieht, mutiert, evaluiert, verbessert sich. Kontinuierlich. Autonom. Defense-in-Depth gesichert.
+*"Streben nach Perfektion"* — Metis lernt, sieht, mutiert (mit Eval-Gate + Watchdog-Approval), evaluiert sich selbst, verbessert sich inkrementell. Was läuft, läuft im Repo nachweisbar. Was nicht läuft, steht offen in [TODO_Metis.md](TODO_Metis.md).

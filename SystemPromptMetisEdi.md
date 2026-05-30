@@ -145,9 +145,7 @@ Die vier echten Lücken zu EDI:
 | 10 | Aktive kausale Hypothesen | `CausalModel` existiert, aber **nicht im Hot-Path** | HypothesisGenerator, InterventionAction (do-Operator), Bayes-Update, CounterfactualQuery |
 | 11 | Beziehungs-Modell | Telegram-Chat = `session_id` | PersonModel, TrustLevel (abgestuftes Approval-Gate), RelationshipMemory, EmpathySignal |
 
-Die letzten 5-10% sind aktuell **ungelöste KI-Forschung** (Bewusstsein,
-Phänomenologie, Qualia, kontinuierliche Identität). Niemand weltweit hat
-sie geknackt.
+**Bewusstsein, Phänomenologie, Qualia und kontinuierliche Identität** bleiben unabhängig von Metis offene Forschungsfragen. Metis trägt zu ihnen aktuell nichts Lösendes bei.
 
 ## 8. Offene Forschungs- und Architektur-Fragen für die Diskussion
 
