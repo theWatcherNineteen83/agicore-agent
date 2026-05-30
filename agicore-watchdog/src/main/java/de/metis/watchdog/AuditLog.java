@@ -138,6 +138,36 @@ public class AuditLog {
     public int entryCount() { return entryCount; }
     public String lastHash() { return lastHash; }
 
+    /**
+     * Write a tamper-resistant anchor file with the current chain head.
+     * <p>
+     * Format: <code>audit-anchor-YYYY-MM-DDTHH-mm-ss.txt</code><br>
+     * Content: <code>timestamp, entryCount, chainHead</code><br>
+     * <p>
+     * Anchors live OUTSIDE Metis's writable scope (config.auditAnchorDir).
+     * If the operator commits + tags this directory periodically (cron + git tag),
+     * any later truncation of the audit log becomes externally detectable:
+     * an anchor's chainHead must reappear in the log at the same entryCount.
+     *
+     * @return the written path, or null on IO failure
+     */
+    public synchronized java.nio.file.Path writeAnchor(java.nio.file.Path anchorDir) {
+        try {
+            java.nio.file.Files.createDirectories(anchorDir);
+            String ts = Instant.now().toString().replace(':', '-').replace('.', '-');
+            java.nio.file.Path anchor = anchorDir.resolve("audit-anchor-" + ts + ".txt");
+            String body = "timestamp=" + Instant.now() + "\n"
+                        + "entryCount=" + entryCount + "\n"
+                        + "chainHead=" + lastHash + "\n";
+            java.nio.file.Files.writeString(anchor, body,
+                    StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+            return anchor;
+        } catch (IOException e) {
+            System.err.println("AuditLog: anchor write failed - " + e.getMessage());
+            return null;
+        }
+    }
+
     private static String sha256(String input) {
         try {
             MessageDigest md = MessageDigest.getInstance("SHA-256");

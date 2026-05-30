@@ -94,6 +94,12 @@ public class WatchdogMain {
         // Start eval report watcher (every 60s)
         scheduler.scheduleAtFixedRate(this::evalReportCheck, 10, 60, TimeUnit.SECONDS);
 
+        // Hourly external anchor of the audit-log chain head.
+        // Anchors live in config.auditAnchorDir (outside Metis writable scope).
+        // If anchors are git-committed/tagged externally, any later truncation
+        // of the audit log becomes detectable.
+        scheduler.scheduleAtFixedRate(this::writeAuditAnchor, 60, 3600, TimeUnit.SECONDS);
+
         // Block main thread
         try {
             while (!halted) {
@@ -500,5 +506,18 @@ public class WatchdogMain {
         WatchdogConfig config = WatchdogConfig.defaultConfig();
         WatchdogMain watchdog = new WatchdogMain(config);
         watchdog.start();
+    }
+
+    /** Hourly anchor: append-only chain-head snapshot in an external directory. */
+    private void writeAuditAnchor() {
+        try {
+            java.nio.file.Path dir = java.nio.file.Path.of(System.getProperty("metis.audit.anchor.dir", "/home/prometheus/metis/audit-anchors"));
+            java.nio.file.Path written = auditLog.writeAnchor(dir);
+            if (written != null) {
+                LOG.fine("AuditLog: anchor written -> " + written);
+            }
+        } catch (Exception e) {
+            LOG.warning("AuditLog anchor failed: " + e.getMessage());
+        }
     }
 }

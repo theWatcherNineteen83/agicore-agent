@@ -1,3 +1,29 @@
+# TODO Metis — Stand 31.05.2026 00:30 (AGI-Push v1: Multi-Modal + Loom + Subprocess + Anchor)
+
+## 🚀 31.05. Nacht — AGI-Push v1
+- [x] **Multi-Modal-Memory** — CameraVisionAction persistiert JPEG-Snapshots unter `data/snapshots/<cam>/YYYY-MM-DD/HH-MM-SS-<sha8>.jpg`, Belief enthält jetzt `[img=<sha12> path=...]`. Metis kann nach Sicht-Beliefs zurück zum Bild.
+  - Override via `-Dmetis.snapshot.root=/var/lib/metis/snapshots`
+  - SnapshotRef-Record + sha256-Determinismus per Unit-Test gesichert (2 neue Tests)
+- [x] **Virtual Threads im Vision-Loop** (Java 25 Loom) — vorher: 2 Kameras seriell mit Thread.sleep(3000) (~6s, blocking). Jetzt: `Thread.ofVirtual()` Factory + `Executors.newThreadPerTaskExecutor`, parallel, sub-Sekunde bei guten Antwortzeiten. Erste produktive Loom-Nutzung im Codepfad.
+- [x] **CodeGen-Subprozess-Isolation** — `javac` läuft jetzt mit `-J-Xmx256m`, `-J-XX:+ExitOnOutOfMemoryError`, `--release 25` (war 21!), und gestripptem Environment (kein Secret-Leak via `System.getenv`). Generierter Megafile kann den Parent-JVM nicht mehr OOM-killen.
+- [x] **Audit-Log: externer Anchor** — WatchdogMain schreibt stündlich Chain-Head in `metis.audit.anchor.dir` (default `/home/prometheus/metis/audit-anchors`). Jede Datei enthält `timestamp / entryCount / chainHead`. Wenn dieses Verzeichnis extern (z.B. via git tag) eingefroren wird, ist jede spätere Audit-Log-Truncation extern erkennbar. AuditLog.writeAnchor() + WatchdogMain.writeAuditAnchor() neu.
+- [x] **Embedding-Cache-Metriken** — `/api/status` zeigt jetzt `embeddingCacheSize / Hits / HitRate / Evictions / Calls`. Wirkung des LRU-Cache wird damit beobachtbar (für Watchdog-Soft-Tripwire bei Trefferraten-Einbruch). AgentMain reicht den OllamaEmbeddingService an MetisHttpServer durch.
+
+## 📐 Architekturbeitrag
+Diese Änderungen schließen 4 der "echten Lücken" aus dem 30.05.-Review:
+- (10) Multi-Modal-Memory ✅
+- (9) Schaltflächiges Loom-Beispiel ✅ (skalierbar auf weitere Loops)
+- (8) CodeGen-Heap-Isolation ✅
+- (7) Audit-Log extern verankert ✅
+
+## 🟡 Folgeaufgaben für den nächsten Pass
+- Wikipedia-Loop + Telegram-Polling auch auf Loom umstellen (gleiche Schablone)
+- ResponseValidator nach LLM-Output greifen (HTTP-Pfad hat aktuell nur Input-Guard)
+- snapshot-prune Action: ältere als 30 Tage in trash verschieben
+- Anchor-Cron: jede Stunde `git add audit-anchors/ && git commit -m "anchor"` außerhalb von Metis-Schreibrechten
+
+---
+
 # TODO Metis — Stand 30.05.2026 23:55 (Hardening-Pass v1)
 
 ## 🛡️ 30.05. Abends — Hardening: Tests + CI + Cache + Input-Safety

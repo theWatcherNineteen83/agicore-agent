@@ -9,6 +9,9 @@ import java.net.http.*;
 import java.nio.file.*;
 import java.time.Duration;
 import java.time.Instant;
+import java.security.MessageDigest;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.Base64;
 import java.util.logging.Logger;
 
@@ -63,25 +66,34 @@ public class CameraVisionAction {
                 return null;
             }
 
-            // 2. Send to minicpm-v for description
+            // 2. Persist snapshot to disk BEFORE LLM call - multi-modal memory
+            //    (Metis can later "show me what you saw at 14:23" instead of only
+            //    relying on the textual belief.)
+            SnapshotRef ref = persistSnapshot(imageBytes);
+
+            // 3. Send to minicpm-v for description
             String description = describeViaOllama(imageBytes);
             if (description == null || description.isBlank()) {
                 LOG.fine("Camera " + cameraName + ": no description generated");
                 return null;
             }
 
-            // 3. Clean up description
+            // 4. Clean up description
             description = description.strip()
                     .replaceAll("^\"|\"$", "")
                     .replaceAll("^Das Bild zeigt |^Auf dem Bild ist |^In this image,? ", "");
 
-            // 4. Store as belief with timestamp
-            String belief = cameraName + ": " + description;
-            double confidence = 0.75; // vision models are reasonably accurate
+            // 5. Store belief with snapshot reference (sha256 prefix + path)
+            String belief = ref != null
+                    ? cameraName + ": " + description + " [img=" + ref.sha256().substring(0, 12)
+                            + " path=" + ref.path() + "]"
+                    : cameraName + ": " + description;
+            double confidence = 0.75;
             worldModel.update(belief, confidence,
                     "camera-vision:" + cameraName, true);
 
-            LOG.info("Camera " + cameraName + ": " + description);
+            LOG.info("Camera " + cameraName + ": " + description
+                    + (ref != null ? " (saved: " + ref.path() + ")" : ""));
             return description;
 
         } catch (Exception e) {
@@ -89,6 +101,51 @@ public class CameraVisionAction {
             return null;
         }
     }
+
+    /**
+     * Persist a JPEG snapshot to data/snapshots/{camera}/YYYY-MM-DD/HH-MM-SS-{sha8}.jpg.
+     * Pruning is the operator responsibility (logrotate / tmpwatch).
+     * Returns null on IO failure (vision still runs).
+     */
+    private SnapshotRef persistSnapshot(byte[] imageBytes) {
+        try {
+            String sha = sha256(imageBytes);
+            Instant now = Instant.now();
+            ZoneId tz = ZoneId.systemDefault();
+            String day = DateTimeFormatter.ofPattern("yyyy-MM-dd").withZone(tz).format(now);
+            String hms = DateTimeFormatter.ofPattern("HH-mm-ss").withZone(tz).format(now);
+            Path dir = Paths.get(SNAPSHOT_ROOT, cameraName, day);
+            Files.createDirectories(dir);
+            String fileName = hms + "-" + sha.substring(0, 8) + ".jpg";
+            Path file = dir.resolve(fileName);
+            if (!Files.exists(file)) {
+                Files.write(file, imageBytes);
+            }
+            return new SnapshotRef(file.toString(), sha);
+        } catch (Exception e) {
+            LOG.warning("Snapshot persist failed (" + cameraName + "): " + e.getMessage());
+            return null;
+        }
+    }
+
+    private static String sha256(byte[] data) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            byte[] hash = md.digest(data);
+            StringBuilder hex = new StringBuilder(hash.length * 2);
+            for (byte b : hash) hex.append(String.format("%02x", b));
+            return hex.toString();
+        } catch (Exception e) {
+            return "nohash";
+        }
+    }
+
+    /** Snapshot file reference stored inline in beliefs for later retrieval. */
+    public record SnapshotRef(String path, String sha256) {}
+
+    /** Override via -Dmetis.snapshot.root=/var/lib/metis/snapshots if needed. */
+    private static final String SNAPSHOT_ROOT =
+            System.getProperty("metis.snapshot.root", "data/snapshots");
 
     /**
      * Fetch JPEG snapshot from camera URL.

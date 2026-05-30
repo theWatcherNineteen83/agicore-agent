@@ -285,11 +285,21 @@ public class CodeGenerationAction implements Action {
             Path javaFile = srcDir.resolve(className + ".java");
             Files.writeString(javaFile, code);
 
-            // Compile
+            // Compile in an isolated subprocess with a bounded heap.
+            // -J-Xmx256m caps javac heap so a generated megafile cannot OOM the parent JVM.
+            // --release matches the target runtime (Java 25, system Zulu 25 LTS).
             ProcessBuilder pb = new ProcessBuilder(
-                    "javac", "--release", "21",
+                    "javac",
+                    "-J-Xmx256m",
+                    "-J-XX:+ExitOnOutOfMemoryError",
+                    "--release", "25",
+                    "-Xlint:none",
                     javaFile.toString());
             pb.redirectErrorStream(true);
+            // Strip parent env so generated code cannot read secrets via System.getenv at compile time.
+            pb.environment().clear();
+            pb.environment().put("PATH", System.getenv().getOrDefault("PATH", "/usr/bin:/bin"));
+            pb.environment().put("HOME", System.getProperty("java.io.tmpdir"));
             Process proc = pb.start();
             boolean finished = proc.waitFor(COMPILE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
 

@@ -52,6 +52,7 @@ public class MetisHttpServer {
     private RollbackManager rollbackManager;  // Phase 5: Blue/Green
     private BugfixingAgent bugfixingAgent;     // Phase 5: Auto-fix
     private KanbanBoard kanbanBoard;           // Kanban: Goal Board
+    private de.metis.modules.evolution.OllamaEmbeddingService embeddingService;  // hardening v2
 
     public MetisHttpServer(Agent agent, int port) throws IOException {
         this.agent = agent;
@@ -99,6 +100,7 @@ public class MetisHttpServer {
     public void setBugfixingAgent(BugfixingAgent ba) { this.bugfixingAgent = ba; }
     public void setModelRegistry(de.metis.modules.evolution.ModelRegistry mr) { this.modelRegistry = mr; }
     public void setKanbanBoard(KanbanBoard kb) { this.kanbanBoard = kb; }
+    public void setEmbeddingService(de.metis.modules.evolution.OllamaEmbeddingService es) { this.embeddingService = es; }
 
     public void start() {
         server.start();
@@ -702,6 +704,11 @@ public class MetisHttpServer {
                   "worldModelAvgConfidence": %.3f,
                   "validatorOutputs": %d,
                   "validatorBlocked": %d,
+                  "embeddingCacheSize": %d,
+                  "embeddingCacheHits": %d,
+                  "embeddingCacheHitRate": %.3f,
+                  "embeddingCacheEvictions": %d,
+                  "embeddingCalls": %d,
                   %s
                   %s
                 }
@@ -720,6 +727,11 @@ public class MetisHttpServer {
                 wm.averageConfidence(),
                 outputValidator.validatedOutputs(),
                 outputValidator.blockedOutputs(),
+                embeddingService != null ? embeddingService.cacheSize() : 0,
+                embeddingService != null ? embeddingService.cacheHits() : 0,
+                embeddingService != null ? embeddingService.cacheHitRate() : 0.0,
+                embeddingService != null ? embeddingService.cacheEvictions() : 0,
+                embeddingService != null ? embeddingService.embedCount() : 0,
                 rollbackManager != null ? rollbackManager.healthJson() + "," : "",
                 bugfixingAgent != null ? bugfixingAgent.healthJson() : ""
         );

@@ -1048,6 +1048,7 @@ public final class AgentMain {
             httpServer.setCoordinator(coordinator);
             if (kanbanEnabled) {
                 httpServer.setKanbanBoard(agent.core().goals().kanbanBoard());
+        httpServer.setEmbeddingService(embedSvc);
             }
             httpServer.start();
         }
@@ -1243,14 +1244,20 @@ public final class AgentMain {
             t.setDaemon(true);
             return t;
         });
+        // Java 25 Loom: observe all cameras in parallel on virtual threads.
+        // Replaces serial loop with 3s sleep -> all cameras finish in ~one snapshot cycle.
+        var visionVtFactory = Thread.ofVirtual().name("camera-vision-vt-", 0).factory();
         visionScheduler.scheduleAtFixedRate(() -> {
-            for (var cam : visionCameras) {
-                try {
-                    cam.observe();
-                    Thread.sleep(3000); // rate-limit: 3s between cameras
-                } catch (Exception e) {
-                    LOG.fine("Camera vision cycle: " + e.getMessage());
+            try (var visionVt = Executors.newThreadPerTaskExecutor(visionVtFactory)) {
+                for (var cam : visionCameras) {
+                    visionVt.submit(() -> {
+                        try { cam.observe(); }
+                        catch (Exception e) { LOG.fine("Camera vision cycle: " + e.getMessage()); }
+                    });
                 }
+                // try-with-resources auto-closes -> awaits termination
+            } catch (Exception e) {
+                LOG.fine("Camera vision dispatch: " + e.getMessage());
             }
         }, 2, 5, TimeUnit.MINUTES);
         LOG.info("Camera vision active — minicpm-v observes 2 cameras every 5 min");
