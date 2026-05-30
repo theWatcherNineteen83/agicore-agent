@@ -31,6 +31,8 @@ import de.metis.modules.events.ProactiveNotificationService;
 import de.metis.modules.hardware.HardwareDiscovery;
 import de.metis.modules.hardware.HardwareProfileAction;
 import de.metis.modules.hardware.DeepNettsAction;
+import de.metis.kernel.goal.Goal;
+import de.metis.kernel.goal.KanbanBoard;
 import de.metis.modules.knowledge.WikipediaKnowledgeService;
 import de.metis.modules.hardware.TornadoVmAction;
 import de.metis.modules.multiagent.AgentCoordinator;
@@ -1153,11 +1155,36 @@ public final class AgentMain {
                         .map(Map.Entry::getKey)
                         .collect(java.util.stream.Collectors.toList());
                 wikiKnowledge.addCuriosityTopics(topics);
-                
+
+                // Kanban: create and flow a Wikipedia learning goal through the board
+                Goal wikiGoal = null;
+                if (agent.core().goals().kanbanBoard() != null) {
+                    var board = agent.core().goals().kanbanBoard();
+                    if (board.countInProgress(Goal.ResourceType.INFERENCE) < 2) {
+                        wikiGoal = new Goal(
+                                "Learn Wikipedia article (curiosity-driven)",
+                                "wikipedia-learn", 50, 0.5, 1,
+                                Goal.ServiceClass.STANDARD, Goal.ResourceType.INFERENCE, null);
+                        board.add(wikiGoal);           // BACKLOG
+                        board.promoteReady();           // → READY
+                        wikiGoal = board.pull();        // → IN_PROGRESS (respects WIP)
+                        if (wikiGoal == null) {
+                            LOG.fine("Wikipedia goal blocked by WIP limits");
+                        }
+                    }
+                }
+
                 int learned = wikiKnowledge.learnOneArticle();
                 if (learned > 0) {
+                    // Complete the Wikipedia goal on the board (moves IN_PROGRESS → DONE)
+                    if (wikiGoal != null && agent.core().goals().kanbanBoard() != null) {
+                        agent.core().goals().kanbanBoard().complete(wikiGoal.id());
+                    }
                     LOG.info("Wikipedia curiosity: learned " + learned + " facts (total: "
                             + wikiKnowledge.factsLearned() + " from " + wikiKnowledge.articlesProcessed() + " articles)");
+                } else if (wikiGoal != null && agent.core().goals().kanbanBoard() != null) {
+                    // Nothing learned — requeue the goal (IN_PROGRESS → READY) for retry
+                    agent.core().goals().kanbanBoard().requeue(wikiGoal);
                 }
             } catch (Exception e) {
                 LOG.fine("Wikipedia learning cycle: " + e.getMessage());

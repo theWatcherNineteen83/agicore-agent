@@ -15,7 +15,9 @@ import java.util.logging.Logger;
 import de.metis.kernel.persistence.KnowledgeStore;
 import de.metis.kernel.safety.OutputValidator;
 import de.metis.kernel.goal.KanbanBoard;
+import de.metis.kernel.goal.Goal;
 import de.metis.kernel.goal.GoalFlowMetrics;
+import de.metis.kernel.goal.KanbanBoard;
 import de.metis.modules.persona.Persona;
 import de.metis.modules.multiagent.AgentCoordinator;
 
@@ -195,11 +197,26 @@ public class MetisHttpServer {
         long startMs = System.currentTimeMillis();
 
         try {
-            // Inject EDI persona context
-            String enrichedGoal = Persona.systemPrompt()
-                    + "\n\nConversation context:\n" + conversationContext
-                    + "\n\nUser: " + userMessage + "\n\nEDI:";
-            agent.addGoal(enrichedGoal, "chat", 90, 0.95, 1);
+            // EDI persona for planning context only (not goal description)
+            String personaContext = Persona.systemPrompt();
+            String shortGoal = "Respond to chat: " + truncate(userMessage, 100);
+
+            // Deduplication: skip if a chat goal is already in progress or ready
+            if (agent.core().goals().kanbanBoard() != null) {
+                long activeChatGoals = agent.core().goals().kanbanBoard().snapshot().inProgress().stream()
+                        .filter(g -> g.category().equals("chat"))
+                        .count();
+                if (activeChatGoals > 0) {
+                    LOG.fine("Skipping chat goal — already " + activeChatGoals + " in progress");
+                } else {
+                    // Use INFERENCE resource type for chat (LLM-only, no shell/filesystem)
+                    Goal chatGoal = new Goal(shortGoal, "chat", 85, 0.9, 1,
+                            Goal.ServiceClass.STANDARD, Goal.ResourceType.INFERENCE, null);
+                    agent.core().goals().add(chatGoal);
+                }
+            } else {
+                agent.addGoal(shortGoal, "chat", 85, 0.9, 1);
+            }
 
             var result = agent.core().tick();
 

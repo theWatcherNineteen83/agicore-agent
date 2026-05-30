@@ -31,7 +31,8 @@ public class CuriosityEngine {
     private final Map<String, Integer> domainVisits = new HashMap<>();
     private final List<String> explorationDomains = List.of(
             "shell", "http", "filesystem", "webscrape", "linux-explore",
-            "api-explore", "hw-profile", "deepnetts", "tornadovm"
+            "api-explore", "hw-profile", "deepnetts", "tornadovm",
+            "wikipedia-learn"
     );
     private final Random random = new Random();
 
