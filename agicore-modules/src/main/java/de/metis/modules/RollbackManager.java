@@ -1,5 +1,7 @@
 package de.metis.modules;
 
+import java.util.Locale;
+
 import java.io.*;
 import java.nio.file.*;
 import java.time.Instant;
@@ -173,7 +175,7 @@ public class RollbackManager {
             reason = consecutiveFailures + " consecutive failures";
         } else if (errorRate > maxErrorRate) {
             shouldRollback = true;
-            reason = String.format("%.0f%% error rate (>%.0f%%)", errorRate * 100, maxErrorRate * 100);
+            reason = String.format(Locale.ROOT, "%.0f%% error rate (>%.0f%%)", errorRate * 100, maxErrorRate * 100);
         } else if (crashCount >= maxCrashCount) {
             shouldRollback = true;
             reason = crashCount + " crashes (max " + maxCrashCount + ")";
@@ -223,7 +225,7 @@ public class RollbackManager {
     // ── Health JSON (for /api/status) ────────────────────────────
 
     public String healthJson() {
-        return String.format("""
+        return String.format(Locale.ROOT, """
                 "rollback": {
                   "currentVersion": "%s",
                   "previousVersion": "%s",
@@ -246,7 +248,7 @@ public class RollbackManager {
 
     private void saveState() {
         try {
-            String json = String.format("""
+            String json = String.format(Locale.ROOT, """
                     {
                       "currentVersion": "%s",
                       "previousVersion": "%s",

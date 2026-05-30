@@ -252,14 +252,30 @@ public class LiveMetisInvoker implements MetisComponentInvoker {
     // ── Helpers ───────────────────────────────────────────────────
 
     private void detectCommit() {
-        try {
-            Process p = new ProcessBuilder("git", "rev-parse", "--short", "HEAD")
-                    .redirectErrorStream(true)
-                    .start();
-            this.currentCommit = new String(p.getInputStream().readAllBytes()).trim();
-        } catch (Exception e) {
-            this.currentCommit = "unknown";
+        // Try common Metis repo locations; override via -Dmetis.repo.dir=...
+        String[] candidates = {
+                System.getProperty("metis.repo.dir"),
+                "/home/prometheus/metis-agent-repo",
+                System.getProperty("user.dir")
+        };
+        for (String cand : candidates) {
+            if (cand == null) continue;
+            java.io.File dir = new java.io.File(cand);
+            if (!new java.io.File(dir, ".git").exists()) continue;
+            try {
+                Process pr = new ProcessBuilder("git", "rev-parse", "--short", "HEAD")
+                        .directory(dir)
+                        .redirectErrorStream(true)
+                        .start();
+                String out = new String(pr.getInputStream().readAllBytes()).trim();
+                pr.waitFor();
+                if (pr.exitValue() == 0 && !out.isBlank() && !out.contains("fatal")) {
+                    this.currentCommit = out;
+                    return;
+                }
+            } catch (Exception ignored) {}
         }
+        this.currentCommit = "unknown";
     }
 
     private void detectModels() {

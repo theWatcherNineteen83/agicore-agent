@@ -1,3 +1,21 @@
+# TODO Metis — Stand 31.05.2026 00:35 (Locale-Fix + Wiki-Persistence + Wiki-Loom)
+
+## 🩺 31.05. Nachts — Beobachtungsschicht + Wissens-Persistenz
+- [x] **Locale-Fix in MetisHttpServer** — alle 14 `String.format()`-Aufrufe nutzen jetzt `Locale.ROOT`. Damit ist `/api/status` wieder gültiges JSON (vorher: deutsche Komma-Floats `1,000` → invalid JSON, brach OpenWebUI, health-monitor.sh, Watchdog-Status-Polls).
+- [x] **RollbackManager + BugfixingAgent**: ebenfalls auf `Locale.ROOT` umgestellt (4 weitere Format-Calls) — vorher: gleicher Bug in `healthJson()`.
+- [x] **LiveMetisInvoker.detectCommit Fix** — sucht jetzt das Repo unter `metis.repo.dir` Property, `/home/prometheus/metis-agent-repo` oder cwd. Vorher: `fatal: not a git repository` in jedem Eval-Report.
+- [x] **WikipediaKnowledgeService persistent** — `seenArticles` (vorher: nur in-Memory, Restart-Datenverlust!) + `factsLearned` werden in `wiki-knowledge-state.json` gespeichert (override via `-Dmetis.wiki.knowledge.state=...`). Atomic write (tmp + `ATOMIC_MOVE`). Jackson-basiert, robust gegen Sonderzeichen in Artikeltiteln.
+  - **29 bereits gelesene Artikel aus `wiki-training-state.json` migriert** in den neuen State — keine Wissens-Reaktivierung nötig.
+- [x] **Wikipedia-Loop auf Loom** — Lernarbeit (HTTP zu Wikipedia + Ollama) läuft jetzt auf Virtual Thread (`Thread.ofVirtual()`). Scheduler-Thread bleibt Platform für Timing-Stabilität, aber ein hängender LLM-Call blockiert nicht mehr die nächste Tick-Auslösung.
+- [x] **2 neue Tests**: `WikipediaKnowledgeServiceTest` — `seenArticlesSurviveRestart` + `coldStartWhenStateMissing`. Total jetzt: **25 Tests grün** (Kernel 13 + Modules 12).
+
+### Verifikation nach Restart erforderlich
+- `/api/status` muss valides JSON liefern (`jq .` darf nicht abbrechen)
+- `eval-reports/*.json` muss `"metisCommit": "<7stelliger-hash>"` enthalten, nicht `"fatal: ..."`
+- `wiki-knowledge-state.json` wächst nach erstem Wiki-Lerntick um die neuen Titel
+
+---
+
 # TODO Metis — Stand 31.05.2026 00:30 (AGI-Push v1: Multi-Modal + Loom + Subprocess + Anchor)
 
 ## 🚀 31.05. Nacht — AGI-Push v1

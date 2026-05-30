@@ -8,6 +8,7 @@ import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.*;
+import java.util.Locale;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Logger;
@@ -352,7 +353,7 @@ public class MetisHttpServer {
         }
 
         // Agent state
-        sb.append("[confidence: ").append(String.format("%.0f%%", agent.meta().confidence() * 100))
+        sb.append("[confidence: ").append(String.format(Locale.ROOT, "%.0f%%", agent.meta().confidence() * 100))
                 .append(", ")
                 .append(elapsed).append("ms]");
 
@@ -369,7 +370,7 @@ public class MetisHttpServer {
         sb.append("What I know:\n");
         for (var b : beliefs) {
             sb.append("• ").append(b.statement())
-                    .append(" (").append(String.format("%.0f%%", b.confidence() * 100)).append(")\n");
+                    .append(" (").append(String.format(Locale.ROOT, "%.0f%%", b.confidence() * 100)).append(")\n");
         }
         sb.append("\nI am ").append(Persona.NAME).append(", running on Metis AGI v")
                 .append(agent.core().evolutionManager() != null ? "0.2.0" : "?").append(". ");
@@ -438,16 +439,16 @@ public class MetisHttpServer {
         if (streaming) {
             // Streaming format: newline-delimited JSON chunks
             // First chunk: content with done=false
-            String chunk1 = String.format("""
+            String chunk1 = String.format(Locale.ROOT, """
                     {"model":"%s","created_at":"%s","message":{"role":"assistant","content":"%s"},"done":false}
                     """, modelName, now, escapedContent);
             // Final chunk: empty content with done=true
-            String chunk2 = String.format("""
+            String chunk2 = String.format(Locale.ROOT, """
                     {"model":"%s","created_at":"%s","message":{"role":"assistant","content":""},"done":true,"done_reason":"stop","total_duration":1000000000,"eval_count":1}
                     """, modelName, now);
             return chunk1 + chunk2;
         } else {
-            return String.format("""
+            return String.format(Locale.ROOT, """
                     {
                       "model": "%s",
                       "created_at": "%s",
@@ -502,10 +503,10 @@ public class MetisHttpServer {
             json.append("  },\n");
             // Phase 6: LLM-as-Judge metrics (Huyen Kap. 3)
             json.append("  \"llmJudgeEvaluations\": ").append(op.llmJudge().totalEvaluations()).append(",\n");
-            json.append("  \"llmJudgeAvgScore\": ").append(String.format("%.2f", op.llmJudge().avgScore())).append(",\n");
+            json.append("  \"llmJudgeAvgScore\": ").append(String.format(Locale.ROOT, "%.2f", op.llmJudge().avgScore())).append(",\n");
             json.append("  \"llmJudgeWarnings\": ").append(op.llmJudge().warningCount()).append(",\n");
             json.append("  \"llmJudgeBlocks\": ").append(op.llmJudge().blockCount()).append(",\n");
-            json.append("  \"llmJudgeLastScore\": ").append(String.format("%.2f", op.llmJudge().lastScore())).append(",\n");
+            json.append("  \"llmJudgeLastScore\": ").append(String.format(Locale.ROOT, "%.2f", op.llmJudge().lastScore())).append(",\n");
             json.append("  \"llmJudgeLastReasoning\": \"").append(escapeJsonValue(op.llmJudge().lastReasoning())).append("\",\n");
         }
 
@@ -600,7 +601,7 @@ public class MetisHttpServer {
         evolutionPaused.set(true);
         agent.core().evolutionManager().setPaused(true);
         var evo = agent.core().evolutionManager();
-        sendJson(exchange, 200, String.format("""
+        sendJson(exchange, 200, String.format(Locale.ROOT, """
                 {"evolution_paused": true, "cycles": %d, "accepted": %d, "rejected": %d}
                 """, evo.evolutionCycles(), evo.acceptedMutations(), evo.rejectedMutations()));
     }
@@ -609,14 +610,14 @@ public class MetisHttpServer {
         evolutionPaused.set(false);
         agent.core().evolutionManager().setPaused(false);
         var evo = agent.core().evolutionManager();
-        sendJson(exchange, 200, String.format("""
+        sendJson(exchange, 200, String.format(Locale.ROOT, """
                 {"evolution_paused": false, "cycles": %d, "accepted": %d, "rejected": %d}
                 """, evo.evolutionCycles(), evo.acceptedMutations(), evo.rejectedMutations()));
     }
 
     private void handleEvolutionStatus(HttpExchange exchange) throws IOException {
         var evo = agent.core().evolutionManager();
-        sendJson(exchange, 200, String.format("""
+        sendJson(exchange, 200, String.format(Locale.ROOT, """
                 {
                   "paused": %b,
                   "evolutionCycles": %d,
@@ -638,7 +639,7 @@ public class MetisHttpServer {
 
         String plannerInfo;
         if (planner instanceof de.metis.modules.planner.OllamaPlanner op) {
-            plannerInfo = String.format("""
+            plannerInfo = String.format(Locale.ROOT, """
                       "plannerLlmCalls": %d,
                       "plannerLlmSuccessRate": %.2f,
                       "plannerFallbacks": %d,
@@ -676,16 +677,16 @@ public class MetisHttpServer {
                     op.totalResponseTokens(),
                     op.tokensPerCall(),
                     op.llmJudge().totalEvaluations(),
-                    String.format("%.2f", op.llmJudge().avgScore()),
+                    String.format(Locale.ROOT, "%.2f", op.llmJudge().avgScore()),
                     op.llmJudge().warningCount(),
                     op.llmJudge().blockCount(),
-                    String.format("%.2f", op.llmJudge().lastScore()),
+                    String.format(Locale.ROOT, "%.2f", op.llmJudge().lastScore()),
                     escapeJsonValue(op.llmJudge().lastReasoning()));
         } else {
             plannerInfo = "";
         }
 
-        String json = String.format("""
+        String json = String.format(Locale.ROOT, """
                 {
                   "agent": "Metis AGI",
                   "version": "0.2.0-evolution",

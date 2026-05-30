@@ -1135,12 +1135,17 @@ public final class AgentMain {
                 "http://192.168.22.204:11434", agent.worldModel());
         
         // Curiosity-driven periodic learning: every 10 minutes, learn one article
+        // Wikipedia-Lerner: dedizierter Scheduler-Thread (Platform für Timing-Stabilität),
+        // aber die eigentliche Lernarbeit wird auf Virtual Threads ausgelagert (Java 25 Loom),
+        // damit ein hängender Ollama-Call die nächste Tick-Auslösung nicht blockiert.
         var wikiScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
             var t = new Thread(r, "wikipedia-learner");
             t.setDaemon(true);
             return t;
         });
-        wikiScheduler.scheduleAtFixedRate(() -> {
+        var wikiVtFactory = Thread.ofVirtual().name("wiki-learn-vt-", 0).factory();
+        var wikiWorkPool = Executors.newThreadPerTaskExecutor(wikiVtFactory);
+        wikiScheduler.scheduleAtFixedRate(() -> wikiWorkPool.submit(() -> {
             try {
                 // Get curiosity topics from least-explored belief domains
                 var beliefs = agent.worldModel().all();
@@ -1231,7 +1236,7 @@ public final class AgentMain {
             } catch (Exception e) {
                 LOG.fine("Wikipedia learning cycle: " + e.getMessage());
             }
-        }, 3, 10, TimeUnit.MINUTES);
+        }), 3, 10, TimeUnit.MINUTES);
         LOG.info("Wikipedia knowledge acquisition active — API-based, curiosity-driven, every 10 min");
 
         // Phase 7: Camera Vision (minicpm-v) — periodic observations from existing cameras

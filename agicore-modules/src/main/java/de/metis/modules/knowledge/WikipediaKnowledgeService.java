@@ -6,8 +6,13 @@ import java.net.URI;
 import java.net.http.*;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.time.Duration;
 import java.util.*;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -33,16 +38,82 @@ public class WikipediaKnowledgeService {
     private final Set<String> seenArticles = new HashSet<>();
     private int factsLearned = 0;
 
+    /** Persistent JSON state path; null disables persistence. */
+    private Path stateFile = null;
+    /** Override via -Dmetis.wiki.knowledge.state=/path/to/state.json */
+    private static final String DEFAULT_STATE =
+            System.getProperty("metis.wiki.knowledge.state",
+                    "/home/prometheus/metis/wiki-knowledge-state.json");
+
     /** Topics the CuriosityEngine found interesting (will be re-explored). */
     private final List<String> curiosityTopics = new ArrayList<>();
 
     public WikipediaKnowledgeService(String ollamaUrl, WorldModel worldModel) {
+        this(ollamaUrl, worldModel, Path.of(DEFAULT_STATE));
+    }
+
+    public WikipediaKnowledgeService(String ollamaUrl, WorldModel worldModel, Path stateFile) {
         this.ollamaUrl = ollamaUrl;
         this.worldModel = worldModel;
         this.http = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(10))
                 .build();
+        this.stateFile = stateFile;
+        loadState();
     }
+
+    /**
+     * Load seenArticles + factsLearned from disk (idempotent, safe on missing file).
+     * State file format is plain JSON:
+     *   {"factsLearned": N, "seenArticles": ["title1","title2",...]}
+     */
+    private synchronized void loadState() {
+        if (stateFile == null || !Files.exists(stateFile)) {
+            LOG.fine("WikiKnowledge: no state file at " + stateFile + " - cold start");
+            return;
+        }
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            JsonNode root = mapper.readTree(stateFile.toFile());
+            if (root.has("factsLearned")) factsLearned = root.get("factsLearned").asInt(0);
+            JsonNode arr = root.get("seenArticles");
+            if (arr != null && arr.isArray()) {
+                for (JsonNode n : arr) {
+                    String t = n.asText("").trim();
+                    if (!t.isEmpty()) seenArticles.add(t);
+                }
+            }
+            LOG.info("WikiKnowledge: loaded state - " + seenArticles.size()
+                    + " articles, " + factsLearned + " facts");
+        } catch (Exception e) {
+            LOG.warning("WikiKnowledge: state load failed (" + e.getMessage() + ") - cold start");
+        }
+    }
+
+    /**
+     * Atomic JSON write: tmp file + move-with-replace. Called after every learn cycle.
+     */
+    private synchronized void saveState() {
+        if (stateFile == null) return;
+        try {
+            Files.createDirectories(stateFile.getParent());
+            ObjectMapper mapper = new ObjectMapper();
+            var root = mapper.createObjectNode();
+            root.put("factsLearned", factsLearned);
+            var arr = root.putArray("seenArticles");
+            for (String t : seenArticles) arr.add(t);
+            byte[] body = mapper.writerWithDefaultPrettyPrinter()
+                    .writeValueAsBytes(root);
+            Path tmp = stateFile.resolveSibling(stateFile.getFileName().toString() + ".tmp");
+            Files.write(tmp, body, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+            Files.move(tmp, stateFile,
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING,
+                    java.nio.file.StandardCopyOption.ATOMIC_MOVE);
+        } catch (Exception e) {
+            LOG.warning("WikiKnowledge: state save failed - " + e.getMessage());
+        }
+    }
+
 
     /**
      * Let the CuriosityEngine suggest topics to explore.
@@ -74,6 +145,7 @@ public class WikipediaKnowledgeService {
             List<String> facts = extractFacts(article);
             if (facts.isEmpty()) {
                 seenArticles.add(article.title);
+                saveState();
                 return 0;
             }
 
@@ -89,6 +161,7 @@ public class WikipediaKnowledgeService {
 
             seenArticles.add(article.title);
             factsLearned += stored;
+            saveState();
             LOG.info("Wikipedia learned " + stored + " facts from '" + article.title
                     + "' (total: " + factsLearned + " facts from " + seenArticles.size() + " articles)");
 

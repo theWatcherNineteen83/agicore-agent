@@ -1,5 +1,7 @@
 package de.metis.modules;
 
+import java.util.Locale;
+
 import de.metis.kernel.action.ActionResult;
 
 import java.io.*;
@@ -292,7 +294,7 @@ public class BugfixingAgent {
 
     public String healthJson() {
         var pattern = detectPattern();
-        return String.format("""
+        return String.format(Locale.ROOT, """
                 "bugfixing": {
                   "recentErrors": %d,
                   "totalFixesAttempted": %d,
