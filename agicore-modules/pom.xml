@@ -123,19 +123,6 @@
             <artifactId>vosk</artifactId>
             <version>0.3.45</version>
         </dependency>
-        <!-- TornadoVM GPU Acceleration (optional — miniedi only) -->
-        <dependency>
-            <groupId>org.tornadovm</groupId>
-            <artifactId>tornado-api</artifactId>
-            <version>4.0.1-jdk21</version>
-            <optional>true</optional>
-        </dependency>
-        <dependency>
-            <groupId>org.tornadovm</groupId>
-            <artifactId>tornado-annotation</artifactId>
-            <version>4.0.1-jdk21</version>
-            <optional>true</optional>
-        </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
@@ -186,4 +173,28 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <profile>
+            <id>tornadovm-gpu</id>
+            <activation>
+                <property>
+                    <name>tornadovm.enabled</name>
+                    <value>true</value>
+                </property>
+            </activation>
+            <dependencies>
+                <dependency>
+                    <groupId>org.tornadovm</groupId>
+                    <artifactId>tornado-api</artifactId>
+                    <version>4.0.1-jdk21</version>
+                </dependency>
+                <dependency>
+                    <groupId>org.tornadovm</groupId>
+                    <artifactId>tornado-annotation</artifactId>
+                    <version>4.0.1-jdk21</version>
+                </dependency>
+            </dependencies>
+        </profile>
+    </profiles>
 </project>
