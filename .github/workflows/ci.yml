@@ -19,8 +19,17 @@ jobs:
           distribution: temurin
           java-version: 25
 
+      - name: Cache Maven
+        uses: actions/cache@v3
+        with:
+          path: ~/.m2/repository
+          key: maven-cache-${{ runner.os }}
+
       - name: Build + test kernel
         run: mvn -B -pl agicore-kernel -am clean test
+
+      - name: Build watchdog
+        run: mvn -B -pl agicore-watchdog -am -DskipTests package
 
   modules-tests:
     name: Modules build + tests
@@ -36,6 +45,12 @@ jobs:
           distribution: temurin
           java-version: 25
 
+      - name: Cache Maven
+        uses: actions/cache@v3
+        with:
+          path: ~/.m2/repository
+          key: maven-cache-${{ runner.os }}
+
       - name: Install MaryTTS local JAR
         run: |
           if [ -f agicore-modules/lib/voice-bits1-hsmm-5.2.jar ]; then
@@ -49,3 +64,10 @@ jobs:
 
       - name: Build + test modules
         run: mvn -B -pl agicore-modules -am verify
+
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: metis-sbom
+          path: target/metis-sbom.json
+          if-no-files-found: warn
