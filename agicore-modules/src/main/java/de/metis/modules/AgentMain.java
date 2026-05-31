@@ -5,6 +5,7 @@ import de.metis.kernel.action.Crawl4AIAction;
 import de.metis.kernel.action.NativeWebScraperAction;
 import de.metis.kernel.action.WebSearchAction;
 import de.metis.kernel.action.JlamaInferenceAction;
+import de.metis.kernel.telemetry.TelemetryService;
 import de.metis.kernel.graph.JenaRdfService;
 import de.metis.kernel.action.WebCrawlAction;
 import de.metis.kernel.action.LinuxExploreAction;
@@ -179,6 +180,7 @@ public final class AgentMain {
                 persistState();
                 agent.worldModel().saveEmbeddings();
                 JenaRdfService.getInstance().shutdown();
+                TelemetryService.getInstance().shutdown();
                 printSummary();
             } catch (Exception e) {
                 LOG.warning("Shutdown persist failed: " + e.getMessage());
@@ -882,6 +884,14 @@ public final class AgentMain {
             LOG.info("Jena RDF graph store initialized");
         } catch (Exception e) {
             LOG.warning("Jena RDF init skipped: " + e.getMessage());
+        }
+
+        // OpenTelemetry — structured tracing + Prometheus metrics
+        try {
+            TelemetryService.getInstance().init();
+            LOG.info("OpenTelemetry initialized");
+        } catch (Exception e) {
+            LOG.warning("Telemetry init skipped: " + e.getMessage());
         }
 
         // Java-Code-Sandbox (jshell)

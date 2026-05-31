@@ -102,6 +102,7 @@ public class MetisHttpServer {
         server.createContext("/api/admin/refresh-models", this::handleRefreshModels);
         server.createContext("/api/board", this::handleBoard);
         server.createContext("/api/hierarchy", this::handleHierarchy);
+        server.createContext("/api/metrics", this::handleMetrics);
         server.createContext("/api/causal", this::handleCausal);
     }
 
@@ -995,5 +996,14 @@ public class MetisHttpServer {
         if (s < 60) return s + "s";
         if (s < 3600) return (s / 60) + "m" + (s % 60) + "s";
         return (s / 3600) + "h" + ((s % 3600) / 60) + "m";
+    }
+
+    private void handleMetrics(HttpExchange exchange) throws IOException {
+        var telemetry = de.metis.kernel.telemetry.TelemetryService.getInstance();
+        if (!telemetry.isEnabled()) {
+            sendJson(exchange, 200, "{\"metrics\":\"disabled\"}");
+            return;
+        }
+        sendJson(exchange, 200, telemetry.metricsJson());
     }
 }
