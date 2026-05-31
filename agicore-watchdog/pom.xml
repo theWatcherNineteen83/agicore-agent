@@ -35,6 +35,9 @@
                         <manifest>
                             <mainClass>de.metis.watchdog.WatchdogMain</mainClass>
                         </manifest>
+                        <manifestEntries>
+                            <Automatic-Module-Name>de.metis.watchdog</Automatic-Module-Name>
+                        </manifestEntries>
                     </archive>
                 </configuration>
             </plugin>

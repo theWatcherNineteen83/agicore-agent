@@ -172,6 +172,9 @@
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
                                     <mainClass>de.metis.modules.AgentMain</mainClass>
+                                    <manifestEntries>
+                                        <Automatic-Module-Name>de.metis.modules</Automatic-Module-Name>
+                                    </manifestEntries>
                                 </transformer>
                             </transformers>
                             <finalName>metis-agent</finalName>
