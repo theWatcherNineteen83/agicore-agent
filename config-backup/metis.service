@@ -7,13 +7,17 @@ Wants=network-online.target ollama.service
 Type=simple
 User=prometheus
 WorkingDirectory=/home/prometheus/metis
+RuntimeDirectory=metis
+RuntimeDirectoryMode=0755
+EnvironmentFile=-/run/metis/version.env
+ExecStartPre=/usr/local/bin/metis-version-helper.sh
 Environment=JAVA_HOME=/usr/lib/jvm/zulu25.32.21-ca-jdk25.0.2-linux_x64
 ExecStart=/usr/lib/jvm/zulu25.32.21-ca-jdk25.0.2-linux_x64/bin/java \
-    -Xmx2g -XX:+UseZGC \
+    -Xmx2g -XX:+UseZGC -Dmetis.version=${METIS_VERSION} \
     --enable-native-access=ALL-UNNAMED \
     -jar /home/prometheus/metis/metis-agent.jar \
     --api-port 11735 \
-    --planning-model mistral-small3.1:24b \
+    --planning-model lfm2:24b \
     --mutation-model qwen3.6:27b-q4_K_M \
     --telegram-token 8334147633:AAEoXX7LS8pDe_gWXO8mUav8i0SGmEPnVLU \
     --weather-api-key 0352c669d7d0422d92c669d7d0522d9a \
