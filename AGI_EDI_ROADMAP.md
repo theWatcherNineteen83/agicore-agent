@@ -495,7 +495,7 @@ Basierend auf Stash `prometheus-review-30.05` (13 Punkte).
 | 6 | **DJL / Azul** | Deep Java Library für Fine-Tuning (erst Azul/Zulu prüfen) | Prüfung ✅ (docs/djl-azul-finetuning-pruefung.md) |
 | 7 | **Websearch** | DuckDuckGo oder Ecosia, ggf. über Nutch (#5) | 1-2 Tage |
 | 9 | **OpenTelemetry** | Tracing + Metrics-Endpoint (CNCF, Java-Agents Open Source) | 2-3 Tage ✅ (8f12387) |
-| 10 | **JPMS module-info.java** | Stückweise je Feature, wenn Klasse angepasst wird | kontinuierlich |
+| 10 | **JPMS module-info.java** | Stückweise je Feature, wenn Klasse angepasst wird | kontinuierlich 🟡 (ddb2a71, Automatic-Module-Name) |
 | 12 | **Continuous Evolution Scheduler** | Meta-Learning-Scheduler für Evolutions-Timing | 2-3 Tage |
 
 ### ❌ NO GO — Nutzen für Metis AGI fraglich
