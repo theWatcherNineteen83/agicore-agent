@@ -1,6 +1,6 @@
 # TODO Metis — Aktueller Stand & Ehrliche Lücken-Analyse
 
-**Stand: 31.05.2026 02:00 · Repo-Tag: v0.6.0-phase10-causal · Tests: 57 grün (43 Kernel + 14 Modules, `mvn test`) · Master: HEAD**
+**Stand: 31.05.2026 11:15 · Repo-Tag: v0.6.1-honesty-audit (29d41ea) · Tests: 57 grün (43 Kernel + 14 Modules, `mvn test`) · Master: HEAD · Watchdog: aktiv · Audit-Anchor: deployed**
 
 > Hinweis: ältere Einträge unten zeigen die Test-Zahlen zum jeweiligen Zeitpunkt (z. B. “total 47 grün” nach Phase 9-Foundation). Das ist als historisches Protokoll gewollt, nicht als aktuelle Aussage.
 
@@ -122,12 +122,14 @@ Phasen 1-7 + Defense-in-Depth = 100% — das ist ein **außerordentlich gut kons
 - **PLANNING.goal_achieved=0.0** im Eval-Report — kein Bug, sondern Phase-9-Lücke (Single-Tick-Planung)
 - **CODEGEN.pass@1=0.0** — Sandbox-Build-Tests timen aus
 - **CausalModel** existiert (Pearl Do-Calculus), aber nicht im Hot-Path verwendet
-- **Audit-Anchors** werden lokal geschrieben, aber nicht in **externes Repo** committet (finale Hash-Verankerung)
+- ~~**Audit-Anchors** werden lokal geschrieben, aber nicht in **externes Repo** committet~~ ✅ 31.05. behoben (Git-Repo + audit-anchors Branch + stündlicher Cron)
 - **JAR-Deployment** ohne Signatur (sigstore/cosign offen)
 - **18 Files** in `agicore-modules/lib/` ohne Maven-Coords (TornadoVM, voice-bits1-hsmm — wegen MaryTTS-Repo-Outage)
-- **Eval-Harness** läuft nur 1x beim Boot, nicht periodisch (Scheduler-Setup offen)
+- ~~**Eval-Harness** läuft nur 1x beim Boot, nicht periodisch~~ ✅ 31.05. behoben (scheduleAtFixedRate, alle 6h SMOKE)
 - **Modell-Prune via Eval-Harness** — Code da, aber 8 Reasoner sind nicht durchgerankt
-- **MetisHttpServer Version-Drift** — /api/status liefert "0.2.0-evolution" statt aktuellem Tag (bekannt, Fix in Phase 10 vorgesehen)
+- ~~**MetisHttpServer Version-Drift** — /api/status liefert "0.2.0-evolution"~~ ✅ 31.05. behoben (dynamisch via System-Property/Manifest/Fallback)
+- **GitHub CI Workflow** hat Fehler (niedrige Prio, wird später behoben)
+- **start.sh** auf miniedi braucht `-Dmetis.version=$(git describe --tags)` (enthält Tokens → Georg)
 
 
 ### 🌀 Self-Evolution — kann Metis die Phasen selbst weiterentwickeln?
@@ -150,6 +152,34 @@ Phasen 1-9 sind komplett ✅, Phase 10 Foundation steht ✅. Nächste Hebel:
 4. **Phase 12** erst nach 10+11 (6-10 Wochen, sehr hohes Risiko)
 
 EDI-Distanz aktuell: ~60-70% (Schätzung). Nächster messbarer Sprung durch Phase 10 Hot-Path + Phase 11 Foundation.
+
+---
+
+## 📋 Review-Entscheidungen 31.05. (Georg)
+
+### ✅ GO
+| # | Thema | Technologie | Prio |
+|---|-------|------------|------|
+| 1 | MCP-Integration | Spring AI MCP | Strategisch (kein Quickwin) |
+| 2 | Pure Java LLM | JLama | Hoch (PoC ~1 Tag) |
+| 4 | Graph-DB für Kausalwissen | Apache Jena (RDF) | Mittel |
+| 5 | Web Crawling | Apache Nutch (Java-native) | Hoch |
+| 6 | Fine-Tuning/LoRA | DJL (vorher Azul/Zulu prüfen) | Mittel |
+| 7 | Websearch | DuckDuckGo / Ecosia | Hoch (Quickwin) |
+| 9 | Observability | OpenTelemetry Java Agents | Mittel |
+| 10 | JPMS | module-info.java stückweise | Kontinuierlich |
+| 12 | Evolution Scheduler | Meta-Learning | Mittel |
+
+### ❌ NO GO
+| # | Thema | Begründung |
+|---|-------|-----------|
+| 3 | LangChain4j | Eigenbau ausreichend |
+| 8 | SpotBugs/PMD/ErrorProne | Overengineering, Code-Gen läuft in Sandbox |
+| 11 | GraalVM Polyglot | Kein Bedarf |
+| 13 | JADE | Eigener AgentCoordinator genügt |
+
+### ⚠️ GitHub CI Workflow
+GitHub Actions hat Fehler (niedrige Prio). Details im CI-Log. Wird später behoben.
 
 ---
 
