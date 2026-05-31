@@ -957,15 +957,21 @@ public final class AgentMain {
                 t.setDaemon(true);
                 return t;
             });
-            evalScheduler.schedule(() -> {
+            // Initial SMOKE at 30s, then every 6 hours
+            evalScheduler.scheduleAtFixedRate(() -> {
                 try {
                     var report = evalRunner.run("SMOKE");
-                    LOG.info("Initial SMOKE eval: " + (report != null ? report.gate().ok() ? "PASS" : "FAIL" : "N/A"));
+                    String gate = report != null ? report.gate().ok() ? "PASS" : "FAIL" : "N/A";
+                    LOG.info("Periodic SMOKE eval: " + gate
+                        + (report != null ? " | regressions=" + report.regressions().size() : ""));
+                    if (report != null && !report.gate().ok()) {
+                        LOG.warning("Eval gate FAIL — " + report.gate().failingMetrics().size() + " failing metrics");
+                    }
                 } catch (Exception e) {
-                    LOG.warning("Initial eval failed: " + e.getMessage());
+                    LOG.warning("Periodic eval failed: " + e.getMessage());
                 }
-            }, 30, TimeUnit.SECONDS);
-            LOG.info("EvalHarness initialized — SMOKE test scheduled in 30s");
+            }, 30, 6 * 3600, TimeUnit.SECONDS);
+            LOG.info("EvalHarness initialized — SMOKE every 6h (first in 30s)");
         }
 
         // Bootstrap world model

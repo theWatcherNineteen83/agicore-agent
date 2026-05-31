@@ -41,7 +41,7 @@ public class WatchdogMain {
     private int missedHeartbeats = 0;
     private Instant lastHeartbeat = Instant.now();
     private String currentCommit = "";
-    private boolean halted = false;
+    private volatile boolean halted = false;
     private int rollbackCount = 0;
     private Path lastEvalReport = null;  // tracks last processed eval report
 
@@ -514,7 +514,7 @@ public class WatchdogMain {
             java.nio.file.Path dir = java.nio.file.Path.of(System.getProperty("metis.audit.anchor.dir", "/home/prometheus/metis/audit-anchors"));
             java.nio.file.Path written = auditLog.writeAnchor(dir);
             if (written != null) {
-                LOG.fine("AuditLog: anchor written -> " + written);
+                LOG.info("AuditLog: anchor written -> " + written.getFileName());
             }
         } catch (Exception e) {
             LOG.warning("AuditLog anchor failed: " + e.getMessage());
