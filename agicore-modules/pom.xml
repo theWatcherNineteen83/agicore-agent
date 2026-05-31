@@ -148,11 +148,11 @@
             <releases><enabled>true</enabled></releases>
             <snapshots><enabled>false</enabled></snapshots>
         </repository>
-        <!-- Fallback: original (often returns 409) -->
+        <!-- Fallback: original (returns HTML landing page — unreliable) -->
         <repository>
             <id>marytts-mlt</id>
             <url>https://mlt.jfrog.io/artifactory/mlt-mvn-releases-local</url>
-            <releases><enabled>true</enabled></releases>
+            <releases><enabled>false</enabled></releases>
             <snapshots><enabled>false</enabled></snapshots>
         </repository>
     </repositories>

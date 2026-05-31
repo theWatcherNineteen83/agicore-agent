@@ -5,6 +5,7 @@ import de.metis.kernel.action.Crawl4AIAction;
 import de.metis.kernel.action.NativeWebScraperAction;
 import de.metis.kernel.action.WebSearchAction;
 import de.metis.kernel.action.JlamaInferenceAction;
+import de.metis.kernel.graph.JenaRdfService;
 import de.metis.kernel.action.LinuxExploreAction;
 import de.metis.kernel.action.ApiExplorerAction;
 import de.metis.kernel.action.JavaSandboxAction;
@@ -176,6 +177,7 @@ public final class AgentMain {
             try {
                 persistState();
                 agent.worldModel().saveEmbeddings();
+                JenaRdfService.getInstance().shutdown();
                 printSummary();
             } catch (Exception e) {
                 LOG.warning("Shutdown persist failed: " + e.getMessage());
@@ -868,6 +870,14 @@ public final class AgentMain {
         // JLama — pure Java LLM inference (no Ollama dependency)
         agent.core().executor().register(new JlamaInferenceAction("Hello, how are you?"));
         LOG.info("JlamaInferenceAction registered — pure Java LLM fallback inference");
+
+        // Jena RDF — graph-based causal knowledge store (Apache Jena TDB2)
+        try {
+            JenaRdfService.getInstance().init();
+            LOG.info("Jena RDF graph store initialized");
+        } catch (Exception e) {
+            LOG.warning("Jena RDF init skipped: " + e.getMessage());
+        }
 
         // Java-Code-Sandbox (jshell)
         agent.core().executor().register(new JavaSandboxAction("System.out.println(\"Hello from Metis!\");"));
