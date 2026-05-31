@@ -7,6 +7,7 @@ import de.metis.kernel.action.WebSearchAction;
 import de.metis.kernel.action.JlamaInferenceAction;
 import de.metis.kernel.telemetry.TelemetryService;
 import de.metis.kernel.graph.JenaRdfService;
+import de.metis.kernel.action.McpBridgeAction;
 import de.metis.kernel.action.WebCrawlAction;
 import de.metis.kernel.action.LinuxExploreAction;
 import de.metis.kernel.action.ApiExplorerAction;
@@ -870,6 +871,21 @@ public final class AgentMain {
         // Web-Crawler (Nutch-inspired, multi-page, recursive)
         agent.core().executor().register(new WebCrawlAction("https://example.com"));
         LOG.info("WebCrawlAction registered — recursive web crawler for knowledge acquisition");
+
+        // MCP Bridge — connects to Model Context Protocol servers, discovers tools
+        if (System.getProperty("metis.mcp.servers") != null) {
+            String[] servers = System.getProperty("metis.mcp.servers").split(",");
+            for (String spec : servers) {
+                spec = spec.trim();
+                if (spec.isEmpty()) continue;
+                String[] parts = spec.split(":", 2);
+                String srvName = parts[0].trim();
+                String srvCmd = parts.length > 1 ? parts[1].trim() : srvName;
+                var mcpAction = new McpBridgeAction(srvName, java.util.List.of(srvCmd.split("\\s+")));
+                agent.core().executor().register(mcpAction);
+                LOG.info(() -> "MCP bridge registered: " + srvName + " → " + srvCmd);
+            }
+        }
 
         // Web-Search (DuckDuckGo, no API key)
         agent.core().executor().register(new WebSearchAction("example query"));
