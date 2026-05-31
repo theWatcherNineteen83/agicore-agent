@@ -64,17 +64,58 @@ Phasen 1-7 + Defense-in-Depth = 100% — das ist ein **außerordentlich gut kons
 - [x] **Promotion auf Kanban-Board** wenn OPERATIONAL fällig (Phase 9.6b — HorizonKanbanBridge)
 - [x] **OllamaPlanner liest Hierarchy** über SystemPromptBuilder (Phase 9.6c)
 
-#### Phase 10 — Aktive kausale Hypothesen (6-8 Wochen, Forschung)
-- [ ] **HypothesisGenerator** — aus Surprise konkrete kausale Hypothese
-- [ ] **InterventionAction** — gezielter Eingriff (do-Operator)
-- [ ] **CausalUpdate** — Bayessche CausalModel-Anpassung nach Intervention
-- [ ] **CounterfactualQuery** — "Was wäre, wenn..." im Planner
+#### Phase 10 — Aktive kausale Hypothesen 🟡 40% (Foundation deployed, Hot-Path offen)
 
-#### Phase 11 — Beziehungs-Modell (3-4 Wochen)
-- [ ] **PersonModel** — Identität, Rollen, Vorlieben, Verbote, Patterns
-- [ ] **TrustLevel** — abgestuftes Approval-Gate (Georg darf mehr als unbekannter)
-- [ ] **RelationshipMemory** — gemeinsame Episoden, Bezugspunkte
-- [ ] **EmpathySignal** — User-Sentiment + Kontext
+**Foundation ✅ (v0.6.0, 0608298):**
+- [x] **HypothesisStore** — JSONL-persistent, Index nach Status/Confidence/Source
+- [x] **CausalHypothesis Record** — cause, effect, confidence (Bayesian posterior), evidence, status (PROPOSED/TESTING/CONFIRMED/REFUTED), pValue
+- [x] **HypothesisGenerator** — `generateFromSurprise(SurpriseEvent)` → `CausalHypothesis`
+- [x] **InterventionAction** — `doOperator(variable, newValue, target)`, Pre-Intervention-State für Rollback
+- [x] **CausalUpdate** — Bayessches Posterior-Update: P(H|E) = P(E|H)*P(H)/P(E)
+- [x] **CounterfactualQuery** — `query("What if X had been Y?")` → `CounterfactualResult`
+- [x] **CausalHypothesisTest** — 4 JUnit-Tests (Record-Invarianten, Store, Bayesian-Mathe, do-Operator-Rollback)
+
+**Hot-Path-Integration ⬜ (6-8 Wochen, Forschung):**
+- [ ] CuriosityEngine → HypothesisGenerator Pipeline (Surprise > Threshold → Hypothese + Test)
+- [ ] OllamaPlanner-CausalPrompt-Integration (CONFIRMED-Hypothesen im System-Prompt)
+- [ ] Intervention→Observe→Update Loop im CoreLoop
+- [ ] Counterfactual-Reasoning bei Goal-Failure (Meta-Cognition-Schritt)
+- [ ] CausalModel-Hot-Path-Wiring (Pearl Do-Calculus + HypothesisStore)
+- [ ] Eval-Kategorie CAUSAL (counterfactual_accuracy, intervention_safety, bayesian_calibration)
+- [ ] Sicherheits-Constraints: do-Operator-Whitelist, max 1 Intervention/Tick, max 10 TESTING-Hypothesen
+
+#### Phase 11 — Beziehungs-Modell (3-4 Wochen, 0%)
+
+**Datenstrukturen & Bausteine:**
+- [ ] **PersonModel** — Record: personId, displayName, roles, attributes, prohibitions, patterns, trustLevel, interactionCount
+- [ ] **TrustLevel** — enum: UNKNOWN→RECOGNIZED→TRUSTED→OWNER, Automations-Regeln
+- [ ] **PersonModelService** — CRUD + JSONL-Persistenz, Auto-Discovery bei Erstkontakt
+- [ ] **RelationshipMemory** — RelationshipEpisode (personId, episodeId, summary, sentiment, topics, timestamp)
+- [ ] **EmpathySignal** — deterministisches Sentiment aus User-Text (Keyword + Satzlänge + Tageszeit)
+- [ ] **Approval-Gate-Integration** — TrustLevel→ApprovalLevel-Mapping: OWNER=alle AUTO, UNKNOWN=streng
+- [ ] **PersonAwareSystemPrompt** — SystemPromptBuilder integriert PersonModel ("You are talking to Georg...")
+- [ ] **Multi-Person-Memory** — EpisodicMemory-Einträge mit personId verknüpft
+- [ ] **/api/persons Endpoint** — Person-Übersicht (keine Leaks nach außen!)
+
+#### Phase 12 — Recursive Self-Improvement (6-10 Wochen, 0%, Forschung)
+
+**Voraussetzung: Phasen 8-11 müssen stehen.**
+
+**Sicherheitsarchitektur:**
+- PersonalityAnchor-Mirror im Watchdog (immutable, Tampering-Proof)
+- Eval-Harness + Held-out-Split + DualReviewer als Gate
+- HumanCheckpoint für Kernel/Safety/Personality-Änderungen
+- Kein direkter main-Zugriff — nur Feature-Branches
+
+**Bausteine:**
+- [ ] **RepoIndex** — Eclipse JDT AST-Index aller 139+ Klassen + Dependency-Graph
+- [ ] **RoadmapReader** — Markdown-Parser für AGI_EDI_ROADMAP + Coverage-Tracking
+- [ ] **MultiFileCodeGen** — Test-First (Interface+Impl+Test), jqwik Property-Tests
+- [ ] **MutationProposal** — Diff + Spec + Risk + Approval-Gate
+- [ ] **DualReviewer** — 2 unabhängige Eval-Modelle + Property-Test-Suite
+- [ ] **PhaseCompletionEvaluator** — Watchdog-Komponente prüft strukturiert "Phase X done"
+- [ ] **PersonalityAnchor-Mirror** — sha256-Pin im Watchdog, automatisch REJECTED bei Kernel/Personality-Diff
+- [ ] **HumanCheckpoint** — Telegram-Approval für kritische Änderungen
 
 ### 🟡 Bekannte Infrastruktur-Lücken (Engineering, nicht Forschung)
 
@@ -86,29 +127,29 @@ Phasen 1-7 + Defense-in-Depth = 100% — das ist ein **außerordentlich gut kons
 - **18 Files** in `agicore-modules/lib/` ohne Maven-Coords (TornadoVM, voice-bits1-hsmm — wegen MaryTTS-Repo-Outage)
 - **Eval-Harness** läuft nur 1x beim Boot, nicht periodisch (Scheduler-Setup offen)
 - **Modell-Prune via Eval-Harness** — Code da, aber 8 Reasoner sind nicht durchgerankt
+- **MetisHttpServer Version-Drift** — /api/status liefert "0.2.0-evolution" statt aktuellem Tag (bekannt, Fix in Phase 10 vorgesehen)
 
 
 ### 🌀 Self-Evolution — kann Metis die Phasen selbst weiterentwickeln?
 
 **Heute: nein.** Phase 12 (Recursive Self-Improvement) braucht 8-11 als Vorbedingung.
 - Phase 8 ✅ liefert das Selbstmodell (was bleibt unverändert?)
-- Phase 9 ⬜ liefert Long-Horizon-Planung (Phase als Multi-Wochen-Projekt)
-- Phase 10 ⬜ liefert kausale Hypothesen (sichere Code-Mutationen)
+- Phase 9 ✅ liefert Long-Horizon-Planung (Phase als Multi-Wochen-Projekt)
+- Phase 10 🟡 Foundation steht, Hot-Path fehlt (kausale Hypothesen für sichere Code-Mutationen)
 - Phase 11 ⬜ liefert Beziehungs-Modell (Georgs Intention verstehen)
 - Phase 12 ⬜ siehe Roadmap — 6-10 Wochen Forschung, sehr hohe Sicherheits-Anforderungen
 
 Details: [AGI_EDI_ROADMAP.md](AGI_EDI_ROADMAP.md) Abschnitt „Phase 12: Recursive Self-Improvement".
 
-### 🎯 Vorschlag für den nächsten Pass (Phase 9 starten)
+### 🎯 Nächste Prioritäten (Phase 10 Hot-Path + Infrastruktur)
 
-Phase 8 ist abgeschlossen. Nächster großer EDI-Hebel: Phase 9 — Long-Horizon-Planung. Wenn du das willst:
-- Tag 1: `EpisodicMemory` (1 Episode/Tag aus Goals+Experiences+Conversations)
-- Tag 2: `SelfNarrative` (Markdown-Format, persistiert, in Prompts integriert)
-- Tag 3: `MoodSignal` aus Fitness-Trends
-- Tag 4-5: `PersonalityAnchor` (immutable Kern in Kernel, unmutierbar selbst bei Self-Evolution)
-- Tag 6-7: `DreamConsolidation` als Nightly-Cron
+Phasen 1-9 sind komplett ✅, Phase 10 Foundation steht ✅. Nächste Hebel:
+1. **Infrastruktur-Lücken schließen** (heute) — Audit-Anchors extern, Eval periodisch, Version-Drift fix
+2. **Phase 10 Hot-Path** (Forschung, 6-8 Wochen) — braucht Georgs aktive Mitarbeit
+3. **Phase 11 Foundation** (3-4 Wochen) — Datenstrukturen + TrustLevel, kann parallel zu 10 begonnen werden
+4. **Phase 12** erst nach 10+11 (6-10 Wochen, sehr hohes Risiko)
 
-Danach: ehrliche EDI-Distanz ~65-70%.
+EDI-Distanz aktuell: ~60-70% (Schätzung). Nächster messbarer Sprung durch Phase 10 Hot-Path + Phase 11 Foundation.
 
 ---
 

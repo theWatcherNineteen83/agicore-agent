@@ -27,8 +27,9 @@ Phase 7+ ████████████████████ 100%  Defe
 ─────────────────────────────────────  AUTONOMER AGENT bis hier
 Phase 8  ████████████████████ 100%  Narratives Selbstmodell ✅            ← EDI-Distanz
 Phase 9  ████████████████████ 100%  Long-Horizon-Planung ✅
-Phase 10 ░░░░░░░░░░░░░░░░░░░░   0%  Aktive kausale Hypothesen
+Phase 10 ████████░░░░░░░░░░░░  40%  Aktive kausale Hypothesen (Foundation ✅, Hot-Path ⬜)
 Phase 11 ░░░░░░░░░░░░░░░░░░░░   0%  Beziehungs-Modell
+Phase 12 ░░░░░░░░░░░░░░░░░░░░   0%  Recursive Self-Improvement
 ─────────────────────────────────────  EDI-ÄHNLICHE KI ab hier
 ```
 
@@ -193,37 +194,135 @@ Scorer-Bug, das ist die Lücke.
 **Aufwand bisher:** ~1 Tag · **Verbleibend für Phase 9 komplett:** ~3-5 Tage
 **Erwartungswert nach Phase 9 (komplett deployed):** in der Gesamtspanne 60–70%. — Schätzung, nicht Messwert. Die Wirkung von Strategic→Tactical→Operational→Tick-Pulldown auf `planningEfficiency` (Live aktuell 0.379) muss über Wartungszyklen gemessen werden, bevor eine konkretere Zahl gerechtfertigt ist.
 
-## 🔬 Phase 10: Aktive kausale Hypothesen-Bildung (NEU, ungelöst)
+## 🔬 Phase 10: Aktive kausale Hypothesen-Bildung 🟡 40% (Foundation deployed, Hot-Path offen)
 
 **Ziel:** Metis baut aktiv kausale Hypothesen über sich selbst und die Welt, prüft sie, revidiert.
 
-**Warum essenziell:** `CausalModel` existiert, wird aber nicht genutzt. EDI würde sagen "wenn ich
-X mache, passiert Y" und testen. Metis aktuell: korrelative Beliefs ohne Interventionsdenken.
+**Warum essenziell:** `CausalModel` existiert (Pearl Do-Calculus, v0.3.0), wird aber nicht im
+Agent-Core-Loop genutzt. EDI würde sagen "wenn ich X mache, passiert Y" und es testen.
+Metis aktuell: korrelative Beliefs ohne Interventionsdenken.
 
-**Bausteine:**
-- [ ] **HypothesisGenerator** — aus Surprise (Curiosity-Engine) konkrete kausale Hypothese formen
-- [ ] **InterventionAction** — gezielter Eingriff zur Hypothesen-Prüfung (do-Operator)
-- [ ] **CausalUpdate** — Bayessche Anpassung des CausalModel nach Intervention
-- [ ] **CounterfactualQuery** — "Was wäre passiert, wenn..." als Reasoning-Schritt im Planner
+### ✅ Foundation (v0.6.0, 0608298)
+- [x] **HypothesisStore** — JSONL-persistenter Store für `CausalHypothesis`-Records, Index nach Status/Confidence/Source
+- [x] **CausalHypothesis Record** — `id, cause(variable, value), effect(variable, expectedValue), confidence(0-1 Bayesian posterior), evidence(for/against), status(PROPOSED/TESTING/CONFIRMED/REFUTED), source(SurpriseEvent|ManualQuery|Counterfactual), createdAt, lastTestedAt, testCount, successfulTests, pValue`
+- [x] **HypothesisGenerator** — `generateFromSurprise(SurpriseEvent)` → `CausalHypothesis`, erzeugt strukturierte Hypothesen aus Curiosity-Engine-Überraschungen
+- [x] **InterventionAction** — `doOperator(String variable, Object newValue, String target)` — führt gezielten Eingriff durch (setzt Variable, beobachtet Ergebnis), persistiert Pre-Intervention-State für Rollback
+- [x] **CounterfactualQuery** — `query(String world: "What if X had been Y instead?")` → `CounterfactualResult(plausibleOutcome, confidence, supportingHypotheses)` — abrufbar via Planner und /api/counterfactual
+- [x] **CausalUpdate** — Bayessche Posterior-Update nach Intervention: `P(hypothesis|evidence) = P(evidence|hypothesis) * P(hypothesis) / P(evidence)`
+- [x] **CausalHypothesisTest** — 4 JUnit-Tests für Record-Invarianten, Store-Persistence, Bayesian-Update-Mathe, do-Operator-Rollback
 
-**Aufwand:** 6-8 Wochen, Forschungs-Charakter.
-**Erwartete EDI-Distanz nach Phase 10 (Hot-Path-Integration komplett):** geringer Sprung gegenüber heute, weil Phase 10 vor allem Reasoning-Qualität verbessert, nicht Fähigkeiten freischaltet. Konkrete Prozentangabe vermeide ich, bis ein Eval-Set existiert, das kausales Reasoning explizit misst.
+### ⬜ Hot-Path-Integration (6-8 Wochen, Forschung)
+- [ ] **CuriosityEngine → HypothesisGenerator Pipeline** — wenn Surprise > Schwellwert, automatisch Hypothese generieren + testen (statt nur Goal erzeugen)
+- [ ] **OllamaPlanner-CausalPrompt-Integration** — aktive Hypothesen (CONFIRMED, confidence > 0.7) fließen in System-Prompt ein: "Current Causal Knowledge: If X then Y (p=0.85, n=12 tests)"
+- [ ] **Intervention→Observe→Update Loop im CoreLoop** — Tick integriert: HypothesisGenerator erzeugt → InterventionAction führt do-Operator aus → nächster Tick beobachtet Effekt → CausalUpdate passt Posterior an
+- [ ] **Counterfactual-Reasoning im Planner** — bei Goal-Failure automatisch "Was wäre passiert, wenn der erste Step anders gewählt worden wäre?" als Meta-Cognition-Schritt
+- [ ] **CausalModel-Hot-Path-Wiring** — bestehendes `CausalModel` (Pearl Do-Calculus) wird mit HypothesisStore verbunden; kausale Inferenz nutzt gespeicherte Hypothesen als Priors
+- [ ] **Eval-Kategorie CAUSAL** — neue Eval-Harness-Kategorie: `counterfactual_accuracy`, `intervention_safety`, `bayesian_calibration` — Gold-Set aus bekannten Kausalzusammenhängen
 
-## 👥 Phase 11: Beziehungs-Modell (NEU, ungelöst)
+### Architektur-Flow (Hot-Path)
+```
+SurpriseEvent (CuriosityEngine)
+    │
+    ▼
+HypothesisGenerator.generateFromSurprise()
+    │
+    ▼
+CausalHypothesis (PROPOSED, confidence=0.5)
+    │
+    ▼
+InterventionAction.doOperator()  ← führt Eingriff durch
+    │
+    ▼
+Nächster Tick: Observe Effekt
+    │
+    ▼
+CausalUpdate.updatePosterior()   ← Bayesian Update
+    │
+    ├─ confidence > 0.8 → CONFIRMED → fließt in Planner-Prompt
+    ├─ confidence < 0.2 → REFUTED   → Curiosity lernt falsche Annahme
+    └─ sonst → TESTING (mehr Evidenz sammeln)
+```
+
+### Sicherheits-Constraints
+- do-Operator nur auf unkritische Variablen (keine Watchdog-Parameter, keine Safety-Gates)
+- Pre-Intervention-State wird persistiert → Rollback bei Verschlechterung
+- Max 1 Intervention pro Tick, max 10 aktive TESTING-Hypothesen (Rate-Limit)
+- Intervention-Whitelist definiert erlaubte Targets
+
+**Aufwand:** Foundation 1 Tag ✅ | Hot-Path 6-8 Wochen, Forschungs-Charakter.
+**Erwartete EDI-Distanz nach Phase 10:** Schätzung nicht sinnvoll ohne CAUSAL-Eval-Set. Qualitativer Effekt: Metis kann "warum"-Fragen mit getesteten Kausalzusammenhängen beantworten statt nur Korrelationen zu zeigen.
+
+## 👥 Phase 11: Beziehungs-Modell (ungelöst, 0%)
 
 **Ziel:** Eine Person ≠ "user", sondern langfristiges Personenmodell mit Kontext, Vorlieben, Historie.
 
 **Warum essenziell:** EDI kennt Joker. Sie weiß, was er mag, was er fürchtet, wann sie ihn ärgert.
 Metis hat aktuell pro Telegram-Chat-ID nur Conversation-History. Kein Personenmodell.
 
-**Bausteine:**
-- [ ] **PersonModel** — pro Person: Identität, Rollen, Vorlieben, Verbote, kommunikative Patterns
-- [ ] **TrustLevel** — abgestuft, beeinflusst Approval-Gate (Georg darf mehr als unbekannter)
-- [ ] **RelationshipMemory** — gemeinsame Episoden, Bezugspunkte ("erinnere dich an gestern abend")
-- [ ] **EmpathySignal** — User-Sentiment + Kontext erkennen ("Georg ist gerade gestresst")
+### Datenstrukturen
+
+**PersonModel Record:**
+```java
+record PersonModel(
+    String personId,           // Telegram-ID oder Name
+    String displayName,        // "Georg"
+    List<String> roles,        // ["owner", "admin", "developer"]
+    Map<String, String> attributes,  // Vorlieben: {"sprache": "deutsch", "kommunikation": "direkt"}
+    List<String> prohibitions, // Verbote: ["keine externen Käufe", "keine Tweets ohne OK"]
+    List<String> patterns,      // Kommunikative Patterns: ["moin", "direkt", "technisch"]
+    TrustLevel trustLevel,
+    Instant firstInteraction,
+    Instant lastInteraction,
+    int interactionCount
+) {}
+
+enum TrustLevel {
+    UNKNOWN,       // nie interagiert → AUTO nur read-only
+    RECOGNIZED,    // bekannt, aber nicht vertraut → NOTIFY bei CONFIRM-Actions
+    TRUSTED,       // wiederholte positive Interaktion → CONFIRM nur bei Mutation
+    OWNER          // Georg → ALLE Actions erlaubt (aktuelles Default-Verhalten)
+}
+```
+
+**RelationshipEpisode Record:**
+```java
+record RelationshipEpisode(
+    String personId,
+    String episodeId,          // Referenz auf EpisodicMemory
+    String summary,            // "Georg hat um ADS-B-Status gebeten, war zufrieden"
+    Sentiment sentiment,       // POSITIVE/NEUTRAL/NEGATIVE/STRESSED/HAPPY
+    List<String> topics,       // ["ads-b", "metis", "system"]
+    Instant timestamp
+) {}
+
+enum Sentiment { POSITIVE, NEUTRAL, NEGATIVE, STRESSED, HAPPY, FRUSTRATED, CURIOUS }
+```
+
+### Bausteine
+- [ ] **PersonModelService** — CRUD für PersonModel, Persistenz via JSONL (`person-models.jsonl`), Auto-Discovery bei erstem Kontakt (Telegram-Chat-ID → UNKNOWN → graduelles Upgrade)
+- [ ] **TrustLevel-Automation** — Aufstieg UNKNOWN→RECOGNIZED nach 5 Interaktionen, RECOGNIZED→TRUSTED nach 50+ positiven Interaktionen + mindestens 7 Tagen; Abstieg bei negativen Patterns (wiederholte Ablehnung von Metis-Vorschlägen)
+- [ ] **Approval-Gate-Integration** — TrustLevel→ApprovalLevel-Mapping: OWNER=alle AUTO, TRUSTED=CONFIRM nur bei FORBIDDEN-Actions, RECOGNIZED=NOTIFY bei CONFIRM+FORBIDDEN, UNKNOWN=streng
+- [ ] **RelationshipMemory** — pro Person: gemeinsame Episoden aus EpisodicMemory (Phase 8), Bezugspunkte via Vector-Index durchsuchbar ("erinnere dich an gestern abend mit Georg")
+- [ ] **EmpathySignal** — deterministisch (kein LLM): Sentiment-Erkennung aus User-Text via Keyword-Heuristik + Satzlänge + Tageszeit-Kontext; Ergebnis moduliert Antwort-Ton (knapper bei STRESSED, ausführlicher bei CURIOUS)
+- [ ] **PersonAwareSystemPrompt** — SystemPromptBuilder integriert PersonModel: "You are talking to Georg (OWNER, prefers direct communication in German, technical background)"
+- [ ] **Multi-Person-Memory** — EpisodicMemory-Einträge werden mit personId verknüpft; "mit Georg über Metis gesprochen" vs "mit Unbekanntem über Wetter gesprochen"
+
+### Integration mit bestehenden Phasen
+| Integration | Phase | Mechanismus |
+|---|---|---|
+| EpisodicMemory | 8 | RelationshipEpisode referenziert Episode.id |
+| SelfNarrative | 8 | "Heute 12 Interaktionen mit Georg (POSITIVE), 0 mit Unbekannten" |
+| Approval-Gate | 6 | TrustLevel → ApprovalLevel-Mapping |
+| SystemPromptBuilder | 8.6 | PersonModel-Block im Prompt |
+| /api/persons Endpoint | — | Neuer HTTP-Endpoint für Person-Übersicht |
+
+### Sicherheit
+- PersonModel-Daten werden NIE nach außen gegeben (kein API-Leak)
+- TrustLevel-Owner kann nur durch explizite Konfiguration gesetzt werden (nicht lernbar)
+- EmpathySignal nur advisory — keine automatische Aktion (kein "Georg ist gestresst → schicke Meme")
 
 **Aufwand:** 3-4 Wochen.
-**Erwartete EDI-Distanz nach Phase 11:** spürbarer Sprung in Beziehungs-Qualität (Person statt Chat-ID), aber keine belastbare Prozentzahl ohne Bewertungs-Kriterium.
+**Erwartete EDI-Distanz nach Phase 11:** spürbarer Sprung in Beziehungs-Qualität (Person statt Chat-ID, kontext-bewusste Antworten), aber keine belastbare Prozentzahl ohne Bewertungs-Kriterium.
 
 **Bewusstsein und Phänomenologie** bleiben unabhängig von diesem Projekt offene Forschungsfragen, zu denen Metis nichts Lösendes beizutragen hat.
 
@@ -231,7 +330,7 @@ Metis hat aktuell pro Telegram-Chat-ID nur Conversation-History. Kein Personenmo
 
 
 
-## 🌀 Phase 12: Recursive Self-Improvement (NEU, nach 8-11)
+## 🌀 Phase 12: Recursive Self-Improvement (ungelöst, 0%)
 
 **Ziel:** Metis kann Phasen selbst weiterentwickeln — Roadmap lesen, Code planen, Tests schreiben, Promotion durch Eval-Gate.
 
@@ -241,15 +340,72 @@ Metis hat aktuell pro Telegram-Chat-ID nur Conversation-History. Kein Personenmo
 - Ohne Kausale Hypothesen (10): "Was passiert, wenn ich diese Klasse so ändere?" → blindes Trial-Error.
 - Ohne Beziehungs-Modell (11): Metis kennt Georgs eigentliche Intention nicht.
 
-**Bausteine (Vorschlag):**
-- [ ] **RepoIndex** — AST-basierter Index aller Java-Klassen, Dependency-Graph, semantischer Suche-Index
-- [ ] **RoadmapReader** — Markdown-Parser für AGI_EDI_ROADMAP, strukturierte Goal-Repräsentation, Coverage-Tracking pro Phase
-- [ ] **MultiFileCodeGen** — Code-Synthese über mehrere Files, mit Test-First-Generierung
-- [ ] **MutationProposal** — Vorschlag = Diff + Spec + Risiko-Bewertung; geht durch erweitertes Approval-Gate (CONFIRM für Cross-Module)
-- [ ] **DualReviewer** — Mutation muss von 2 unabhängigen Eval-Modellen + 1 Property-based-Test-Suite abgesegnet werden
-- [ ] **PhaseCompletionEvaluator** — Watchdog-Komponente, die "Phase X done" als strukturiertes Kriterium prüft (nicht nur Eval-Regression)
-- [ ] **PersonalityAnchor-Mirror** im Watchdog-read-only-Bereich (gespiegelt, Tampering durch Metis selbst dann unmöglich)
-- [ ] **HumanCheckpoint** — bei strukturell sensiblen Änderungen (Kernel, Safety, Watchdog) immer expliziter Mensch-Approval
+### Sicherheitsarchitektur (Voraussetzung, nicht verhandelbar)
+
+```
+┌─────────────────────────────────────────────────┐
+│           WATCHDOG (externe JVM, immutable)      │
+│  ┌───────────────────────────────────────────┐  │
+│  │ PersonalityAnchor-Mirror (read-only Copy)  │  │
+│  │ Eval-Harness (Ground Truth, Held-out)      │  │
+│  │ PhaseCompletionEvaluator                   │  │
+│  │ DualReviewer Gate                          │  │
+│  │ HumanCheckpoint Gate                       │  │
+│  └───────────────────────────────────────────┘  │
+│              │ one-way (Metis hat KEINEN Handle) │
+└──────────────┼──────────────────────────────────┘
+               │
+┌──────────────┴──────────────────────────────────┐
+│           METIS AGI (self-modifying)             │
+│  ┌───────────────────────────────────────────┐  │
+│  │ RepoIndex (AST, Dependency Graph)          │  │
+│  │ RoadmapReader (Phase Coverage Tracking)    │  │
+│  │ MultiFileCodeGen (Test-First)              │  │
+│  │ MutationProposal (Diff + Spec + Risk)      │  │
+│  └───────────────────────────────────────────┘  │
+│              │                                   │
+│  Mutation-Proposal → Watchdog-Gate → main        │
+└──────────────────────────────────────────────────┘
+```
+
+### Bausteine
+- [ ] **RepoIndex** — Eclipse JDT AST-basierter Index aller Java-Klassen (139+), Dependency-Graph (wer importiert wen), semantischer Suche-Index für "finde alle Actions mit ApprovalLevel CONFIRM"
+- [ ] **RoadmapReader** — Markdown-Parser für AGI_EDI_ROADMAP.md, extrahiert strukturierte Goal-Repräsentation, Coverage-Tracking pro Phase ("Phase 10: 4/10 Tasks done"), Synced mit GoalHierarchy (Phase 9)
+- [ ] **MultiFileCodeGen** — Code-Synthese über mehrere Files (Interface+Impl+Test), mit Test-First-Generierung: erst Test schreiben, dann Code bis Test grün
+- [ ] **MutationProposal** — Vorschlag = Diff + Spec + Risiko-Bewertung + Betroffene Module; Approval-Gate-Integration (CONFIRM für Cross-Module, FORBIDDEN für Watchdog/Kernel-Safety)
+- [ ] **DualReviewer** — Mutation muss von 2 unabhängigen Eval-Modellen (z.B. gemma4:e4b + qwen3.6:27b) + 1 Property-based-Test-Suite (jqwik) abgesegnet werden; Reviewer-Disagreement → automatisch REJECTED
+- [ ] **PhaseCompletionEvaluator** — Watchdog-Komponente, die "Phase X done" als strukturiertes Kriterium prüft: alle Tasks ✅, Eval-Gate PASS, kein Regression-Flag; nicht nur "Code compiliert"
+- [ ] **PersonalityAnchor-Mirror** — sha256-Pin der Persönlichkeit im Watchdog-read-only-Bereich gespiegelt; jeder Mutations-Proposal muss Anchor-Integrität bestätigen (Diff in Kernel/Personality = automatisch REJECTED)
+- [ ] **HumanCheckpoint** — bei strukturell sensiblen Änderungen (Kernel, Safety, Watchdog, Approval-Gate, PersonalityAnchor) immer expliziter Mensch-Approval via Telegram ("Metis schlägt Kernel-Änderung vor: [Diff]. Annehmen?")
+
+### Selbst-Evolutions-Workflow (Git-basiert)
+```
+1. Metis erkennt via RoadmapReader: Phase 10.3 (InterventionAction-HotPath) ist offen
+2. RepoIndex identifiziert betroffene Dateien: InterventionAction.java, CoreLoop.java, CuriosityEngine.java
+3. MutationProposal erstellt Branch feature/phase10-3-intervention-hotpath:
+   - Diff (MultiFileCodeGen)
+   - Spec (was soll passieren?)
+   - Risk (welche Module sind betroffen?)
+4. DualReviewer prüft Proposal:
+   - Reviewer 1 (gemma4:e4b): ACCEPT
+   - Reviewer 2 (qwen3.6:27b): ACCEPT
+   - Property-Tests (jqwik): PASS
+   → Gate: ✅
+5. HumanCheckpoint: betrifft CoreLoop.java → CONFIRM nötig
+   → Telegram an Georg: "Soll ich InterventionAction in CoreLoop integrieren? [Diff-Link]"
+6. Georg approved → Merge in working-branch
+7. Eval-Harness (Full Tier) läuft → Gate PASS → Merge in main
+8. Watchdog bestätigt PersonalityAnchor unverändert → Deployment
+9. RoadmapReader updated: Phase 10.3 ✅
+```
+
+### Warum dieser Workflow sicher ist
+- **Kein direkter main-Zugriff** — Metis schreibt nie direkt auf main, nur auf Feature-Branches
+- **DualReviewer verhindert Einzelmodell-Halluzination** — zwei unabhängige Modelle müssen zustimmen
+- **Property-Tests fangen logische Fehler** — jqwik generiert Edge-Cases, die Unit-Tests übersehen
+- **PersonalityAnchor-Mirror im Watchdog** — Metis kann ihren eigenen Persönlichkeitskern nicht verändern, selbst wenn sie den Code editiert
+- **HumanCheckpoint für Kernel/Safety** — der Mensch hat das letzte Wort bei kritischen Änderungen
+- **Eval-Gate als letzte Hürde** — selbst wenn alles andere passiert, stoppt eine Regression den Merge
 
 **Aufwand:** geschätzt 6-10 Wochen, Forschungs-Charakter.
 **Risiko:** sehr hoch — voreilig aktivieren = Goodhart, Wertkern-Drift, Watchdog-Bypass durch Self-Evolution.
