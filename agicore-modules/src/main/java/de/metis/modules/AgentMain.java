@@ -11,6 +11,7 @@ import de.metis.kernel.action.ReadSourceAction;
 import de.metis.kernel.goal.KanbanBoard;
 import de.metis.kernel.persistence.KnowledgeStore;
 import de.metis.kernel.evolution.EvolutionManager;
+import de.metis.kernel.evolution.EvolutionScheduler;
 import de.metis.kernel.metrics.PerformanceMetrics;
 import de.metis.kernel.planner.Planner;
 import de.metis.modules.evolution.ModelRegistry;
@@ -121,6 +122,7 @@ public final class AgentMain {
     private long totalTicks = 0;
     private long idleTicks = 0;
     private long evolutionTicks = 0;
+    private final EvolutionScheduler evoScheduler = new EvolutionScheduler();
 
     // ── Emergence tracking ────────────────────────────────────
     private final List<String> emergenceEvents = new ArrayList<>();
@@ -249,10 +251,21 @@ public final class AgentMain {
                     lastEmergenceReportTick = totalTicks;
                 }
 
-                // ── Evolution check ───────────────────────────
-                if (enableEvolution && totalTicks - lastEvolution >= 100) {
-                    triggerEmergenceEvolution();
-                    lastEvolution = totalTicks;
+                // ── Evolution check (adaptive scheduler) ──
+                if (enableEvolution) {
+                    // Record fitness every tick for trend analysis
+                    double fitness = de.metis.kernel.evolution.FitnessFunction.evaluate(
+                            agent.metrics(),
+                            agent.workspace().runningEntropy());
+                    evoScheduler.recordFitness(fitness);
+
+                    var decision = evoScheduler.decide(totalTicks);
+                    if (decision.shouldEvolve()) {
+                        LOG.info("Evolution triggered by scheduler: " + decision.reason()
+                                + " (urgency=" + String.format("%.2f", decision.urgency()) + ")");
+                        triggerEmergenceEvolution();
+                        lastEvolution = totalTicks;
+                    }
                 }
 
                 // ── Blue/Green health eval + Bugfixing (Phase 5) ──
@@ -397,9 +410,15 @@ public final class AgentMain {
             var evoResult = evo.evolve(fitness);
             LOG.info("Evolution result: " + evoResult);
 
+            // Notify scheduler about the attempt
+            evoScheduler.evolutionAttempted(totalTicks, evoResult.accepted());
+
             String event = String.format("T%d: Emergence-triggered evolution — %s",
                     totalTicks, evoResult.message());
             emergenceEvents.add(event);
+        } else {
+            // Scheduler decided yes but evolution manager said no — notify scheduler
+            evoScheduler.evolutionAttempted(totalTicks, false);
         }
     }
 
