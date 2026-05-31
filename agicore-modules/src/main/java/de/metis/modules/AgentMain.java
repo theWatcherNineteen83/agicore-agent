@@ -6,6 +6,7 @@ import de.metis.kernel.action.NativeWebScraperAction;
 import de.metis.kernel.action.WebSearchAction;
 import de.metis.kernel.action.JlamaInferenceAction;
 import de.metis.kernel.graph.JenaRdfService;
+import de.metis.kernel.action.WebCrawlAction;
 import de.metis.kernel.action.LinuxExploreAction;
 import de.metis.kernel.action.ApiExplorerAction;
 import de.metis.kernel.action.JavaSandboxAction;
@@ -863,6 +864,10 @@ public final class AgentMain {
 
         // Web-Scraper (native, JDK-only)
         agent.core().executor().register(new NativeWebScraperAction("https://example.com"));
+
+        // Web-Crawler (Nutch-inspired, multi-page, recursive)
+        agent.core().executor().register(new WebCrawlAction("https://example.com"));
+        LOG.info("WebCrawlAction registered — recursive web crawler for knowledge acquisition");
 
         // Web-Search (DuckDuckGo, no API key)
         agent.core().executor().register(new WebSearchAction("example query"));

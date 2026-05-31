@@ -336,6 +336,7 @@ public class OllamaPlanner implements Planner {
                 - self-analyze: inspect agent's own performance metrics and state
                 - source-read: read own Java source code by class name or path — use to understand internal implementation before proposing changes
                 - jlama: run local pure-Java LLM inference — use for simple text generation when Ollama is unavailable or for lightweight tasks
+                - webcrawl: recursive multi-page web crawler — BEST for knowledge acquisition from websites, follows links within domain, extracts text
                 - javasandbox: execute safe, sandboxed Java code experiments
                 - prompt-chain: decompose complex multi-step goals into sequential sub-goals, execute each with context from previous results, and synthesize final answer (Pattern: Decompose→Execute→Aggregate)
                 """;
@@ -349,6 +350,7 @@ public class OllamaPlanner implements Planner {
                 - self-analyze [LOW risk]: inspect agent's own metrics — BEST for performance introspection
                 - source-read [LOW risk]: read own Java source code — BEST for understanding implementation before self-modification
                 - jlama [LOW risk]: local pure-Java LLM inference — BEST for fallback when Ollama is down or simple text generation
+                - webcrawl [LOW risk]: recursive multi-page web crawling — BEST for exploring websites and acquiring knowledge from linked pages
                 - filesystem-list [LOW risk]: list directory contents — BEST for file discovery
                 - filesystem-read [LOW risk]: read file contents — BEST for accessing known paths
                 - http [LOW risk]: HTTP requests — BEST for API health checks, endpoint testing
@@ -651,6 +653,7 @@ public class OllamaPlanner implements Planner {
         sb.append("- source-read: read own Java source code by class name or path\n");
         sb.append("- javasandbox: execute safe, sandboxed Java code experiments\n");
         sb.append("- jlama: local pure-Java LLM inference — fallback for Ollama or lightweight text generation\n");
+        sb.append("- webcrawl: recursive multi-page web crawler — explores websites with configurable depth, ideal for knowledge acquisition from documentation, wikis, blogs\n");
         sb.append("- prompt-chain: decompose complex multi-step goals into sequential sub-goals, execute each with context from previous results, and synthesize final answer (Pattern: Decompose→Execute→Aggregate)\n\n");
 
         // ── Rich Few-Shot examples with thought (ReAct format) ──
@@ -669,6 +672,7 @@ public class OllamaPlanner implements Planner {
         sb.append("Goal: What is the current Bitcoin price? → {\"thought\":\"Current price needs web search, not internal knowledge\",\"action\":\"websearch\",\"reasoning\":\"DuckDuckGo websearch for real-time info\",\"confidence\":0.90}\n");
         sb.append("Goal: Search for latest Java 25 features → {\"thought\":\"Current tech info needs web search for up-to-date results\",\"action\":\"websearch\",\"reasoning\":\"DuckDuckGo websearch for latest Java features\",\"confidence\":0.90}\n");
         sb.append("Goal: Generate a short poem about AI → {\"thought\":\"Creative text generation needs a language model, JLama handles simple generative tasks locally\",\"action\":\"jlama\",\"reasoning\":\"local JLama for creative text generation\",\"confidence\":0.85}\n");
+        sb.append("Goal: Explore what this documentation site contains → {\"thought\":\"Multi-page exploration needs recursive crawling, not just single-page scraping\",\"action\":\"webcrawl\",\"reasoning\":\"recursive web crawler for exploring linked documentation pages\",\"confidence\":0.85}\n");
         sb.append("Goal: Research a topic and create a structured report → {\"thought\":\"Complex multi-step task needs decomposition — web research, extract, structure, save\",\"action\":\"prompt-chain\",\"reasoning\":\"multi-step research task best handled by prompt chaining\",\"confidence\":0.85}\n");
         sb.append("Goal: Investigate system security and generate audit report → {\"thought\":\"System audit requires multiple steps — probe, analyze, aggregate, report\",\"action\":\"prompt-chain\",\"reasoning\":\"systematic audit via chained sub-goals\",\"confidence\":0.85}\n\n");
 
