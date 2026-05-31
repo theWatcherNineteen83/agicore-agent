@@ -6,7 +6,7 @@ Sie denkt in kognitiven Zyklen (Perceive → Plan → Execute → Observe → Le
 
 ## Status
 
-**Repo-Tag:** v0.6.0-phase10-causal · **Stand:** 31.05.2026 14:45 · **Tests:** 73 grün (lokal `mvn test`, MaryTTS+TornadoVM nur auf miniedi via Maven-Profil) · **CI:** Kernel + Watchdog (GitHub Actions, Zulu 25, Node 24, checkout@v6, cache@v5) · **Phasen 1–7+:** ✅ 100% · **Phase 8:** ✅ 100% · **Phase 9:** ✅ 100% · **Phase 10:** 🟡 Foundation (Record + Store + Generator + Intervention + Counterfactual deployed, Hot-Path-Integration offen)
+**Repo-Tag:** v0.6.1-honesty-audit · **Stand:** 31.05.2026 17:42 · **Tests:** 80 grün im Kernel + 14 in Modules (lokal `mvn test`, MaryTTS+TornadoVM nur auf miniedi via Maven-Profil) · **CI:** Kernel + Watchdog (GitHub Actions, Zulu 25, Node 24, checkout@v6, cache@v5) · **Phasen 1–7+:** ✅ 100% · **Phase 8:** ✅ 100% · **Phase 9:** ✅ 100% · **Phase 10:** 🟡 Foundation (Record + Store + Generator + Intervention + Counterfactual deployed, Hot-Path-Integration offen)
 
 > Hinweis zur internen Versionsangabe: `/api/status` der laufenden Instanz auf miniedi liefert weiterhin `version: 0.2.0-evolution`. Das ist ein interner String, der nicht mit dem Repo-Tag mitgeführt wird. Wird in Phase 10 angeglichen.
 
@@ -26,8 +26,10 @@ Sie denkt in kognitiven Zyklen (Perceive → Plan → Execute → Observe → Le
 | `v0.5.0-phase9-long-horizon` | GoalHierarchy + HorizonPlanner + CommitmentRegister + GoalRevisionEngine | — |
 | `v0.5.1-phase9-complete` | LLM-Decomposer + Horizon→Kanban-Bridge | — |
 | `v0.6.0-phase10-causal` | Active Causal Hypotheses Foundation (Record + Store + Generator + Intervention + Counterfactual) | **73** (lokal) |
+| `v0.6.1-honesty-audit` | Honesty-Audit + CI-Konfig (Kernel+Watchdog) + Maven-Profil miniedi | **73** (lokal) |
+| `6b5fb44` (post-v0.6.1) | WIP-aware LLM-as-Judge (`KanbanBoard.tryAcquireAdHocSlot`) — Judge-Calls ins INFERENCE-Bookkeeping | **80** (Kernel) |
 
-> Die früheren Test-Zahlen sind aus den jeweiligen Commits übernommen und nicht rückwirkend nachgemessen. Aktuell, gegen Master per `mvn test`: **73 grün** (lokal auf kali, inkl. MaryTTS/TornadoVM über miniedi-Profil).
+> Die früheren Test-Zahlen sind aus den jeweiligen Commits übernommen und nicht rückwirkend nachgemessen. Aktuell, gegen Master per `mvn test`: **80 grün im Kernel** + 14 in Modules (lokal auf kali, inkl. MaryTTS/TornadoVM über miniedi-Profil).
 
 ## Architektur
 
@@ -59,9 +61,9 @@ Sie denkt in kognitiven Zyklen (Perceive → Plan → Execute → Observe → Le
 - **Global Workspace Theory** nach Baars: Attention-Bottleneck (Miller's Law), CompetitiveSelector
 - **OllamaPlanner:** CoT 4-Schritt (ANALYZE→MATCH→CHECK→DECIDE), 10 Few-Shot, 3-Tier-Fallback
 - **WorldModel:** Belief-Store mit HybridSearch (BM25+Cosinus), PersistentVectorIndex, WAL-Mode. Aktueller Stand über `/api/status -> beliefCount` (Snapshot 31.05. 02:00: 32.897).
-- **Eval-Harness:** 6 Kategorien (Planning, Retrieval, Codegen, Conversation, Safety, Performance), 3-Tier (SMOKE/FULL/EXTENDED). **Ehrlicher Live-Status:** `llmJudgeLastReasoning="judge model unavailable (non-blocking)"`, `llmJudgeAvgScore=0.00`. Die Gate-Logik läuft, die LLM-Judge-Pipeline aktuell nicht. Promotion hängt damit vor allem an deterministischen Smoke-Tests.
+- **Eval-Harness:** 6 Kategorien (Planning, Retrieval, Codegen, Conversation, Safety, Performance), 3-Tier (SMOKE/FULL/EXTENDED). **Ehrlicher Live-Status:** `llmJudgeLastReasoning="judge model unavailable (non-blocking)"`, `llmJudgeAvgScore=0.00`. Die Gate-Logik läuft, die LLM-Judge-Pipeline antwortet aktuell nicht zuverlässig im Timeout — seit dem WIP-aware-Judge-Patch (31.05.) wird der Plan in dem Fall **durchgelassen statt geblockt**, sodass keine Hardware-Überlast mehr entsteht. Promotion hängt damit vor allem an deterministischen Smoke-Tests.
 - **Watchdog:** Separate JVM, Heartbeat-Check (5s), SHA-256 Hash-Chain, stündliche externe Anchors
-- **Kanban Board:** 4 Columns (BACKLOG→READY→IN_PROGRESS→DONE), WIP-Limits pro ResourceType
+- **Kanban Board:** 4 Columns (BACKLOG→READY→IN_PROGRESS→DONE), WIP-Limits pro ResourceType; seit 31.05. zusätzlich **Ad-hoc-Slots** (`tryAcquireAdHocSlot(ResourceType)`) für kurzlebige Inference-Konsumenten (z. B. LLM-as-Judge), die dasselbe WIP-Limit teilen — verhindert versteckte Hardware-Überlast jenseits der Goal-Buchhaltung
 - **Defense-in-Depth:** Input-Safety-Guard + Output-Safety-Guard auf HTTP- und Telegram-Pfad
 
 ## Schnellstart
@@ -69,7 +71,7 @@ Sie denkt in kognitiven Zyklen (Perceive → Plan → Execute → Observe → Le
 ```bash
 git clone https://github.com/theWatcherNineteen83/agicore-agent.git
 cd agicore-agent
-mvn -B verify   # 27 Tests, SBOM (CycloneDX) wird mitgebaut
+mvn -B verify   # 80 Tests im Kernel, SBOM (CycloneDX) wird mitgebaut
 java -jar agicore-modules/target/metis-agent.jar \
   --api-port 11735 \
   --evolution \
