@@ -1,6 +1,6 @@
 # TODO Metis — Aktueller Stand & Ehrliche Lücken-Analyse
 
-**Stand: 31.05.2026 11:15 · Repo-Tag: v0.6.1-honesty-audit (29d41ea) · Tests: 57 grün (43 Kernel + 14 Modules, `mvn test`) · Master: HEAD · Watchdog: aktiv · Audit-Anchor: deployed**
+**Stand: 31.05.2026 11:30 · Repo: b055d29 · Tests: 63 grün (49 Kernel + 14 Modules) · Master: HEAD · Watchdog: aktiv · Audit-Anchor: deployed · WebSearch: ✅ · EvoScheduler: ✅****
 
 > Hinweis: ältere Einträge unten zeigen die Test-Zahlen zum jeweiligen Zeitpunkt (z. B. “total 47 grün” nach Phase 9-Foundation). Das ist als historisches Protokoll gewollt, nicht als aktuelle Aussage.
 
