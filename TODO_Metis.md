@@ -163,7 +163,7 @@ EDI-Distanz aktuell: ~60-70% (Schätzung). Nächster messbarer Sprung durch Phas
 | 1 | MCP-Integration | Spring AI MCP | Strategisch (kein Quickwin) |
 | 2 | Pure Java LLM | JLama | Hoch (PoC ~1 Tag) ✅ |
 | 4 | Graph-DB für Kausalwissen | Apache Jena (RDF) | Mittel |
-| 5 | Web Crawling | Apache Nutch (Java-native) | Hoch |
+| 5 | Web Crawling | Apache Nutch (Java-native) | Hoch ✅ |
 | 6 | Fine-Tuning/LoRA | DJL (vorher Azul/Zulu prüfen) | Mittel |
 | 7 | Websearch | DuckDuckGo / Ecosia | Hoch (Quickwin) ✅ |
 | 9 | Observability | OpenTelemetry Java Agents | Mittel |
