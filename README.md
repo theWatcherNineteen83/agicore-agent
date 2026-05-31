@@ -6,7 +6,7 @@ Sie denkt in kognitiven Zyklen (Perceive → Plan → Execute → Observe → Le
 
 ## Status
 
-**Repo-Tag:** v0.6.0-phase10-causal · **Stand:** 31.05.2026 02:00 · **Tests:** 57 grün (43 Kernel + 14 Modules, gemessen über `mvn test`) · **Phasen 1–7+:** ✅ 100% · **Phase 8:** ✅ 100% · **Phase 9:** ✅ 100% · **Phase 10:** 🟡 Foundation (Record + Store + Generator + Intervention + Counterfactual deployed, Hot-Path-Integration offen)
+**Repo-Tag:** v0.6.0-phase10-causal · **Stand:** 31.05.2026 14:45 · **Tests:** 73 grün (lokal `mvn test`, MaryTTS+TornadoVM nur auf miniedi via Maven-Profil) · **CI:** Kernel + Watchdog (GitHub Actions, Zulu 25, Node 24, checkout@v6, cache@v5) · **Phasen 1–7+:** ✅ 100% · **Phase 8:** ✅ 100% · **Phase 9:** ✅ 100% · **Phase 10:** 🟡 Foundation (Record + Store + Generator + Intervention + Counterfactual deployed, Hot-Path-Integration offen)
 
 > Hinweis zur internen Versionsangabe: `/api/status` der laufenden Instanz auf miniedi liefert weiterhin `version: 0.2.0-evolution`. Das ist ein interner String, der nicht mit dem Repo-Tag mitgeführt wird. Wird in Phase 10 angeglichen.
 
@@ -25,9 +25,9 @@ Sie denkt in kognitiven Zyklen (Perceive → Plan → Execute → Observe → Le
 | `v0.4.1-phase8-complete` | SystemPromptBuilder + LlmDreamSummarizer + Phase-12-Outlook | — |
 | `v0.5.0-phase9-long-horizon` | GoalHierarchy + HorizonPlanner + CommitmentRegister + GoalRevisionEngine | — |
 | `v0.5.1-phase9-complete` | LLM-Decomposer + Horizon→Kanban-Bridge | — |
-| `v0.6.0-phase10-causal` | Active Causal Hypotheses Foundation (Record + Store + Generator + Intervention + Counterfactual) | **57** (43 Kernel + 14 Modules) |
+| `v0.6.0-phase10-causal` | Active Causal Hypotheses Foundation (Record + Store + Generator + Intervention + Counterfactual) | **73** (lokal) |
 
-> Die früheren Test-Zahlen sind aus den jeweiligen Commits übernommen und nicht rückwirkend nachgemessen. Aktuell, gegen Master per `mvn test`: **57 grün**.
+> Die früheren Test-Zahlen sind aus den jeweiligen Commits übernommen und nicht rückwirkend nachgemessen. Aktuell, gegen Master per `mvn test`: **73 grün** (lokal auf kali, inkl. MaryTTS/TornadoVM über miniedi-Profil).
 
 ## Architektur
 
@@ -176,7 +176,7 @@ bash /home/prometheus/metis/backup-config.sh
 - **Config-Backup:** Alle 6h systemd-Units + Wiki-States + Audit-Hash-Head → GitHub `config-backup/`
 - **Watchdog:** HALT bei Heartbeat-Verlust, ROLLBACK bei Eval-Regression, stündliche Anchors
 - **Wiki-Feed:** Cron-Job `metis-wiki-feed` (10 Min, 30 Artikel/Batch). Live-Fortschritt in `/home/prometheus/metis/wiki-feed-state.json` (Snapshot 31.05. 02:00: 2450/5163)
-- **Tests:** GitHub Actions CI (`mvn verify`) auf jeden Push
+- **Tests:** GitHub Actions CI erkennt Kernel-Tests + Watchdog-Build (`mvn -pl agicore-kernel -am clean test` + `mvn -pl agicore-watchdog -am -DskipTests package`). Modules nur lokal testbar (MaryTTS-JARs, TornadoVM-GPU nicht auf CI verfügbar).
 - **Runbook:** [RUNBOOK.md](RUNBOOK.md) — 6 Failure-Modi + Deployment + Health-Check
 
 ## EDI-Distanz

@@ -1,6 +1,6 @@
 # Metis AGI — Feature-Katalog
 
-**Stand: 31.05.2026 02:00 · Repo-Tag v0.6.0-phase10-causal · 86+ Kernel-Klassen + 81+ Module-Klassen · 57 JUnit-Tests grün (43 Kernel + 14 Modules, gemessen mit `mvn test`) · GitHub-Actions CI**
+**Stand: 31.05.2026 14:45 · Repo-Tag v0.6.0-phase10-causal · 86+ Kernel-Klassen + 81+ Module-Klassen · 73 JUnit-Tests grün (lokal mvn test) · CI: Kernel+Watchdog (GitHub Actions)**
 
 ---
 

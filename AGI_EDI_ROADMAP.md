@@ -115,7 +115,7 @@ Darunter liegen • ~95-100% "stabiler autonomer Agent" (Phasen 1-7+ + Defense-i
 | Data Flywheel (User-Korrekturen → Trainingsdaten) | `aabaaf1` |
 | Eval-Harness (6 Kategorien, 3-Tier, Anti-Goodhart) | `8d3f489` |
 | Code-Sandbox (SandboxClassLoader, Timeout, Restricted FS) | `371360c` |
-| **31.05.** CI-Pipeline (GitHub Actions, Zulu 25, mvn verify, SBOM) | `a22d286` |
+| **31.05.** CI-Pipeline (GitHub Actions, Zulu 25, checkout@v6, cache@v5, Kernel+Watchdog) | `8380ddc` |
 | **31.05.** 27 JUnit-Tests (vorher: 1) | `0fe1c23` |
 
 ## Phase 7: Sicherheits-Watchdog ✅ 100%
@@ -445,7 +445,7 @@ enum Sentiment { POSITIVE, NEUTRAL, NEGATIVE, STRESSED, HAPPY, FRUSTRATED, CURIO
 - `CausalModel` existiert, aber nicht im Hot-Path
 - Audit-Anchors werden lokal geschrieben, aber nicht in ein **externes** Repo committet (finale Hash-Verankerung fehlt)
 - JAR-Deployment ohne Signatur (sigstore/cosign offen)
-- 18 Files in `agicore-modules/lib/` ohne Maven-Coords (TornadoVM, voice-bits1-hsmm - wegen MaryTTS-Repo-Outage)
+- JARs ohne Maven-Coords (TornadoVM, voice-bits1-hsmm): erfordern Maven-Profil `miniedi` (`-Dminiedi.enabled=true`), auf CI nicht verfügbar → Modules nur lokal test-/buildbar
 
 ---
 
