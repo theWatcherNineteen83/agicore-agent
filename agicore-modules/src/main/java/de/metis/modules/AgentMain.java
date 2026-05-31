@@ -4,6 +4,7 @@ import de.metis.kernel.core.AgentCoreLoop;
 import de.metis.kernel.action.Crawl4AIAction;
 import de.metis.kernel.action.NativeWebScraperAction;
 import de.metis.kernel.action.WebSearchAction;
+import de.metis.kernel.action.JlamaInferenceAction;
 import de.metis.kernel.action.LinuxExploreAction;
 import de.metis.kernel.action.ApiExplorerAction;
 import de.metis.kernel.action.JavaSandboxAction;
@@ -863,6 +864,10 @@ public final class AgentMain {
 
         // Web-Search (DuckDuckGo, no API key)
         agent.core().executor().register(new WebSearchAction("example query"));
+
+        // JLama — pure Java LLM inference (no Ollama dependency)
+        agent.core().executor().register(new JlamaInferenceAction("Hello, how are you?"));
+        LOG.info("JlamaInferenceAction registered — pure Java LLM fallback inference");
 
         // Java-Code-Sandbox (jshell)
         agent.core().executor().register(new JavaSandboxAction("System.out.println(\"Hello from Metis!\");"));

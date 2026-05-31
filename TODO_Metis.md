@@ -165,10 +165,10 @@ EDI-Distanz aktuell: ~60-70% (Schätzung). Nächster messbarer Sprung durch Phas
 | 4 | Graph-DB für Kausalwissen | Apache Jena (RDF) | Mittel |
 | 5 | Web Crawling | Apache Nutch (Java-native) | Hoch |
 | 6 | Fine-Tuning/LoRA | DJL (vorher Azul/Zulu prüfen) | Mittel |
-| 7 | Websearch | DuckDuckGo / Ecosia | Hoch (Quickwin) |
+| 7 | Websearch | DuckDuckGo / Ecosia | Hoch (Quickwin) ✅ |
 | 9 | Observability | OpenTelemetry Java Agents | Mittel |
 | 10 | JPMS | module-info.java stückweise | Kontinuierlich |
-| 12 | Evolution Scheduler | Meta-Learning | Mittel |
+| 12 | Evolution Scheduler | Meta-Learning | Mittel ✅ |
 
 ### ❌ NO GO
 | # | Thema | Begründung |
