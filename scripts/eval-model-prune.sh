@@ -36,19 +36,24 @@ declare -a TASKS=(
   "INSTRUCT|GRÜN|Schreibe genau das Wort GRÜN — sonst nichts."
 )
 
-# Modell-Liste: alle Reasoner ≥5 GB, ohne embed/vision
+# Modell-Liste: alle Reasoner ≥5 GB, ohne embed/vision/domain-spezifisch.
+# medgemma ist medizin-spezialisiert (kein General-Reasoner).
+# Override via Env: SKIP_MODELS="medgemma vanilj" scripts/eval-model-prune.sh
+SKIP_MODELS="${SKIP_MODELS:-medgemma}"
 if [ $# -gt 0 ]; then
   MODELS=("$@")
 else
   mapfile -t MODELS < <(
     curl -fsS "$OLLAMA/api/tags" | \
-    python3 -c "
-import json,sys
+    SKIP_MODELS="$SKIP_MODELS" python3 -c "
+import json,os,sys
+skip = os.environ.get('SKIP_MODELS','').split()
 d=json.load(sys.stdin)
 out=[]
 for m in d.get('models',[]):
     name=m['name']; size=m['size']/1e9
-    if size>=5 and not any(x in name for x in ['embed','minicpm','llava','vision']):
+    if size>=5 and not any(x in name for x in ['embed','minicpm','llava','vision']) \
+       and not any(s and s in name for s in skip):
         out.append((name,size))
 for n,_ in sorted(out, key=lambda x: x[1]):
     print(n)
