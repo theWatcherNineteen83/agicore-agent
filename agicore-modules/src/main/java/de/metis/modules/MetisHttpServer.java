@@ -701,10 +701,15 @@ public class MetisHttpServer {
             plannerInfo = "";
         }
 
+        String metisVersion = System.getProperty("metis.version",
+            AgentMain.class.getPackage().getImplementationVersion() != null
+                ? AgentMain.class.getPackage().getImplementationVersion()
+                : "0.6.1");
+
         String json = String.format(Locale.ROOT, """
                 {
                   "agent": "Metis AGI",
-                  "version": "0.2.0-evolution",
+                  "version": "%s",
                   "uptime": "unknown",
                   "totalTicks": %d,
                   "activeGoals": %d,
@@ -729,6 +734,7 @@ public class MetisHttpServer {
                   %s
                 }
                 """,
+                metisVersion,
                 m.totalTicks(),
                 agent.goals().activeCount(),
                 m.goalSuccessRate(),
