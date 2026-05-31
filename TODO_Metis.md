@@ -160,7 +160,7 @@ EDI-Distanz aktuell: ~60-70% (Schätzung). Nächster messbarer Sprung durch Phas
 ### ✅ GO
 | # | Thema | Technologie | Prio |
 |---|-------|------------|------|
-| 1 | MCP-Integration | Spring AI MCP | Strategisch (kein Quickwin) |
+| 1 | MCP-Integration | Spring AI MCP | Strategisch ✅ (e55d8de, stdio MCP) |
 | 2 | Pure Java LLM | JLama | Hoch (PoC ~1 Tag) ✅ |
 | 4 | Graph-DB für Kausalwissen | Apache Jena (RDF) | Mittel |
 | 5 | Web Crawling | Apache Nutch (Java-native) | Hoch ✅ |

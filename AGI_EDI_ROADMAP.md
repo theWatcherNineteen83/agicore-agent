@@ -488,7 +488,7 @@ Basierend auf Stash `prometheus-review-30.05` (13 Punkte).
 
 | # | Punkt | Ansatz | Aufwand |
 |---|-------|--------|---------|
-| 1 | **Spring AI MCP** | Tool-Integration via MCP-Protokoll | 2-3 Tage (kein Quickwin, nach hinten geschoben) |
+| 1 | **Spring AI MCP** | Tool-Integration via MCP-Protokoll | 2-3 Tage ✅ (e55d8de, stdio-based, no Spring) |
 | 2 | **JLama** | Pure Java LLM Inference, kein externes Ollama | PoC ~1 Tag ✅ (7f5ca9b) |
 | 4 | **Apache Jena** | RDF-Graph für kausales Wissen (statt Neo4j) | 2-3 Tage |
 | 5 | **Apache Nutch** | Java-nativer Web Crawler (war eines der ersten Goals) | 2-3 Tage ✅ (23b1b8e, Nutch-inspired embedded) |
@@ -512,5 +512,5 @@ Basierend auf Stash `prometheus-review-30.05` (13 Punkte).
 1. **Quickwins zuerst:** ~~JLama PoC~~ ✅, ~~Websearch (DuckDuckGo)~~ ✅, ~~Continuous Evolution Scheduler~~ ✅
 2. **Wissens-Basis:** Apache Nutch (#5) + Apache Jena (#4)
 3. **Betrieb:** ~~OpenTelemetry (#9)~~ ✅ + JPMS (#10, kontinuierlich)
-4. **Strategisch:** Spring AI MCP (#1) — größter Hebel, aber kein Quickwin
+4. **Strategisch:** ~~Spring AI MCP (#1)~~ ✅ — größter Hebel
 5. ~~**Prüfung:** DJL vs. Azul/Zulu für Fine-Tuning (#6)~~ ✅
