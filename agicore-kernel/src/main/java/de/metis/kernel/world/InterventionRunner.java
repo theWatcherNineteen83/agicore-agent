@@ -33,13 +33,42 @@ public class InterventionRunner {
     private final HypothesisStore store;
     private final CausalModel causal;
 
+    /**
+     * Optional safety gate (Phase 10.7). When wired, every transition to
+     * {@code TESTING} is checked against do-Operator-whitelist, tick budget
+     * and TESTING capacity. {@code null} → legacy (Foundation) behaviour.
+     */
+    private CausalSafetyGate safetyGate;
+
+    /** Cumulative count of interventions rejected by the safety gate. */
+    private int safetyRejections;
+
     public InterventionRunner(HypothesisStore store, CausalModel causal) {
         this.store = store;
         this.causal = causal;
     }
 
+    /**
+     * Wire a {@link CausalSafetyGate}. Pass {@code null} to revert to
+     * unconstrained (Foundation) behaviour.
+     */
+    public void setSafetyGate(CausalSafetyGate gate) { this.safetyGate = gate; }
+
+    public CausalSafetyGate safetyGate() { return safetyGate; }
+
+    public int safetyRejections() { return safetyRejections; }
+
     public CausalHypothesis startTesting(CausalHypothesis h) {
         if (h == null) return null;
+        if (safetyGate != null) {
+            CausalSafetyGate.Decision d = safetyGate.tryStart(h, store);
+            if (!d.allowed()) {
+                safetyRejections++;
+                LOG.info("InterventionRunner: BLOCKED " + d.outcome()
+                        + " — " + d.reason());
+                return null;
+            }
+        }
         return store.upsert(h.withStatus(CausalHypothesis.Status.TESTING));
     }
 
@@ -74,9 +103,13 @@ public class InterventionRunner {
         return updated;
     }
 
-    /** Convenience: run a synchronous intervention with measurement supplier. */
+    /** Convenience: run a synchronous intervention with measurement supplier.
+     *  Returns {@code null} when the {@link CausalSafetyGate} (if wired)
+     *  rejected the start. In that case no measurement or intervention is
+     *  executed — caller can re-queue or drop. */
     public CausalHypothesis runSync(CausalHypothesis h, Supplier<Double> measure, Runnable intervention) {
         CausalHypothesis test = startTesting(h);
+        if (test == null) return null;       // gate-blocked or null input
         double pre = measure.get();
         try {
             intervention.run();

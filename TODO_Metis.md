@@ -1,6 +1,6 @@
 # TODO Metis — Aktueller Stand & Ehrliche Lücken-Analyse
 
-**Stand: 31.05.2026 17:42 · Tests: 80 grün (Kernel, lokal mvn test) + 14 (Modules) · Master: HEAD · Watchdog: aktiv · Audit-Anchor: deployed · WebSearch: ✅ · EvoScheduler: ✅ · WIP-Slot für Judge: ✅ deployed · CI: Kernel+Watchdog (Zulu 25, checkout@v6, cache@v5)**
+**Stand: 31.05.2026 18:08 · Tests: 88 grün (Kernel, lokal mvn test) + 14 (Modules) · Master: HEAD · Watchdog: aktiv · Audit-Anchor: deployed · WebSearch: ✅ · EvoScheduler: ✅ · WIP-Slot für Judge: ✅ · CausalSafetyGate: ✅ · CODEGEN-Timeout 5s→30s: ✅ · Version-Drift: ✅ · CI: Kernel+Watchdog (Zulu 25, checkout@v6, cache@v5)**
 
 > Hinweis: ältere Einträge unten zeigen die Test-Zahlen zum jeweiligen Zeitpunkt (z. B. “total 47 grün” nach Phase 9-Foundation). Das ist als historisches Protokoll gewollt, nicht als aktuelle Aussage.
 
@@ -34,6 +34,41 @@ Phasen 1-7 + Defense-in-Depth = 100% — das ist ein **außerordentlich gut kons
 | SMOKE-Eval gate.ok | false (block_recall=0.0) | **true (block_recall=1.0)** |
 | Wikipedia-Wissen geschützt | nur DB-File | + GitHub-Backup alle 6h + State-Migration |
 | LLM-as-Judge Call | bypassed Kanban-Bookkeeping (versteckter 3. Inference-Konsument) | reserviert ad-hoc INFERENCE-Slot via `KanbanBoard.tryAcquireAdHocSlot()`; bei WIP-full → skip statt Hardware-Überlast |
+
+### 31.05. später Nachmittag — Infra-Pass: Safety + Version + CODEGEN + Prune-Tooling ✅
+
+Vier kleine Infrastruktur-Punkte aus dem Lücken-Katalog in einem Durchgang geschlossen:
+
+#### #2 Phase-10 Sicherheits-Constraints (`CausalSafetyGate`) ✅
+- **`CausalSafetyGate`** (neuer `de.metis.kernel.world`-Typ): drei harte Schranken vor jeder do-Operator-Intervention:
+  1. **do-Operator-Whitelist** — `allow(cause)` + `setStrict(true)` für Deny-by-default in Prod; leere Whitelist im Lenient-Modus bleibt Foundation-kompatibel (pass-through).
+  2. **max 1 Intervention pro Tick** — atomarer Counter, `onTick()`-Reset vom CoreLoop.
+  3. **max 10 TESTING-Hypothesen gleichzeitig** — zählt direkt im `HypothesisStore`.
+- **`InterventionRunner.setSafetyGate(...)`** — nullable, backward-kompatibel; ohne Gate Foundation-Verhalten.
+- **`runSync` gibt `null` zurück**, wenn Gate blockt — keine Pre/Post-Messung, keine Side-Effects.
+- **8 JUnit-Tests** in `CausalSafetyGateTest`: empty whitelist lenient/strict, non-empty enforced, Tick-Budget + Reset, Capacity-Limit, Runner-Integration, runSync-Block, Decision-Counter.
+- **Kernel-Suite:** 80 → 88 grün.
+
+#### #1 Version-Drift fixen (Manifest + systemd) ✅
+- **Maven-Shade:** schreibt jetzt `Implementation-Title`, `Implementation-Version` (`${project.version}`), `Implementation-Vendor`, `Build-Timestamp` ins JAR-Manifest. Damit liefert `Package.getImplementationVersion()` echte Werte.
+- **`/usr/local/bin/metis-version-helper.sh`** (neu auf miniedi): liest `git describe --tags --always --dirty` aus `/home/prometheus/metis-agent-repo` und schreibt `METIS_VERSION=...` in `/run/metis/version.env` (tmpfs, kein Cleanup nötig).
+- **`metis.service`** gepatcht: `ExecStartPre=/usr/local/bin/metis-version-helper.sh`, `EnvironmentFile=-/run/metis/version.env`, Java-Args `-Dmetis.version=${METIS_VERSION}`. Backup `metis.service.bak-20260531-*`.
+- **`daemon-reload`** durchgeführt, Restart steht aus (bewusst zusammen mit nächster JAR-Deploy).
+
+#### #5 CODEGEN Sandbox-Timeout 5 s → 30 s + Diagnose-Counter ✅
+- **Diagnose:** `CompileScorer.runInSandbox()` hatte einen harten 5 s-Future-Timeout. Der erste Lauf des `SandboxClassLoader` + `loadClass` + javac-Verifier kostet auf dem Host regelmäßig >5 s (JIT-Cold-Start), wodurch `pass@1` mechanisch auf 0.0 kollabierte — nicht weil Tests fehlschlugen, sondern weil sie nicht zu Ende liefen.
+- **Fix:** Test-Timeout 5 s → 30 s (`TEST_TIMEOUT_SEC`), Compile-Konstante für spätere Aufteilung vorbereitet (`COMPILE_TIMEOUT_SEC=15`).
+- **Beobachtbarkeit:** vier Counter (`passedCount`, `failedAssertionCount`, `failedCompileCount`, `failedTimeoutCount`) trennen jetzt sauber, ob `pass@1=0` durch Assertion-Failure, Compile-Failure oder Timeout entsteht.
+- **Kosmetik:** Sandbox-Executor jetzt Daemon-Thread + `shutdownNow()` im `finally` (vorher Thread-Leak bei Timeout).
+
+#### #6 Modell-Prune-Runner (`scripts/eval-model-prune.sh`) ✅ Code, ⏬️ Live-Lauf
+- Standalone Bash-Skript, **nicht** in der laufenden Metis-JVM, separater Subprocess, **`keep_alive=0`** pro Call → kein VRAM-Residual.
+- 8 deterministische Tasks (REASONING + CODE + SAFETY + FACT + INSTRUCT), Substring-Matching, Latenz- und Token-Counter.
+- 20 Reasoner-Kandidaten auf miniedi automatisch erkannt (≥5 GB, ohne embed/vision).
+- Markdown-Report nach `eval-reports/model-prune-YYYYMMDD-HHMM.md` mit Ranking + Prune-Empfehlung.
+- **Live-Lauf braucht Wartungsfenster:** wenn Mistral (19 GB) als Planner resident ist, kann Ollama auf miniedi keine kleineren Modelle parallel laden (5 GB Headroom in 24 GB VRAM). Metis dazu kurz stoppen oder `mistral-small3.1:24b` per `keep_alive=0` manuell entladen, dann Skript starten.
+
+---
 
 ### 31.05. Nachmittag — WIP-aware LLM-as-Judge (Option A) ✅
 
@@ -141,16 +176,16 @@ Phasen 1-7 + Defense-in-Depth = 100% — das ist ein **außerordentlich gut kons
 ### 🟡 Bekannte Infrastruktur-Lücken (Engineering, nicht Forschung)
 
 - **PLANNING.goal_achieved=0.0** im Eval-Report — kein Bug, sondern Phase-9-Lücke (Single-Tick-Planung)
-- **CODEGEN.pass@1=0.0** — Sandbox-Build-Tests timen aus
-- **CausalModel** existiert (Pearl Do-Calculus), aber nicht im Hot-Path verwendet
+- ~~**CODEGEN.pass@1=0.0** — Sandbox-Build-Tests timen aus~~ ✅ 31.05. Nachmittag teilweise behoben (Test-Timeout 5 s→30 s, Diag-Counter `failedAssertionCount`/`failedCompileCount`/`failedTimeoutCount`, Executor-Cleanup — Live-Validierung pending bis nächster periodischer SMOKE-Run)
+- ~~**CausalModel** existiert (Pearl Do-Calculus), aber nicht im Hot-Path verwendet~~ Hot-Path weiter offen, aber **Sicherheits-Constraints jetzt eingebaut**: `CausalSafetyGate` (do-Op-Whitelist + max 1 Intervention/Tick + max 10 TESTING) — macht Hot-Path-Aktivierung später sicher einschaltbar.
 - ~~**Audit-Anchors** werden lokal geschrieben, aber nicht in **externes Repo** committet~~ ✅ 31.05. behoben (Git-Repo + audit-anchors Branch + stündlicher Cron)
 - **JAR-Deployment** ohne Signatur (sigstore/cosign offen)
 - **18 Files** in `agicore-modules/lib/` ohne Maven-Coords (TornadoVM, voice-bits1-hsmm — wegen MaryTTS-Repo-Outage)
 - ~~**Eval-Harness** läuft nur 1x beim Boot, nicht periodisch~~ ✅ 31.05. behoben (scheduleAtFixedRate, alle 6h SMOKE)
-- **Modell-Prune via Eval-Harness** — Code da, aber 8 Reasoner sind nicht durchgerankt
+- **Modell-Prune via Eval-Harness** — Code da, 20 Reasoner-Kandidaten identifiziert. **`scripts/eval-model-prune.sh` geliefert** (deterministisch, `keep_alive=0`, Markdown-Report). Live-Lauf braucht Wartungsfenster: Metis pausieren, da Planner-Mistral (19 GB) im VRAM die Modell-Rotation blockiert.
 - ~~**MetisHttpServer Version-Drift** — /api/status liefert "0.2.0-evolution"~~ ✅ 31.05. behoben (dynamisch via System-Property/Manifest/Fallback)
 - **GitHub CI Workflow** hat Fehler (niedrige Prio, wird später behoben)
-- **start.sh** auf miniedi braucht `-Dmetis.version=$(git describe --tags)` (enthält Tokens → Georg)
+- ~~**start.sh** auf miniedi braucht `-Dmetis.version=$(git describe --tags)`~~ ✅ 31.05. behoben: Maven-Shade schreibt jetzt `Implementation-Version` ins Manifest, und `metis.service` auf miniedi ruft `ExecStartPre=/usr/local/bin/metis-version-helper.sh` auf, der `git describe --tags --always --dirty` aus `/home/prometheus/metis-agent-repo` in `/run/metis/version.env` schreibt; ExecStart liest via `EnvironmentFile` und setzt `-Dmetis.version=${METIS_VERSION}`.
 
 
 ### 🌀 Self-Evolution — kann Metis die Phasen selbst weiterentwickeln?

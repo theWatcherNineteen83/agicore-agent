@@ -163,6 +163,10 @@
                                     <mainClass>de.metis.modules.AgentMain</mainClass>
                                     <manifestEntries>
                                         <Automatic-Module-Name>de.metis.modules</Automatic-Module-Name>
+                                        <Implementation-Title>Metis AGI</Implementation-Title>
+                                        <Implementation-Version>${project.version}</Implementation-Version>
+                                        <Implementation-Vendor>theWatcherNineteen83</Implementation-Vendor>
+                                        <Build-Timestamp>${maven.build.timestamp}</Build-Timestamp>
                                     </manifestEntries>
                                 </transformer>
                             </transformers>

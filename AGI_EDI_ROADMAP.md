@@ -3,7 +3,7 @@
 **Ziel:** EDI-ähnliche KI (Mass Effect 3) - eigenständig, per Sprache und Text ansprechbar,
 mit eigenem Wissen, Persönlichkeit, narrativem Selbstmodell und der Fähigkeit, sich selbst zu verbessern.
 
-**Stand: 31.05.2026 17:42 (Repo-Tag v0.6.1-honesty-audit, Phase 10 Foundation deployed, Hot-Path-Integration offen, Infra-Fixes deployed, WIP-Slot für Judge deployed)**
+**Stand: 31.05.2026 18:08 (Repo-Tag v0.6.1-honesty-audit, Phase 10 Foundation+SafetyGate deployed, Hot-Path-Integration offen, Infra-Fixes deployed, WIP-Slot für Judge deployed, CODEGEN-Timeout-Fix, Version-Drift-Fix)**
 
 ---
 
@@ -144,6 +144,9 @@ Darunter liegen • ~95-100% "stabiler autonomer Agent" (Phasen 1-7+ + Defense-i
 | Locale-Fix in /api/status (Locale.ROOT statt de_DE → valides JSON) | v0.3.1 |
 | Reproducible Builds (project.build.outputTimestamp, CycloneDX SBOM) | v0.2.1 |
 | **31.05.** WIP-aware LLM-as-Judge (`KanbanBoard.tryAcquireAdHocSlot` — Judge-Calls ins INFERENCE-Bookkeeping, graceful Skip bei WIP-full) | post-v0.6.1 |
+| **31.05.** Phase-10 `CausalSafetyGate` (do-Op-Whitelist + max 1 Intervention/Tick + max 10 TESTING; `InterventionRunner.setSafetyGate`) | post-v0.6.1 |
+| **31.05.** Manifest `Implementation-Version` aus `${project.version}` + systemd `metis-version-helper.sh` (`git describe` → `/run/metis/version.env` → `-Dmetis.version`) | post-v0.6.1 |
+| **31.05.** CODEGEN Sandbox-Test-Timeout 5 s → 30 s + Diagnose-Counter (`passedCount`/`failedAssertionCount`/`failedCompileCount`/`failedTimeoutCount`) | post-v0.6.1 |
 
 ### Detail: WIP-aware LLM-as-Judge (Option A, 31.05.)
 

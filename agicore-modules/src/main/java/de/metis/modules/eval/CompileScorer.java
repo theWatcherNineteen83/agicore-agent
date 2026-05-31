@@ -22,6 +22,24 @@ class CompileScorer implements Scorer {
 
     private static final Logger LOG = Logger.getLogger(CompileScorer.class.getName());
 
+    // Timeouts — generous to absorb first-call JIT/classloader warmup of the
+    // platform compiler API in the host JVM. Pre-fix these were 5 s total,
+    // which caused pass@1=0.0 to be timeout-dominated rather than
+    // assertion-failure-dominated.
+    private static final int COMPILE_TIMEOUT_SEC = 15;
+    private static final int TEST_TIMEOUT_SEC = 30;
+
+    // Diagnostic counters (visible via /api/status if exposed; otherwise log-only).
+    private static int passedCount;
+    private static int failedAssertionCount;
+    private static int failedCompileCount;
+    private static int failedTimeoutCount;
+
+    public static int passedCount() { return passedCount; }
+    public static int failedAssertionCount() { return failedAssertionCount; }
+    public static int failedCompileCount() { return failedCompileCount; }
+    public static int failedTimeoutCount() { return failedTimeoutCount; }
+
     @Override
     public MetricResult score(EvalTask task, MetisOutput output) {
         if (output.isError()) {
@@ -153,9 +171,19 @@ class CompileScorer implements Scorer {
 
     /**
      * Run the compiled test class in a sandboxed classloader with timeout.
+     * <p>
+     * Pre-fix this used a 5 s timeout; first-call JIT warmup of the
+     * sandbox classloader regularly cost &gt;5 s and made every CODEGEN
+     * task time out (=&gt; pass@1 collapsed to 0.0 not because tests
+     * failed but because they never finished). We now use {@value
+     * #TEST_TIMEOUT_SEC} s and count timeouts separately.
      */
     private boolean runInSandbox(Path classDir, String testClassName) throws Exception {
-        ExecutorService executor = Executors.newSingleThreadExecutor();
+        ExecutorService executor = Executors.newSingleThreadExecutor(r -> {
+            Thread t = new Thread(r, "metis-sandbox-test");
+            t.setDaemon(true);
+            return t;
+        });
         Future<Boolean> future = executor.submit(() -> {
             try {
                 // Use a custom classloader that restricts access
@@ -172,26 +200,32 @@ class CompileScorer implements Scorer {
                         } catch (Exception e) {
                             // Test failed = assertion error or exception
                             if (e.getCause() instanceof AssertionError) {
+                                failedAssertionCount++;
                                 return false;
                             }
                             if (e instanceof java.lang.reflect.InvocationTargetException ite
                                     && ite.getCause() instanceof AssertionError) {
+                                failedAssertionCount++;
                                 return false;
                             }
+                            failedAssertionCount++;
                             return false;
                         }
                     }
                 }
+                passedCount++;
                 return true; // all tests passed
             } catch (Exception e) {
+                failedAssertionCount++;
                 return false;
             }
         });
 
         try {
-            return future.get(5, TimeUnit.SECONDS); // timeout
+            return future.get(TEST_TIMEOUT_SEC, TimeUnit.SECONDS);
         } catch (TimeoutException e) {
-            LOG.warning("Sandbox test timed out after 5s");
+            failedTimeoutCount++;
+            LOG.warning("Sandbox test timed out after " + TEST_TIMEOUT_SEC + "s");
             future.cancel(true);
             return false;
         } finally {
