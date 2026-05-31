@@ -179,7 +179,7 @@ bash /home/prometheus/metis/backup-config.sh
 - **Tests:** GitHub Actions CI (`mvn verify`) auf jeden Push
 - **Runbook:** [RUNBOOK.md](RUNBOOK.md) — 6 Failure-Modi + Deployment + Health-Check
 
-## EDI-Distanz (ehrliche Spanne)
+## EDI-Distanz
 
 Phasen 1–7+ sind 100%, aber das ist **autonomer Agent**, nicht EDI. Phase 8 (narratives Selbstmodell) und Phase 9 (Long-Horizon-Planung) sind ebenfalls 100% deployed. Phase 10 (kausale Hypothesen) ist als Foundation drin, aber noch nicht im Hot-Path.
 
@@ -194,7 +194,7 @@ Offen für weitere EDI-Annäherung:
 **Was Metis ausdrücklich nicht ist:**
 - nicht bewusst, nicht selbstreflexiv im phänomenologischen Sinn
 - nicht durchgängig kausal denkend — Pearl-Do-Calculus-Code existiert, ist aber noch nicht im Hot-Path
-- kennt Georg per Chat-ID und Conversation-History, nicht als Person mit Beziehungsmodell
+- kennt den Anwender per Chat-ID und Conversation-History, nicht als Person mit Beziehungsmodell
 - der Watchdog ist tamper-evident (Hash-Kette bricht bei Manipulation), aber **nicht** tamper-proof
 
 ---
