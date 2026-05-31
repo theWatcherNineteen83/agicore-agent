@@ -492,7 +492,7 @@ Basierend auf Stash `prometheus-review-30.05` (13 Punkte).
 | 2 | **JLama** | Pure Java LLM Inference, kein externes Ollama | PoC ~1 Tag ✅ (7f5ca9b) |
 | 4 | **Apache Jena** | RDF-Graph für kausales Wissen (statt Neo4j) | 2-3 Tage |
 | 5 | **Apache Nutch** | Java-nativer Web Crawler (war eines der ersten Goals) | 2-3 Tage ✅ (23b1b8e, Nutch-inspired embedded) |
-| 6 | **DJL / Azul** | Deep Java Library für Fine-Tuning (erst Azul/Zulu prüfen) | Prüfung + PoC |
+| 6 | **DJL / Azul** | Deep Java Library für Fine-Tuning (erst Azul/Zulu prüfen) | Prüfung ✅ (docs/djl-azul-finetuning-pruefung.md) |
 | 7 | **Websearch** | DuckDuckGo oder Ecosia, ggf. über Nutch (#5) | 1-2 Tage |
 | 9 | **OpenTelemetry** | Tracing + Metrics-Endpoint (CNCF, Java-Agents Open Source) | 2-3 Tage |
 | 10 | **JPMS module-info.java** | Stückweise je Feature, wenn Klasse angepasst wird | kontinuierlich |
@@ -513,4 +513,4 @@ Basierend auf Stash `prometheus-review-30.05` (13 Punkte).
 2. **Wissens-Basis:** Apache Nutch (#5) + Apache Jena (#4)
 3. **Betrieb:** OpenTelemetry (#9) + JPMS (#10, kontinuierlich)
 4. **Strategisch:** Spring AI MCP (#1) — größter Hebel, aber kein Quickwin
-5. **Prüfung:** DJL vs. Azul/Zulu für Fine-Tuning (#6)
+5. ~~**Prüfung:** DJL vs. Azul/Zulu für Fine-Tuning (#6)~~ ✅
