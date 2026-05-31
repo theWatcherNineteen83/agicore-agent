@@ -10,6 +10,8 @@ import de.metis.kernel.world.Belief;
 import de.metis.kernel.world.WorldModel;
 
 import de.metis.modules.evolution.ModelRegistry;
+import de.metis.kernel.goal.Goal;
+import de.metis.kernel.goal.KanbanBoard;
 import de.metis.kernel.safety.LlmJudge;
 import de.metis.kernel.safety.OutputValidator;
 import de.metis.kernel.optimize.ABTestService;
@@ -105,6 +107,26 @@ public class OllamaPlanner implements Planner {
 
     // ── LLM-as-Judge (Huyen Kap. 3) ──────────────────────────
     private final LlmJudge llmJudge = new LlmJudge();
+
+    /**
+     * Optional Kanban board for WIP-aware ad-hoc inference accounting.
+     * <p>
+     * When set, the planner reserves an INFERENCE slot via
+     * {@link KanbanBoard#tryAcquireAdHocSlot(Goal.ResourceType, Duration)}
+     * before calling the LLM-as-Judge, so judge calls count toward the
+     * same WIP limits as goal-driven inference. If no slot can be acquired
+     * within {@link #judgeSlotTimeout}, the judge is skipped (the plan is
+     * not blocked — graceful degradation).
+     * <p>
+     * If left {@code null}, behaviour is identical to pre-WIP versions.
+     */
+    private KanbanBoard kanbanBoard;
+
+    /** Time the planner waits for an INFERENCE slot before skipping judge. */
+    private Duration judgeSlotTimeout = Duration.ofSeconds(2);
+
+    /** Cumulative count of judge calls skipped because WIP was full. */
+    private int judgeSlotSkips;
 
     // ── A/B Testing (Huyen Kap. 3) ────────────────────────────
     private ABTestService abTestService;
@@ -441,7 +463,15 @@ public class OllamaPlanner implements Planner {
         // ── Phase 6: LLM-as-Judge quality gate (Huyen Kap. 3) ──
         if (result != null && !result.isEmpty()) {
             String planAction = result.getFirst();
-            LlmJudge.Evaluation eval = llmJudge.evaluate(goal.description(), planAction);
+            LlmJudge.Evaluation eval = evaluateWithSlot(goal, planAction);
+            if (eval == null) {
+                // Slot acquisition failed (WIP-full): graceful degradation —
+                // we trust the plan, but log it for observability.
+                judgeSlotSkips++;
+                LOG.fine(() -> "LLM Judge skipped (WIP-full): " + planAction);
+                recordABOutcome(abVariant, true, planStartMs, lastPlanConfidence, -1);
+                return result;
+            }
             if (eval.blocked()) {
                 LOG.severe("LLM Judge ⛔ BLOCKED plan (score="
                         + String.format("%.2f", eval.aggregateScore())
@@ -1277,6 +1307,54 @@ public class OllamaPlanner implements Planner {
     public Map<String, Integer> actionErrorCount() { return Map.copyOf(actionErrorCount); }
     public OutputValidator outputValidator() { return outputValidator; }
     public LlmJudge llmJudge() { return llmJudge; }
+
+    /**
+     * Wire a Kanban board for WIP-aware judge accounting.
+     * <p>
+     * After this is set, judge calls reserve an INFERENCE ad-hoc slot via
+     * the board, so they count toward the same WIP limit as goal-driven
+     * inference. Pass {@code null} to revert to unaccounted (pre-WIP)
+     * behaviour.
+     */
+    public void setKanbanBoard(KanbanBoard board) { this.kanbanBoard = board; }
+
+    public KanbanBoard kanbanBoard() { return kanbanBoard; }
+
+    /** Maximum time the planner waits for an INFERENCE slot before skipping the judge. */
+    public void setJudgeSlotTimeout(Duration t) {
+        if (t != null && !t.isNegative()) this.judgeSlotTimeout = t;
+    }
+
+    public int judgeSlotSkips() { return judgeSlotSkips; }
+
+    /**
+     * Run the LLM-as-Judge under the Kanban WIP limit when a board is wired.
+     * <p>
+     * Behaviour:
+     * <ul>
+     *   <li>No board wired → call judge directly (legacy path).</li>
+     *   <li>Board wired, slot acquired → call judge, release slot in finally.</li>
+     *   <li>Board wired, slot timeout → return {@code null} so the caller
+     *       can treat the judge as skipped (NOT a block).</li>
+     * </ul>
+     *
+     * @return judge evaluation, or {@code null} if no slot was available
+     */
+    private LlmJudge.Evaluation evaluateWithSlot(de.metis.kernel.goal.Goal goal, String planAction) {
+        if (kanbanBoard == null) {
+            return llmJudge.evaluate(goal.description(), planAction);
+        }
+        boolean acquired = kanbanBoard.tryAcquireAdHocSlot(
+                Goal.ResourceType.INFERENCE, judgeSlotTimeout);
+        if (!acquired) {
+            return null;
+        }
+        try {
+            return llmJudge.evaluate(goal.description(), planAction);
+        } finally {
+            kanbanBoard.releaseAdHocSlot(Goal.ResourceType.INFERENCE);
+        }
+    }
     public String lastThought() { return lastThought; }
     public Instant lastLlmCall() { return lastLlmCall; }
 

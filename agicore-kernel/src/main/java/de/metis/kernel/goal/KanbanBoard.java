@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
 
 /**
@@ -61,6 +62,24 @@ public class KanbanBoard {
 
     // ── Expedite slot ─────────────────────────────────────
     private volatile boolean expediteSlotInUse = false;
+
+    // ── Ad-hoc resource slots ─────────────────────────────
+    //
+    // For short-lived consumers that need a resource slot but are not full
+    // goals (e.g. LLM-as-Judge calls, embedding requests). They count toward
+    // the same WIP limits as goals so the board's view of resource pressure
+    // remains honest.
+    //
+    // Acquire/release is a simple atomic counter per ResourceType; pull()
+    // and canPull() include adHocSlots[type] in their current-WIP count.
+    private final Map<Goal.ResourceType, AtomicInteger> adHocSlots =
+            new ConcurrentHashMap<>();
+
+    // Counters for observability (cumulative; never reset).
+    private final Map<Goal.ResourceType, AtomicInteger> adHocAcquired =
+            new ConcurrentHashMap<>();
+    private final Map<Goal.ResourceType, AtomicInteger> adHocRejected =
+            new ConcurrentHashMap<>();
 
     /**
      * Add a goal to the BACKLOG column.
@@ -146,8 +165,95 @@ public class KanbanBoard {
         int limit = WIP_LIMITS.getOrDefault(type, 3);
         long current = inProgress.values().stream()
                 .filter(g -> g.resourceType() == type)
-                .count();
+                .count()
+                + adHocCount(type);
         return current < limit;
+    }
+
+    /**
+     * Try to acquire an ad-hoc slot for the given resource type without
+     * blocking. The slot counts toward the same WIP limit as in-progress
+     * goals, so honest accounting is preserved.
+     *
+     * @param type resource type to charge
+     * @return {@code true} if a slot was reserved (caller MUST call
+     *         {@link #releaseAdHocSlot(Goal.ResourceType)} when done),
+     *         {@code false} if the WIP limit is already reached.
+     */
+    public boolean tryAcquireAdHocSlot(Goal.ResourceType type) {
+        if (type == null) return false;
+        int limit = WIP_LIMITS.getOrDefault(type, 3);
+        AtomicInteger slot = adHocSlots.computeIfAbsent(type, k -> new AtomicInteger());
+        synchronized (slot) {
+            long inProg = inProgress.values().stream()
+                    .filter(g -> g.resourceType() == type)
+                    .count();
+            long current = inProg + slot.get();
+            if (current >= limit) {
+                adHocRejected.computeIfAbsent(type, k -> new AtomicInteger())
+                        .incrementAndGet();
+                return false;
+            }
+            slot.incrementAndGet();
+            adHocAcquired.computeIfAbsent(type, k -> new AtomicInteger())
+                    .incrementAndGet();
+            return true;
+        }
+    }
+
+    /**
+     * Try to acquire an ad-hoc slot, waiting up to {@code timeout} for one
+     * to become available. Polls every 50 ms; this is sufficient for the
+     * scale this board operates at (single-digit-Hz tick rate).
+     *
+     * @return {@code true} on success, {@code false} on timeout.
+     */
+    public boolean tryAcquireAdHocSlot(Goal.ResourceType type, Duration timeout) {
+        if (type == null) return false;
+        long deadline = System.nanoTime() + timeout.toNanos();
+        do {
+            if (tryAcquireAdHocSlot(type)) return true;
+            try {
+                Thread.sleep(50);
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+                return false;
+            }
+        } while (System.nanoTime() < deadline);
+        return false;
+    }
+
+    /**
+     * Release an ad-hoc slot previously acquired via
+     * {@link #tryAcquireAdHocSlot(Goal.ResourceType)}. Safe to call even if
+     * the counter has somehow reached 0 (clamps).
+     */
+    public void releaseAdHocSlot(Goal.ResourceType type) {
+        if (type == null) return;
+        AtomicInteger slot = adHocSlots.get(type);
+        if (slot == null) return;
+        synchronized (slot) {
+            int v = slot.get();
+            if (v > 0) slot.decrementAndGet();
+        }
+    }
+
+    /** Current number of outstanding ad-hoc slots for the given type. */
+    public int adHocCount(Goal.ResourceType type) {
+        AtomicInteger slot = adHocSlots.get(type);
+        return slot == null ? 0 : slot.get();
+    }
+
+    /** Cumulative ad-hoc slot acquisitions for the given type. */
+    public int adHocAcquired(Goal.ResourceType type) {
+        AtomicInteger n = adHocAcquired.get(type);
+        return n == null ? 0 : n.get();
+    }
+
+    /** Cumulative ad-hoc slot rejections (WIP-full) for the given type. */
+    public int adHocRejected(Goal.ResourceType type) {
+        AtomicInteger n = adHocRejected.get(type);
+        return n == null ? 0 : n.get();
     }
 
     /**

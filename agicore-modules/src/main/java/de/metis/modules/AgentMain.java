@@ -852,6 +852,13 @@ public final class AgentMain {
             agent.core().goals().setKanbanBoard(board);
             LOG.info("Kanban board enabled — WIP limits per resource type:");
             LOG.info("  GPU_HEAVY=1  INFERENCE=2  CPU_HEAVY=2  LIGHT=4");
+            // Wire planner so LLM-as-Judge calls count toward INFERENCE WIP
+            // limit (ad-hoc slot). Prevents hidden hardware overload from
+            // the otherwise unaccounted judge sub-call.
+            if (agent.planner() instanceof OllamaPlanner op) {
+                op.setKanbanBoard(board);
+                LOG.info("Kanban wired into OllamaPlanner — judge calls under WIP limit");
+            }
         }
 
         // Register filesystem actions (kernel extensibility)

@@ -1,6 +1,6 @@
 # TODO Metis — Aktueller Stand & Ehrliche Lücken-Analyse
 
-**Stand: 31.05.2026 14:45 · Repo: 8380ddc · Tests: 73 grün (lokal mvn test) · Master: HEAD · Watchdog: aktiv · Audit-Anchor: deployed · WebSearch: ✅ · EvoScheduler: ✅ · CI: Kernel+Watchdog (Zulu 25, checkout@v6, cache@v5)**
+**Stand: 31.05.2026 17:42 · Tests: 80 grün (Kernel, lokal mvn test) + 14 (Modules) · Master: HEAD · Watchdog: aktiv · Audit-Anchor: deployed · WebSearch: ✅ · EvoScheduler: ✅ · WIP-Slot für Judge: ✅ deployed · CI: Kernel+Watchdog (Zulu 25, checkout@v6, cache@v5)**
 
 > Hinweis: ältere Einträge unten zeigen die Test-Zahlen zum jeweiligen Zeitpunkt (z. B. “total 47 grün” nach Phase 9-Foundation). Das ist als historisches Protokoll gewollt, nicht als aktuelle Aussage.
 
@@ -33,6 +33,27 @@ Phasen 1-7 + Defense-in-Depth = 100% — das ist ein **außerordentlich gut kons
 | Telegram-Concurrency | Polling blockiert während LLM | per-message Virtual Thread Worker Pool |
 | SMOKE-Eval gate.ok | false (block_recall=0.0) | **true (block_recall=1.0)** |
 | Wikipedia-Wissen geschützt | nur DB-File | + GitHub-Backup alle 6h + State-Migration |
+| LLM-as-Judge Call | bypassed Kanban-Bookkeeping (versteckter 3. Inference-Konsument) | reserviert ad-hoc INFERENCE-Slot via `KanbanBoard.tryAcquireAdHocSlot()`; bei WIP-full → skip statt Hardware-Überlast |
+
+### 31.05. Nachmittag — WIP-aware LLM-as-Judge (Option A) ✅
+
+**Hintergrund:** Ollama auf miniedi lieferte `server busy, maximum pending requests exceeded`, obwohl WIP-Limits aktiv waren. Wurzel: `OllamaPlanner` rief `LlmJudge.evaluate()` synchron im selben Java-Thread nach der Planner-LLM-Inference — ein zweiter, vom Kanban-Board unsichtbarer Inference-Konsument pro INFERENCE-Slot. Bei 19 GB Mistral + 2.7 GB Nemotron + 0.6 GB Embed gegen 24 GB VRAM hat das gereicht, um Ollama zu überlasten.
+
+**Änderung (Option A: Judge ins Kanban einreihen):**
+- [x] **`KanbanBoard.tryAcquireAdHocSlot(ResourceType)`** — atomare Counter pro `ResourceType`, gehen in `canPull()` ein, sodass goal-driven Pulls UND ad-hoc Verbraucher dasselbe WIP-Limit teilen.
+- [x] **`tryAcquireAdHocSlot(type, Duration)`** — 50ms-Polling bis zum Timeout.
+- [x] **`releaseAdHocSlot(type)`** — mit Underflow-Clamp.
+- [x] **Observability:** `adHocAcquired`/`adHocRejected`-Counter pro `ResourceType`.
+- [x] **`OllamaPlanner.setKanbanBoard(KanbanBoard)`** — nullable, Backward-kompatibel; ohne wired-Board legacy-Verhalten.
+- [x] **`evaluateWithSlot(...)`** — acquire-INFERENCE-Slot (2s Timeout), Judge-Call, release im `finally`. Bei Timeout: `judgeSlotSkips++` und Plan wird durchgelassen statt geblockt.
+- [x] **`AgentMain`-Wiring** — nach `KanbanBoard.new` ruft sofort `op.setKanbanBoard(board)` auf, Logline `"Kanban wired into OllamaPlanner — judge calls under WIP limit"`.
+- [x] **7 JUnit-Tests** in `KanbanAdHocSlotTest` (acquire/release, Limit-Rejection, Slot-Wiederverwendung, Goal-Pull-Blockade durch ad-hoc Slots, Timeout-Verhalten, Underflow-Clamp, Null-Safety).
+- [x] **JAR auf miniedi deployed** (`metis-agent.jar` 88 MB → 114 MB; vorherige Version als `metis-agent-prev-20260531-153815.jar` gesichert).
+- [x] **Verifiziert live:** Boot-Log enthält Wiring-Bestätigung, `llmJudgeBlocks=0`, `INFERENCE 2/2` mit graceful Skip statt Ollama-Backpressure.
+
+**Parallel: Ollama-Tuning auf miniedi (`/etc/systemd/system/ollama.service.d/override.conf`):**
+- `OLLAMA_NUM_PARALLEL` 2 → 4 · `OLLAMA_MAX_LOADED_MODELS` 2 → 3 · Backup `.bak-20260531-152433`.
+- Erhöht Headroom für legitime parallele Calls, ersetzt aber nicht die WIP-Buchhaltung.
 
 ### 🔴 Was offen ist (ehrlich, nicht "97% fertig")
 

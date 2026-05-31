@@ -3,7 +3,7 @@
 **Ziel:** EDI-ähnliche KI (Mass Effect 3) - eigenständig, per Sprache und Text ansprechbar,
 mit eigenem Wissen, Persönlichkeit, narrativem Selbstmodell und der Fähigkeit, sich selbst zu verbessern.
 
-**Stand: 31.05.2026 11:15 (Repo-Tag v0.6.1-honesty-audit, Phase 10 Foundation deployed, Hot-Path-Integration offen, Infra-Fixes deployed)**
+**Stand: 31.05.2026 17:42 (Repo-Tag v0.6.1-honesty-audit, Phase 10 Foundation deployed, Hot-Path-Integration offen, Infra-Fixes deployed, WIP-Slot für Judge deployed)**
 
 ---
 
@@ -143,6 +143,29 @@ Darunter liegen • ~95-100% "stabiler autonomer Agent" (Phasen 1-7+ + Defense-i
 | HTTP Input-Safety-Guard (gleicher Pfad) | v0.2.1 |
 | Locale-Fix in /api/status (Locale.ROOT statt de_DE → valides JSON) | v0.3.1 |
 | Reproducible Builds (project.build.outputTimestamp, CycloneDX SBOM) | v0.2.1 |
+| **31.05.** WIP-aware LLM-as-Judge (`KanbanBoard.tryAcquireAdHocSlot` — Judge-Calls ins INFERENCE-Bookkeeping, graceful Skip bei WIP-full) | post-v0.6.1 |
+
+### Detail: WIP-aware LLM-as-Judge (Option A, 31.05.)
+
+**Problem:** `OllamaPlanner` rief `LlmJudge.evaluate()` synchron im selben Java-Thread nach der Planner-LLM-Inference auf — ein zweiter, vom Kanban-Board unsichtbarer Inference-Konsument pro INFERENCE-Slot. Bei 19 GB Mistral + 2.7 GB Nemotron + 0.6 GB Embed gegen 24 GB VRAM hat das gereicht, dass Ollama mit `server busy, maximum pending requests exceeded` antwortete und der Judge auf default-pass (`score=0.5, "judge model unavailable (non-blocking)"`) degradierte.
+
+**Lösung:** Ad-hoc-Slot-Mechanismus im `KanbanBoard`, der dasselbe WIP-Limit teilt wie goal-driven Pulls.
+
+| Komponente | Änderung |
+|---|---|
+| `KanbanBoard` | `tryAcquireAdHocSlot(ResourceType[, Duration])` + `releaseAdHocSlot(...)`; atomare Zähler gehen in `canPull()` ein; Counter `adHocAcquired` / `adHocRejected` für Observability |
+| `OllamaPlanner` | `setKanbanBoard(...)` (nullable, backward-kompatibel); `evaluateWithSlot(...)` acquire-INFERENCE-Slot mit 2s-Timeout, Judge-Call, release im `finally`; `judgeSlotSkips`-Counter |
+| `AgentMain` | Wiring nach `KanbanBoard.new`: `op.setKanbanBoard(board)` + Logline `"Kanban wired into OllamaPlanner — judge calls under WIP limit"` |
+| Tests | `KanbanAdHocSlotTest` (7 Tests): acquire/release, Limit-Rejection, Slot-Wiederverwendung, Goal-Pull-Blockade durch ad-hoc Slots, Timeout-Verhalten, Underflow-Clamp, Null-Safety |
+
+**Deployment:** Kernel-Tests 73 → 80 grün. JAR auf miniedi (`metis-agent.jar` 88 MB → 114 MB), Vorgänger als `metis-agent-prev-20260531-153815.jar` gesichert.
+
+**Live-Verifikation:**
+- Boot-Log: `Kanban wired into OllamaPlanner — judge calls under WIP limit` ✅
+- `llmJudgeBlocks=0` — keine fälschlichen Plan-Blocks mehr
+- `INFERENCE 2/2` → Judge-Call wird sauber als skipped behandelt statt Ollama-Backpressure auszulösen
+
+**Parallel auf miniedi getuned (`/etc/systemd/system/ollama.service.d/override.conf`):** `OLLAMA_NUM_PARALLEL` 2→ 4, `OLLAMA_MAX_LOADED_MODELS` 2→ 3 (Backup `.bak-20260531-152433`). Headroom-Erhöhung, aber ersetzt nicht die WIP-Buchhaltung.
 
 ---
 
