@@ -3,7 +3,7 @@
 **Ziel:** EDI-ähnliche KI (Mass Effect 3) - eigenständig, per Sprache und Text ansprechbar,
 mit eigenem Wissen, Persönlichkeit, narrativem Selbstmodell und der Fähigkeit, sich selbst zu verbessern.
 
-**Stand: 01.06.2026 12:55 (Repo-Tag v0.7.5-causal-dreamer, Phase 10.5 CausalDreamer deployed, Phase 11 PersonModel Foundation deployed, 134 Tests grün)**
+**Stand: 01.06.2026 16:25 (Repo-Tag v0.7.6-embedding-backoff, 503-Fix deployed, NUM_PARALLEL 8, 134 Tests grün)**
 
 ---
 

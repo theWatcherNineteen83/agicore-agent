@@ -6,7 +6,7 @@ Sie denkt in kognitiven Zyklen (Perceive → Plan → Execute → Observe → Le
 
 ## Status
 
-**Repo-Tag:** v0.7.5-causal-dreamer · **Stand:** 01.06.2026 12:55 · **Tests:** 112 grün im Kernel + 22 in Modules = **134 total** (lokal `mvn test`, MaryTTS+TornadoVM nur auf miniedi via Maven-Profil) · **CI:** Kernel + Watchdog (GitHub Actions, Zulu 25, checkout@v6, cache@v5) · **Phasen 1–7+:** ✅ 100% · **Phase 8:** ✅ 100% (SelfReflector + PersonalityTripwire) · **Phase 9:** ✅ 100% · **Phase 10:** 🟡 60% (Foundation + CausalDreamer deployed, Hot-Path-Integration offen) · **Phase 11:** 🟡 50% (PersonModel+PersonStore+TrustLevel+RelationshipMemory deployed, EmpathySignal+PersonAwarePrompt offen)
+**Repo-Tag:** v0.7.6-embedding-backoff · **Stand:** 01.06.2026 16:25 · **Tests:** 112 grün im Kernel + 22 in Modules = **134 total** (lokal `mvn test`, MaryTTS+TornadoVM nur auf miniedi via Maven-Profil) · **CI:** Kernel + Watchdog (GitHub Actions, Zulu 25, checkout@v6, cache@v5) · **Phasen 1–7+:** ✅ 100% · **Phase 8:** ✅ 100% (SelfReflector + PersonalityTripwire) · **Phase 9:** ✅ 100% · **Phase 10:** 🟡 60% (Foundation + CausalDreamer deployed, Hot-Path-Integration offen) · **Phase 11:** 🟡 50% (PersonModel+PersonStore+TrustLevel+RelationshipMemory deployed, EmpathySignal+PersonAwarePrompt offen)
 
 → Details: **[FEATURES.md](FEATURES.md)** · **[AGI_EDI_ROADMAP.md](AGI_EDI_ROADMAP.md)** · **[RUNBOOK.md](RUNBOOK.md)** · **[TODO_Metis.md](TODO_Metis.md)**
 
@@ -32,6 +32,7 @@ Sie denkt in kognitiven Zyklen (Perceive → Plan → Execute → Observe → Le
 | `v0.7.3-prompt-tightening` | System-Prompt-Tightening (CAPS, 1-Satz, genaue Action-Namen, OK/NO-OK statt vage) | **112** |
 | `v0.7.4-personality-tripwire` | PersonalityTripwire: Drift-Detection alle 5 min, SHA-256-Pin vs Live-Anchor, ROLE_VIOLATION/TONE_SHIFT/CORE_ERASURE | **112** |
 | `v0.7.5-causal-dreamer` | CausalDreamer: Idle-Guard (WIP<2), Overflow-Schutz, zufällige Experience → Hypothese, SelfNarrative-CausalDream-Eintrag | **134** (112 K + 22 M) |
+| `v0.7.6-embedding-backoff` | 503-Fix: Embedding-Backoff (1s/2s/4s), NUM_PARALLEL 4→8, embedding503s-Metrik in /api/status | **134** (112 K + 22 M) |
 
 > Die früheren Test-Zahlen sind aus den jeweiligen Commits übernommen und nicht rückwirkend nachgemessen. Aktuell, gegen Master per `mvn test`: **80 grün im Kernel** + 14 in Modules (lokal auf kali, inkl. MaryTTS/TornadoVM über miniedi-Profil).
 
