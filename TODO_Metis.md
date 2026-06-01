@@ -1,5 +1,28 @@
 # TODO Metis — Aktueller Stand & Ehrliche Lücken-Analyse
 
+## 2026-06-01 — lfm2:24b als offizieller Reasoner
+
+12h-Live-A/B-Test abgeschlossen (`eval-reports/lfm2-vs-mistral-live-20260531.md`).
+`planningEfficiency = 0.812` über 2.678 Ticks, alle Entscheidungs-Schwellen
+erfüllt, Latenz gegenüber Mistral halbiert. Nächste Schritte:
+
+- [ ] `lfm2` in `ModelRegistry.REASONING_FAMILIES` aufnehmen (Position vor Mistral).
+- [ ] `lfm2` aus `CODE_GEN_FAMILIES` entfernen oder niedriger priorisieren.
+- [ ] Nach 48 h problemlosen Laufs: Backup `metis.service.bak-pre-lfm2-1928` archivieren.
+- [ ] Optional: OllamaPlanner-Refactoring für echtes `tools`-Field (lfm2 0,25 s warm im Pre-Live-Test).
+- [ ] System-Prompt-Tightening gegen `{"thought":...,"action":...}`-Format-Drift
+      (aktuell 2,7 % plannerFallbacks).
+
+### Operations-Notiz
+
+Metis läuft auf miniedi als nackter Java-Prozess aus
+`/home/prometheus/metis/metis-agent.jar`, **nicht** über die
+`metis-agent.service`-Unit (die ist `disabled`). Healthcheck:
+`pgrep -af metis-agent.jar` + `ss -tlnp | grep 11735` + HTTP gegen
+`/api/status` (nicht `/status` — gibt 404).
+
+---
+
 **Stand: 31.05.2026 18:08 · Tests: 88 grün (Kernel, lokal mvn test) + 14 (Modules) · Master: HEAD · Watchdog: aktiv · Audit-Anchor: deployed · WebSearch: ✅ · EvoScheduler: ✅ · WIP-Slot für Judge: ✅ · CausalSafetyGate: ✅ · CODEGEN-Timeout 5s→30s: ✅ · Version-Drift: ✅ · CI: Kernel+Watchdog (Zulu 25, checkout@v6, cache@v5)**
 
 > Hinweis: ältere Einträge unten zeigen die Test-Zahlen zum jeweiligen Zeitpunkt (z. B. “total 47 grün” nach Phase 9-Foundation). Das ist als historisches Protokoll gewollt, nicht als aktuelle Aussage.

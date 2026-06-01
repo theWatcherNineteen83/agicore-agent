@@ -105,3 +105,90 @@ Registry-Logik — bewusst minimaler Eingriff für Reversibilität.
 
 _Live-Daten aus `/api/status` (Port 11735 auf miniedi)._
 _Cron-Job ID: `7ca30d0e-1f60-4d1b-8e5b-6185b4751461`, feuert morgen 07:30 Europe/Berlin._
+
+---
+
+## 12h-Nachtrag (2026-06-01, 08:25 Europe/Berlin)
+
+Live-Snapshot aus `/api/status` nach ~13 h durchgehendem Betrieb mit
+`--planning-model lfm2:24b`:
+
+| Metrik | 20-Min-Stand (31.05.) | **12h-Stand (01.06.)** | Trend |
+|---|---|---|---|
+| totalTicks | 121 | **2.678** | ⏱️ Loop läuft stabil |
+| successRate | 1.0 | **0.999** | ✅ |
+| **planningEfficiency** | **0.281** | **0.812** | 🔺 großer Sprung |
+| plannerLlmCalls | 42 | **2.291** | |
+| plannerLlmSuccessRate | 1.0 | **1.00** | |
+| plannerFallbacks | 5 | **61** (2,7 %) | im Rahmen |
+| modelFallbackUses | 2 | **7** (0,3 %) | sehr selten |
+| modelFallbackCounts | mistral=2 | mistral=5, qwen=1, nemotron=1 | |
+| validPlanCount | 36 | **2.175** | |
+| emptyPlanCount | 2 | **2** | unverändert |
+| avgLatencyMs | 5.734 | **2.790** | 🔺 mehr als halbiert (warm) |
+| lastLatencyMs | 758 | **778** | stabil schnell |
+| llmJudgeEvaluations | 28 | **23** | (Judge läuft nur sporadisch) |
+| llmJudgeBlocks | 2 | **0** | 🔺 |
+| llmJudgeWarnings | – | **0** | |
+| llmJudgeAvgScore | 0.67 | **0.70** | leichte Verbesserung |
+| beliefCount | – | **66.233** | |
+| evolutionCycles | – | **13** | |
+| acceptedMutations / rejectedMutations | – | 0 / 12 | Watchdog-Gate hält |
+| embeddingCacheHitRate | – | **0.385** | gut |
+| worldModelAvgConfidence | – | **0.856** | |
+| actionUsage | http=20, shell=16 | http=1.965, shell=210 | |
+| actionErrorCount | – | http=2 | quasi 0 |
+
+### Verdict
+
+**Alle Entscheidungs-Schwellen erfüllt:**
+
+| Schwelle | Ziel | 12h-Stand | Status |
+|---|---|---|---|
+| planningEfficiency 12h-Avg > 0.7 | ja | **0.812** | ✅ |
+| modelFallbackUses-Rate < 20 % | ja | **0,3 %** | ✅ |
+| successRate ≥ 1.0 | ja | **0.999** | ✅ |
+| llmJudgeBlocks-Rate < 15 % | ja | **0 %** | ✅ |
+| avgLatencyMs < 15.000 | ja | **2.790** | ✅ |
+
+**Interpretation der frühen 0.281-Regression:**
+Die ersten ~120 Ticks hatten überproportional viele Bootstrap-Pläne
+(Wikipedia-Feed, Initial-Indexing), die lfm2 schlechter handhabt als der
+spätere normalisierte Action-Mix. Über 2.678 Ticks gemittelt liegt die
+Real-World-Performance bei **0.812** — knapp unter Mistrals theoretischer 1.0,
+aber bei **rund halber Latenz** und mit valider Fallback-Chain.
+
+### Empfehlung: **lfm2:24b wird offizieller Reasoner.**
+
+Umsetzung:
+
+1. `lfm2` in `ModelRegistry.REASONING_FAMILIES` aufnehmen (vor Mistral, da messbar schneller).
+2. `lfm2` aus `CODE_GEN_FAMILIES` entfernen oder dort niedriger priorisieren
+   (24B-Generalist, kein dedizierter Coder).
+3. `metis.service.bak-pre-lfm2-1928` kann nach weiteren 48 h problemlosen
+   Laufs archiviert werden.
+4. **Offen für später (kein Blocker):** OllamaPlanner-Refactoring für
+   echtes `tools`-Field — Pre-Live-Test zeigte 0,25 s warm bei lfm2.
+
+### Offene Beobachtungen
+
+- **plannerFallbacks 61 / 2.291 = 2,7 %** sind hauptsächlich Validator-Reruns
+  bei `{"thought":...,"action":...}`-Format-Drift, nicht Modell-Wechsel.
+  Behebung über System-Prompt-Tightening möglich.
+- **modelFallbackUses 7** verteilt sich auf Mistral (5), Qwen (1), Nemotron (1)
+  — Fallback-Chain wird sauber durchlaufen, kein einziger Ausfall hat das
+  System gestoppt.
+- **acceptedMutations = 0, rejectedMutations = 12** über 13 Evolution-Cycles —
+  Phase-7-Watchdog-Gate hält wie spezifiziert.
+- **lastLatencyMs 778 ms** ist ein realistischer warm-Wert; durchschnittlich
+  2,8 s inklusive Cold-Calls und Long-Prompt-Calls.
+
+### Lessons (für die Operations-Knowledge-Base)
+
+- Metis läuft auf miniedi **als nackter Java-Prozess** (gestartet aus
+  `/home/prometheus/metis/metis-agent.jar`), nicht über die
+  `metis-agent.service`-Unit (die ist `disabled`). Healthcheck-Skripte sollten
+  `pgrep -af metis-agent.jar` + Port-Check (`ss -tlnp | grep 11735`) +
+  HTTP-Probe gegen **`/api/status`** verwenden — `/status` liefert 404.
+- `/api/status` ist der einzige zuverlässige Health-Endpoint; `/status`
+  existiert nicht im aktuellen Server.

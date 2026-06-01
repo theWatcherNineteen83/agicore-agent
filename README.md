@@ -157,12 +157,22 @@ URL: http://<host>:11735
 
 ## Deployment
 
-```bash
-# Service-Kontrolle
-sudo systemctl status metis.service
-journalctl -u metis.service -f
+Metis läuft auf `miniedi` als **nackter Java-Prozess** aus
+`/home/prometheus/metis/metis-agent.jar` (`-Xmx2g`, ZGC, Zulu 25).
+Die systemd-Unit `metis-agent.service` existiert, ist aber `disabled` —
+Produktivlauf passiert direkt aus dem User-Kontext `prometheus`.
+Der Watchdog läuft als getrennte User-Unit `metis-watchdog.service`.
 
-# Watchdog
+```bash
+# Prozess-Status
+pgrep -af metis-agent.jar
+ss -tlnp | grep -E '11735|11736'
+
+# Health-Check (einziger zuverlässiger Endpoint)
+curl -s http://localhost:11735/api/status | head -c 800
+#   /status liefert 404 — nicht verwenden.
+
+# Watchdog (separater Java-Prozess, eigene User-systemd-Unit)
 systemctl --user status metis-watchdog.service
 
 # Modelle live aktualisieren
