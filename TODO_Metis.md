@@ -1,5 +1,73 @@
 # TODO Metis — Aktueller Stand & Ehrliche Lücken-Analyse
 
+## 2026-06-01 — Backlog aus 9 externen KI-Reviews (toCheck-final.md)
+
+Georg hat 9 KI-Modelle zur Frage "letzte 3 % zu EDI-artiger Architektur"
+befragt (Quellen + Synthese: `workspace/2026-05-31/toCheck-final.md`).
+
+**Wichtige Erkenntnis beim Re-Read gegen den Code:** Vieles, was die Modelle
+fordern, **existiert bereits** — sie kannten den Repo-Stand nicht:
+`SelfNarrative` (Phase 8.2), `CommitmentRegister` (Phase 9.4), `GlobalWorkspace`
+(Baars GWT mit AttentionBuffer/CompetitiveSelector), `CausalModel` + `HypothesisGenerator`
++ `InterventionRunner` + `Counterfactual` (Phase 10), `GoalHierarchy`/`HorizonPlanner`/
+`GoalRevisionEngine` (Phase 9). Der echte Gap ist **Verdrahtung & Aktivierung**, nicht Neubau.
+
+### 🔥 In Arbeit (heute, 2026-06-01)
+
+- [ ] **SelfReflector-Loop** — periodischer (120 s) Loom/Scheduler-Thread, der die
+  letzten ~20 Experiences aus `ShortTermMemory` an ein kleines Modell
+  (`granite4.1:3b`) gibt und 2 Sätze in `SelfNarrative` anhängt.
+  *Status quo:* `SelfNarrative` schreibt nur bei `dream` (nightly), `revision`,
+  `eval-flip` — **kein** kontinuierlicher Reflexions-Takt. (GLM-5.1, Bronxe, ChatGPT)
+- [ ] **CommitmentGuard im Hot-Path** — bestehendes `CommitmentRegister` ist
+  Conversational-Convenience. Ergänzen: Prüfung, dass HARD-Commitments nicht
+  stillschweigend verworfen werden (Begründungspflicht). (ChatGPT, Bronxe, miniMax)
+- [ ] **GlobalWorkspace Schattenmodus** — `GlobalWorkspace` existiert + wird im
+  `AgentCoreLoop` referenziert, aber kein Beobachtungs-Log. Ergänzen:
+  `workspace_log.jsonl` (read-only Mitschrift der Broadcasts) zur Auswertung,
+  ohne den CoreLoop umzubauen. (Gemini2, GLM-5.1, Qwen)
+
+### 🟡 Als Nächstes (2–4 Wochen)
+
+- [ ] **Episode-Verdichtung tagsformig** — `DreamConsolidation` läuft nur nightly
+  (03:00). Prüfen, ob ein zusätzlicher leichterer Konsolidierungstakt sinnvoll ist.
+- [ ] **CausalDreamer im Leerlauf** — bei Kanban-WIP < 2: zufällige Experience →
+  `HypothesisGenerator` aktiv triggern → Hypothese in Workspace pushen.
+  Bausteine (`HypothesisGenerator`, `InterventionRunner`, `CausalSafetyGate`) sind da. (GLM-5.1)
+- [ ] **PersonModel minimal** — Tabelle `persons`, Bootstrap Georg + Haus,
+  Default `trust_level=1`, Input-Guard differenziert. Lokal only, Lösch-Action. (Bronxe, miniMax)
+- [ ] **System 1 / System 2 Split** — CoreLoop reaktiv (100 ms) + asynchroner
+  Planner via Loom. ⚠️ Hohes Concurrency-Risiko (SQLite-WAL). Erst nach den Sofort-Punkten. (Gemini1)
+
+### 🔵 Später / Forschung
+
+- [ ] **PersonalityAnchor-Tripwire schärfen** — `PersonalityAnchor` existiert (Hash,
+  `isTampered()`). Watchdog-`ALERT`/`ROLLBACK` bei Narrative-Kernänderung ohne HITL
+  verdrahten, sobald SelfReflector autonom schreibt. (Bronxe, Claude4.8, GLM-5.1)
+- [ ] **3-Schichten-Goal-Stack festigen** — `GoalHorizon` (LIFETIME/STRATEGIC/
+  TACTICAL/OPERATIONAL) ist da; stündliche Tactical-Ableitung aus Narrative prüfen.
+- [ ] **Neue Eval-Kategorien** (Bronxe): `SELF_NARRATIVE.anchor_integrity` (HARD=1.0),
+  `LONG_HORIZON.goal_achieved_horizon7d` (HARD≥0.7), `CAUSAL.intervention_success_rate`
+  (SOFT≥0.5), `RELATIONSHIP.trust_calibration_error` (SOFT<0.2).
+
+### ⛔ Bewusst zurückgestellt (real, aber kurzfristig falscher Scope)
+
+- Rust/C++/Julia Active-Inference-Substrat via Panama FFM/gRPC (Qwen, Gemini1)
+- Neuro-symbolische Engine (ProbLog/Datalog/JNI) (Qwen)
+- "Sterblichkeit / Embodiment" als bewusst irreversibler State (Qwen) — gefährlich für Produktivsystem
+- Homeostatische Drives als verhaltenssteuernde Hot-Path-Attention (Qwen) — höchstens advisory
+
+**Leitplanke (Claude4.8):** Jede neue Schicht-1-Komponente braucht eine
+Eval-Harness-Metrik. Nicht testbar → Schicht 2 → nicht ins Sprint-Backlog.
+
+### ❓ Offene Design-Entscheidung (Grok — vor großem SelfReflector-Ausbau klären)
+
+Soll `SelfNarrative` **strikt append-only + Watchdog-geschützt** sein, oder darf
+Metis es begrenzt selbst editieren (mit Safeguards)? Folgenreichste Architekturwahl.
+Aktuell: append-only mit `MAX_ENTRY_BYTES`-Cap. → Tendenz append-only beibehalten.
+
+---
+
 ## 2026-06-01 — lfm2:24b als offizieller Reasoner
 
 12h-Live-A/B-Test abgeschlossen (`eval-reports/lfm2-vs-mistral-live-20260531.md`).

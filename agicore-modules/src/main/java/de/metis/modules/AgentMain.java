@@ -50,6 +50,9 @@ import de.metis.kernel.self.SystemPromptBuilder;
 import de.metis.kernel.goal.GoalHierarchy;
 import de.metis.kernel.goal.HorizonPlanner;
 import de.metis.kernel.goal.CommitmentRegister;
+import de.metis.kernel.goal.CommitmentGuard;
+import de.metis.kernel.workspace.WorkspaceShadowLogger;
+import de.metis.modules.self.SelfReflector;
 import de.metis.kernel.goal.GoalRevisionEngine;
 import de.metis.kernel.goal.LongHorizonGoal;
 import de.metis.kernel.goal.GoalHorizon;
@@ -1301,6 +1304,61 @@ public final class AgentMain {
         LOG.info("Phase 8 wired — episodes=" + episodicMemory.size()
                 + ", anchor=" + (personalityAnchor.isTampered() ? "TAMPERED" : "verified")
                 + ", next dream in " + initialDreamDelaySec + "s");
+
+        // ── Phase 8.6 — SelfReflector: kontinuierlicher innerer Monolog ──────
+        // Konvergente Empfehlung aus 9 KI-Reviews (2026-05-31): kleiner, schneller
+        // Reflexions-Takt schließt die Lücke zwischen nightly-dream und revision.
+        // Liest die letzten ~20 Experiences, verdichtet via granite4.1:3b zu 2
+        // Sätzen, hängt sie an SelfNarrative an (vom SystemPromptBuilder gelesen).
+        var selfReflector = new SelfReflector(
+                "http://192.168.22.204:11434", "granite4.1:3b",
+                selfNarrative,
+                () -> agent.memory().stm().recent(20),
+                () -> { var m = agent.metrics(); return m != null ? m.goalSuccessRate() : 0.5; });
+        var reflectScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+            var t = new Thread(r, "self-reflector");
+            t.setDaemon(true);
+            return t;
+        });
+        // Erste Reflexion nach 120 s, dann alle 120 s. Best-effort, schluckt Fehler.
+        reflectScheduler.scheduleAtFixedRate(() -> selfReflector.reflectOnce(),
+                120, 120, TimeUnit.SECONDS);
+        LOG.info("Phase 8.6 wired — SelfReflector every 120s (granite4.1:3b, append-only)");
+
+        // ── Phase 9.5 — CommitmentGuard: Schutz gegen leichtfertigen Bruch ──
+        // Deterministischer Wächter; vom Revision-/Planner-Pfad nutzbar, um
+        // HARD-Commitments (priority≥85, tag=commitment) nicht ohne Begründung
+        // nach ABANDONED zu wechseln. Vorerst beobachtend verdrahtet.
+        var commitmentGuard = new CommitmentGuard();
+        LOG.info("Phase 9.5 wired — CommitmentGuard active (hard-priority="
+                + CommitmentGuard.HARD_PRIORITY + ")");
+
+        // ── Phase 7.x — GlobalWorkspace Schattenmodus (read-only) ───────────
+        // Schreibt jeden Broadcast als JSONL-Zeile, ohne Verhalten zu ändern.
+        // Dient der Offline-Auswertung der Aufmerksamkeitskonkurrenz (Attention
+        // Hijacking, Kohärenz) vor einem späteren CoreLoop-Umbau auf GWT.
+        var workspaceShadow = new WorkspaceShadowLogger();
+        if (workspaceShadow.isEnabled()) {
+            var workspace = agent.workspace();
+            var shadowScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+                var t = new Thread(r, "workspace-shadow");
+                t.setDaemon(true);
+                return t;
+            });
+            // Snapshot des letzten Broadcasts alle 5 s mitschreiben (read-only).
+            shadowScheduler.scheduleAtFixedRate(() -> {
+                try {
+                    var bc = workspace.currentBroadcast();
+                    if (bc != null && !bc.isEmpty()) {
+                        workspaceShadow.log(bc, workspace.normalisedEntropy(),
+                                workspace.isAttentionStuck());
+                    }
+                } catch (Exception e) {
+                    LOG.fine("WorkspaceShadow tick failed (non-fatal): " + e.getMessage());
+                }
+            }, 30, 5, TimeUnit.SECONDS);
+            LOG.info("Phase 7.x wired — WorkspaceShadowLogger -> " + workspaceShadow.file());
+        }
 
         if (apiPort > 0) {
             httpServer = new MetisHttpServer(agent, apiPort);
