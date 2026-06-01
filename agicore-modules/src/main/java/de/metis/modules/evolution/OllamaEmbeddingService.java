@@ -45,6 +45,7 @@ public class OllamaEmbeddingService {
     private volatile int embedCount = 0;
     private volatile int cacheHits = 0;
     private volatile int cacheEvictions = 0;
+    private volatile int serviceUnavailable = 0;
 
     public OllamaEmbeddingService() {
         this(DEFAULT_MODEL, DEFAULT_CACHE_SIZE);
@@ -113,8 +114,19 @@ public class OllamaEmbeddingService {
 
             HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
 
+            if (response.statusCode() == 503) {
+                // Retry with exponential backoff (Ollama queue saturation)
+                for (int retry = 0; retry < 3; retry++) {
+                    long backoff = (long) (1000 * Math.pow(2, retry));
+                    Thread.sleep(backoff);
+                    response = http.send(request, HttpResponse.BodyHandlers.ofString());
+                    if (response.statusCode() == 200) break;
+                }
+            }
             if (response.statusCode() != 200) {
-                LOG.warning("Embedding API returned " + response.statusCode());
+                serviceUnavailable++;
+                LOG.warning("Embedding API returned " + response.statusCode()
+                        + " (total 503s: " + serviceUnavailable + ")");
                 return new double[0];
             }
 
@@ -184,6 +196,7 @@ public class OllamaEmbeddingService {
     public int embedCount() { return embedCount; }
     public int cacheHits() { return cacheHits; }
     public int cacheEvictions() { return cacheEvictions; }
+    public int serviceUnavailable() { return serviceUnavailable; }
     public int cacheSize() { return cache.size(); }
     public double cacheHitRate() {
         int total = embedCount + cacheHits;

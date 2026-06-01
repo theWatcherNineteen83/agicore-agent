@@ -762,6 +762,7 @@ public class MetisHttpServer {
                   "embeddingCacheHitRate": %.3f,
                   "embeddingCacheEvictions": %d,
                   "embeddingCalls": %d,
+                  "embedding503s": %d,
                   %s
                   %s
                 }
@@ -786,6 +787,7 @@ public class MetisHttpServer {
                 embeddingService != null ? embeddingService.cacheHitRate() : 0.0,
                 embeddingService != null ? embeddingService.cacheEvictions() : 0,
                 embeddingService != null ? embeddingService.embedCount() : 0,
+                embeddingService != null ? embeddingService.serviceUnavailable() : 0,
                 rollbackManager != null ? rollbackManager.healthJson() + "," : "",
                 bugfixingAgent != null ? bugfixingAgent.healthJson() : ""
         );
