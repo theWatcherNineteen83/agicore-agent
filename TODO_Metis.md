@@ -12,47 +12,37 @@ fordern, **existiert bereits** — sie kannten den Repo-Stand nicht:
 + `InterventionRunner` + `Counterfactual` (Phase 10), `GoalHierarchy`/`HorizonPlanner`/
 `GoalRevisionEngine` (Phase 9). Der echte Gap ist **Verdrahtung & Aktivierung**, nicht Neubau.
 
-### 🔥 In Arbeit (heute, 2026-06-01)
+### 🔥 Erledigt (heute, 2026-06-01)
 
-- [ ] **SelfReflector-Loop** — periodischer (120 s) Loom/Scheduler-Thread, der die
-  letzten ~20 Experiences aus `ShortTermMemory` an ein kleines Modell
-  (`granite4.1:3b`) gibt und 2 Sätze in `SelfNarrative` anhängt.
-  *Status quo:* `SelfNarrative` schreibt nur bei `dream` (nightly), `revision`,
-  `eval-flip` — **kein** kontinuierlicher Reflexions-Takt. (GLM-5.1, Bronxe, ChatGPT)
-- [ ] **CommitmentGuard im Hot-Path** — bestehendes `CommitmentRegister` ist
-  Conversational-Convenience. Ergänzen: Prüfung, dass HARD-Commitments nicht
-  stillschweigend verworfen werden (Begründungspflicht). (ChatGPT, Bronxe, miniMax)
-- [ ] **GlobalWorkspace Schattenmodus** — `GlobalWorkspace` existiert + wird im
-  `AgentCoreLoop` referenziert, aber kein Beobachtungs-Log. Ergänzen:
-  `workspace_log.jsonl` (read-only Mitschrift der Broadcasts) zur Auswertung,
-  ohne den CoreLoop umzubauen. (Gemini2, GLM-5.1, Qwen)
+- [x] **SelfReflector-Loop** — 120s-Takt via granite4.1:3b, schreibt reflect-Einträge
+  in SelfNarrative. Live auf miniedi. (GLM-5.1, Bronxe, ChatGPT)
+- [x] **CommitmentGuard** — deterministischer Wächter, HARD-Commitments nicht ohne
+  Begründung abbrechbar. 6 Tests grün. (ChatGPT, Bronxe, miniMax)
+- [x] **GlobalWorkspace Schattenmodus** — workspace_log.jsonl wächst produktiv.
+  Noch kein CoreLoop-Umbau — nur Beobachtung. (Gemini2, GLM-5.1, Qwen)
+- [x] **PersonModel komplett** (integrieren + verdrahten) — Person/Store/Trust/
+  RelationshipMemory/Empathy, 7 Tests, SystemPromptBuilder Gesprächspartner-Block,
+  TrustLevel→ApprovalGate, HTTP+Telegram PersonStore-Pflege. Phase 11 = 100%.
 
-### 🟡 Als Nächstes (2–4 Wochen)
+### 🟡 Als Nächstes (1–14 Tage, priorisiert nach Nutzen/Aufwand)
 
-- [ ] **Episode-Verdichtung tagsformig** — `DreamConsolidation` läuft nur nightly
-  (03:00). Prüfen, ob ein zusätzlicher leichterer Konsolidierungstakt sinnvoll ist.
-- [ ] **CausalDreamer im Leerlauf** — bei Kanban-WIP < 2: zufällige Experience →
-  `HypothesisGenerator` aktiv triggern → Hypothese in Workspace pushen.
-  Bausteine (`HypothesisGenerator`, `InterventionRunner`, `CausalSafetyGate`) sind da. (GLM-5.1)
-- [x] **PersonModel minimal + Verdrahtung** — ✅ Phase 11 komplett (Commits 52e68e4, 930ca14,
-  Tags v0.7.1, v0.7.2). Person/PersonStore/TrustLevel/RelationshipMemory/EmpathySignal
-  in `de.metis.kernel.person`, 7 Tests grün. Verdrahtung in SystemPromptBuilder
-  (Gesprächspartner-Block), Approval-Gate (TrustLevel→maxAutoApproval), Chat-Pfade
-  (HTTP+Telegram PersonStore-Pflege). Live auf miniedi: people.jsonl mit Georg OWNER.
-  Phase 11 zu 100% abgeschlossen. (Bronxe, miniMax, GLM-5.1)
-- [ ] **System 1 / System 2 Split** — CoreLoop reaktiv (100 ms) + asynchroner
-  Planner via Loom. ⚠️ Hohes Concurrency-Risiko (SQLite-WAL). Erst nach den Sofort-Punkten. (Gemini1)
+1. ☐ **lfm2 in REASONING_FAMILIES** (vor Mistral) + aus CODE_GEN_FAMILIES
+   → schneller Win, seit 12h-Live-Test überfällig.
+2. ☐ **System-Prompt-Tightening** gegen `{"thought":...,"action":...}`-Drift
+   → 2.7% plannerFallbacks eliminieren.
+3. ☐ **PersonalityAnchor-Tripwire** — Watchdog-ALERT/ROLLBACK bei Narrative-Drift.
+   Jetzt kritisch da SelfReflector autonom schreibt.
+4. ☐ **CausalDreamer im Leerlauf** — Kanban-WIP<2 → HypothesisGenerator triggern.
+   Bausteine (HypothesisGenerator, InterventionRunner, CausalSafetyGate) sind da.
+5. ☐ **Episode-Verdichtung tagsüber** — leichter Konsolidierungstakt zusätzlich
+   zum nightly Dream (03:00).
 
 ### 🔵 Später / Forschung
 
-- [ ] **PersonalityAnchor-Tripwire schärfen** — `PersonalityAnchor` existiert (Hash,
-  `isTampered()`). Watchdog-`ALERT`/`ROLLBACK` bei Narrative-Kernänderung ohne HITL
-  verdrahten, sobald SelfReflector autonom schreibt. (Bronxe, Claude4.8, GLM-5.1)
-- [ ] **3-Schichten-Goal-Stack festigen** — `GoalHorizon` (LIFETIME/STRATEGIC/
-  TACTICAL/OPERATIONAL) ist da; stündliche Tactical-Ableitung aus Narrative prüfen.
-- [ ] **Neue Eval-Kategorien** (Bronxe): `SELF_NARRATIVE.anchor_integrity` (HARD=1.0),
-  `LONG_HORIZON.goal_achieved_horizon7d` (HARD≥0.7), `CAUSAL.intervention_success_rate`
-  (SOFT≥0.5), `RELATIONSHIP.trust_calibration_error` (SOFT<0.2).
+- [ ] **3-Schichten-Goal-Stack festigen** — stündliche Tactical-Ableitung aus Narrative
+- [ ] **Neue Eval-Kategorien**: SELF_NARRATIVE, LONG_HORIZON, CAUSAL, RELATIONSHIP
+- [ ] **CausalModel-Hot-Path-Wiring** — Intervention→Observe→Update im CoreLoop
+- [ ] **System 1 / System 2 Split** — ⚠️ Concurrency-Risiko, nur wenn 1+2+3+4 stabil
 
 ### ⛔ Bewusst zurückgestellt (real, aber kurzfristig falscher Scope)
 
