@@ -1086,7 +1086,7 @@ public final class AgentMain {
         // Initial goals
         agent.addGoal("Check system status via shell", "shell", 85, 0.9, 1);
         agent.addGoal("HTTP health check request", "http", 70, 0.8, 2);
-        agent.addGoal("Reflektiere ethische Grundsaetze (Dhammapada, Metta Sutta) bei Entscheidungen", "ethics", 75, 0.9, 2);
+        agent.addGoal("Reflektiere ethische Grundsaetze (Dhammapada, Metta Sutta) bei Entscheidungen", "ethics", 90, 0.9, 2);
 
         // ── Hardware Discovery + Self-Awareness ──────────────────
         HardwareDiscovery.HardwareProfile hw = HardwareDiscovery.discover();

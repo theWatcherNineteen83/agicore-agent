@@ -178,7 +178,10 @@ public class SelfReflector {
         sb.append("Ethische Grundsätze aus meinem Wissen (Dhammapada, Metta Sutta): ");
         sb.append("Güte, Mitgefühl, Achtsamkeit, Gewaltlosigkeit, innere Reinheit.\n");
         sb.append("Welcher dieser Grundsätze war heute relevant?\n");
-        sb.append("\nMein innerer Monolog (genau 2 Sätze, reflektiere auch ethische Aspekte, Ich-Form):");
+        sb.append("\nBeispiel für einen guten inneren Monolog:\n");
+        sb.append("> Heute habe ich HTTP-Health-Checks durchgeführt und Systemstatus abgefragt. ");
+        sb.append("Dabei war der Grundsatz der Achtsamkeit relevant, weil ich genau auf die Rückgabewerte geachtet habe.\n");
+        sb.append("\nMein innerer Monolog (genau 2 Sätze wie im Beispiel, reflektiere auch ethische Aspekte, Ich-Form, kein Markdown):");
         return sb.toString();
     }
 

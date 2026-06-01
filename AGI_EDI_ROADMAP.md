@@ -569,9 +569,9 @@ Basierend auf Stash `prometheus-review-30.05` (13 Punkte).
 
 ### 🟡 Als Nächstes (1-7 Tage)
 
-1. **📝 Few-Shot-Beispiel im SelfReflector-Prompt** — Ein Beispiel einbauen, wie die ethische Reflexion aussehen soll. Aktuell rät das Modell das Format, was die holprigen Formulierungen erklärt. (Prompting kurz & gut, Kap. 3)
+1. [x] **📝 Few-Shot-Beispiel im SelfReflector-Prompt** ✅ — Ein Beispiel eingebaut, das natürliche Ich-Form + ethische Reflexion zeigt. (deployed)
 
-2. **🔒 Ethik-Goal vor Prio-Konflikt schützen** — Aktuell hat das Ethics-Goal Standard-Prio 75, konkurriert mit Health-Checks (Prio 85). Lösung: höhere Prio oder dedizierte ServiceClass für reflexive Ziele. (Kanban, David Anderson: Service-Klassen definieren)
+2. [x] **🔒 Ethik-Goal vor Prio-Konflikt schützen** ✅ — Priorität von 75 auf 90 erhöht (höher als Health-Checks mit 85). (deployed)
 
 3. **📊 Eval-Metrik für SelfReflector** — Neue Eval-Kategorie ETHICS, die prüft ob die Reflexionen ethische Grundsätze erwähnen. (Generative KI-Systeme entwickeln, Huyen Kap. 3+4)
 
