@@ -575,7 +575,7 @@ Basierend auf Stash `prometheus-review-30.05` (13 Punkte).
 
 3. **📊 Eval-Metrik für SelfReflector** — Neue Eval-Kategorie ETHICS, die prüft ob die Reflexionen ethische Grundsätze erwähnen. (Generative KI-Systeme entwickeln, Huyen Kap. 3+4)
 
-4. **🔄 Warmlauf des Ethik-Goals** — Goal ist in AgentMain registriert, muss aber ein paar Ticks durchlaufen bis der CoreLoop es aktiv verfolgt. Beobachten.
+4. [x] **🔄 CPU-Idle-Erkennung** ✅ — SystemHealthProbe checkt jetzt `/proc/loadavg` alle 60s. Bei 3× hintereinander idle (load < 0.5) → Log. `isSystemIdle()` public für zukünftige Goal-Trigger. (deployed)
 
 ### 🔵 Später
 - [ ] **PersonalityAnchor-Tripwire** — Watchdog-ALERT/ROLLBACK bei Narrative-Drift (jetzt kritisch da SelfReflector autonom schreibt)

@@ -37,6 +37,11 @@ public class SystemHealthProbe {
     private List<String> prevModels = List.of();
     private Instant lastDmesgCheck = Instant.EPOCH;
 
+    /** CPU Idle-Detection: counter for consecutive idle probes. */
+    private int idleCount = 0;
+    private static final double CPU_IDLE_THRESHOLD = 0.5;  // loadavg < 0.5 = idle
+    private static final int IDLE_TRIGGER_CONSECUTIVE = 3; // 3× = ~3 min idle
+
     public SystemHealthProbe(String ollamaUrl, int intervalSec) {
         this.ollamaUrl = ollamaUrl;
         this.intervalSec = intervalSec;
@@ -61,6 +66,7 @@ public class SystemHealthProbe {
     private void probe() {
         try {
             checkGpu();
+            checkCpuLoad();
             checkOllamaModels();
             checkDmesgTail();
         } catch (Exception e) {
@@ -108,6 +114,45 @@ public class SystemHealthProbe {
         } catch (Exception e) {
             LOG.fine("GPU probe: " + e.getMessage());
         }
+    }
+
+    // ── CPU Load & Idle Detection ────────────────────────────────
+
+    private void checkCpuLoad() {
+        try {
+            String loadStr = execCmd("cat /proc/loadavg 2>/dev/null | cut -d' ' -f1,2,3");
+            if (loadStr == null || loadStr.isBlank()) return;
+            String[] parts = loadStr.trim().split("\\s+");
+            if (parts.length < 3) return;
+            double load1 = Double.parseDouble(parts[0]);
+            double load5 = Double.parseDouble(parts[1]);
+            double load15 = Double.parseDouble(parts[2]);
+
+            boolean idle = load1 < CPU_IDLE_THRESHOLD && load5 < CPU_IDLE_THRESHOLD;
+            if (idle) {
+                idleCount++;
+                if (idleCount == IDLE_TRIGGER_CONSECUTIVE) {
+                    int cpus = Runtime.getRuntime().availableProcessors();
+                    LOG.info("⏳ CPU idle detected: load " + load1 + "/" + load5 + "/" + load15
+                            + " (" + cpus + " cores) — system unterfordert");
+                } else if (idleCount > IDLE_TRIGGER_CONSECUTIVE) {
+                    LOG.fine("CPU still idle: load " + load1 + "/" + load5 + "/" + load15);
+                }
+            } else {
+                if (idleCount >= IDLE_TRIGGER_CONSECUTIVE) {
+                    LOG.info("⏳ CPU no longer idle after " + idleCount + " cycles — load " + load1 + "/" + load5 + "/" + load15);
+                }
+                idleCount = 0;
+            }
+
+        } catch (Exception e) {
+            LOG.fine("CPU load probe: " + e.getMessage());
+        }
+    }
+
+    /** @return true if the system has been idle for at least IDLE_TRIGGER_CONSECUTIVE probes. */
+    public boolean isSystemIdle() {
+        return idleCount >= IDLE_TRIGGER_CONSECUTIVE;
     }
 
     // ── Ollama Model State ────────────────────────────────────────
