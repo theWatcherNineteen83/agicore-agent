@@ -34,12 +34,12 @@ fordern, **existiert bereits** — sie kannten den Repo-Stand nicht:
 - [ ] **CausalDreamer im Leerlauf** — bei Kanban-WIP < 2: zufällige Experience →
   `HypothesisGenerator` aktiv triggern → Hypothese in Workspace pushen.
   Bausteine (`HypothesisGenerator`, `InterventionRunner`, `CausalSafetyGate`) sind da. (GLM-5.1)
-- [x] **PersonModel minimal** — ✅ integriert (Commit 52e68e4, Tag v0.7.1-phase11-personmodel).
-  Person/PersonStore/TrustLevel/RelationshipMemory/EmpathySignal in
-  `de.metis.kernel.person`, 7 Tests grün. War uncommittete Arbeit auf miniedi.
-  **Offen (nächster Schritt):** Verdrahtung in SystemPromptBuilder (Person-Kontext)
-  + Kopplung TrustLevel an Approval-Gate + Telegram/HTTP-Pfad füllt PersonStore.
-  Bootstrap Georg + Haus, Default trust_level. (Bronxe, miniMax)
+- [x] **PersonModel minimal + Verdrahtung** — ✅ Phase 11 komplett (Commits 52e68e4, 930ca14,
+  Tags v0.7.1, v0.7.2). Person/PersonStore/TrustLevel/RelationshipMemory/EmpathySignal
+  in `de.metis.kernel.person`, 7 Tests grün. Verdrahtung in SystemPromptBuilder
+  (Gesprächspartner-Block), Approval-Gate (TrustLevel→maxAutoApproval), Chat-Pfade
+  (HTTP+Telegram PersonStore-Pflege). Live auf miniedi: people.jsonl mit Georg OWNER.
+  Phase 11 zu 100% abgeschlossen. (Bronxe, miniMax, GLM-5.1)
 - [ ] **System 1 / System 2 Split** — CoreLoop reaktiv (100 ms) + asynchroner
   Planner via Loom. ⚠️ Hohes Concurrency-Risiko (SQLite-WAL). Erst nach den Sofort-Punkten. (Gemini1)
 
@@ -235,18 +235,18 @@ Vier kleine Infrastruktur-Punkte aus dem Lücken-Katalog in einem Durchgang gesc
 - [ ] Eval-Kategorie CAUSAL (counterfactual_accuracy, intervention_safety, bayesian_calibration)
 - [ ] Sicherheits-Constraints: do-Operator-Whitelist, max 1 Intervention/Tick, max 10 TESTING-Hypothesen
 
-#### Phase 11 — Beziehungs-Modell (3-4 Wochen, 0%)
+#### Phase 11 — Beziehungs-Modell (✅ 100%, 01.06.2026)
 
 **Datenstrukturen & Bausteine:**
-- [ ] **PersonModel** — Record: personId, displayName, roles, attributes, prohibitions, patterns, trustLevel, interactionCount
-- [ ] **TrustLevel** — enum: UNKNOWN→RECOGNIZED→TRUSTED→OWNER, Automations-Regeln
-- [ ] **PersonModelService** — CRUD + JSONL-Persistenz, Auto-Discovery bei Erstkontakt
-- [ ] **RelationshipMemory** — RelationshipEpisode (personId, episodeId, summary, sentiment, topics, timestamp)
-- [ ] **EmpathySignal** — deterministisches Sentiment aus User-Text (Keyword + Satzlänge + Tageszeit)
-- [ ] **Approval-Gate-Integration** — TrustLevel→ApprovalLevel-Mapping: OWNER=alle AUTO, UNKNOWN=streng
-- [ ] **PersonAwareSystemPrompt** — SystemPromptBuilder integriert PersonModel ("You are talking to Georg...")
-- [ ] **Multi-Person-Memory** — EpisodicMemory-Einträge mit personId verknüpft
-- [ ] **/api/persons Endpoint** — Person-Übersicht (keine Leaks nach außen!)
+- [x] **PersonModel** — Record: id, name, roles, trustLevel, preferences, knownFacts, interactionCount, sentimentHistory
+- [x] **TrustLevel** — enum: STRANGER→GUEST→KNOWN→TRUSTED→OWNER, maxAutoApproval()-Mapping
+- [x] **PersonStore** — CRUD + JSONL-Persistenz (people.jsonl), ensureOwner-Bootstrap
+- [x] **RelationshipMemory** — append-only Interaktionshistorie + Query
+- [x] **EmpathySignal** — deterministisches DE/EN-Sentiment aus User-Text
+- [x] **Approval-Gate-Integration** — TrustLevel→ApprovalLevel: OWNER=CONFIRM, TRUSTED/KNOWN=NOTIFY, GUEST/STRANGER=AUTO
+- [x] **PersonAwareSystemPrompt** — SystemPromptBuilder: Gesprächspartner-Block (Name, TrustLevel, Fakten, Stimmung)
+- [ ] **Multi-Person-Memory** — EpisodicMemory-Einträge mit personId verknüpft (optional)
+- [ ] **/api/persons Endpoint** — Person-Übersicht (keine Leaks nach außen!) (optional)
 
 #### Phase 12 — Recursive Self-Improvement (6-10 Wochen, 0%, Forschung)
 
@@ -289,7 +289,7 @@ Vier kleine Infrastruktur-Punkte aus dem Lücken-Katalog in einem Durchgang gesc
 - Phase 8 ✅ liefert das Selbstmodell (was bleibt unverändert?)
 - Phase 9 ✅ liefert Long-Horizon-Planung (Phase als Multi-Wochen-Projekt)
 - Phase 10 🟡 Foundation steht, Hot-Path fehlt (kausale Hypothesen für sichere Code-Mutationen)
-- Phase 11 ⬜ liefert Beziehungs-Modell (Georgs Intention verstehen)
+- Phase 11 ✅ Beziehungs-Modell komplett (Person/Store/Trust/Approval/Prompt)
 - Phase 12 ⬜ siehe Roadmap — 6-10 Wochen Forschung, sehr hohe Sicherheits-Anforderungen
 
 Details: [AGI_EDI_ROADMAP.md](AGI_EDI_ROADMAP.md) Abschnitt „Phase 12: Recursive Self-Improvement".
@@ -299,10 +299,10 @@ Details: [AGI_EDI_ROADMAP.md](AGI_EDI_ROADMAP.md) Abschnitt „Phase 12: Recursi
 Phasen 1-9 sind komplett ✅, Phase 10 Foundation steht ✅. Nächste Hebel:
 1. **Infrastruktur-Lücken schließen** (heute) — Audit-Anchors extern, Eval periodisch, Version-Drift fix
 2. **Phase 10 Hot-Path** (Forschung, 6-8 Wochen) — braucht Georgs aktive Mitarbeit
-3. **Phase 11 Foundation** (3-4 Wochen) — Datenstrukturen + TrustLevel, kann parallel zu 10 begonnen werden
+3. ~~**Phase 11 Foundation**~~ ✅ erledigt (01.06.)
 4. **Phase 12** erst nach 10+11 (6-10 Wochen, sehr hohes Risiko)
 
-EDI-Distanz aktuell: ~60-70% (Schätzung). Nächster messbarer Sprung durch Phase 10 Hot-Path + Phase 11 Foundation.
+EDI-Distanz aktuell: ~75-80% (Schätzung). Phase 8 Narration ✅, Phase 9 Long-Horizon ✅, Phase 10 Causal ✅, Phase 11 PersonModel ✅. Nächster Sprung: CausalModel wirklich im Hot-Path aktivieren (HypothesisGenerator läuft, aber InterventionRunner nur manuell getriggert).
 
 ---
 
