@@ -179,6 +179,14 @@
     </build>
 
     <profiles>
+        <!--
+          GPU-only Profil. TornadoVmAction lebt in src/tornado/java und wird
+          NUR mit diesem Profil kompiliert. Grund: org.tornadovm:tornado-api
+          ist nicht in Maven Central und muss manuell installiert sein (GPU-Host).
+          Ohne Profil baut + testet agicore-modules überall sauber (z.B. miniedi,
+          CI), TornadoVmAction wird in AgentMain dann reflektiv übersprungen.
+          Mit -Ptornadovm-gpu (oder -Dtornadovm.enabled=true) kommt die GPU-Action rein.
+        -->
         <profile>
             <id>tornadovm-gpu</id>
             <activation>
@@ -199,6 +207,29 @@
                     <version>4.0.1-jdk21</version>
                 </dependency>
             </dependencies>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>build-helper-maven-plugin</artifactId>
+                        <version>3.6.0</version>
+                        <executions>
+                            <execution>
+                                <id>add-tornado-source</id>
+                                <phase>generate-sources</phase>
+                                <goals>
+                                    <goal>add-source</goal>
+                                </goals>
+                                <configuration>
+                                    <sources>
+                                        <source>src/tornado/java</source>
+                                    </sources>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
         </profile>
     </profiles>
 </project>

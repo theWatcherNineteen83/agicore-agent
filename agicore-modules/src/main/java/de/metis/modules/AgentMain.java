@@ -64,7 +64,8 @@ import de.metis.kernel.world.Counterfactual;
 import de.metis.kernel.world.CausalModel;
 import de.metis.modules.knowledge.LlmDreamSummarizer;
 import de.metis.modules.knowledge.LlmHorizonDecomposer;
-import de.metis.modules.hardware.TornadoVmAction;
+// TornadoVmAction lebt in src/tornado/java (Profil tornadovm-gpu) und wird
+// unten reflektiv registriert, damit der Build ohne GPU-Profil überall klappt.
 import de.metis.modules.multiagent.AgentCoordinator;
 import de.metis.modules.CuriosityEngine;
 import de.metis.kernel.metrics.FitnessSignal;
@@ -1120,9 +1121,19 @@ public final class AgentMain {
         agent.core().executor().register(dnAction);
         LOG.info("Registered action: " + dnAction.name() + " — Deep Netts neural networks");
 
-        var tvAction = new TornadoVmAction();
-        agent.core().executor().register(tvAction);
-        LOG.info("Registered action: " + tvAction.name() + " — TornadoVM GPU");
+        // TornadoVM-Action nur registrieren, wenn sie mitkompiliert wurde
+        // (Profil tornadovm-gpu). Sonst sauber überspringen — kein harter Bezug.
+        try {
+            var tvClass = Class.forName("de.metis.modules.hardware.TornadoVmAction");
+            var tvAction = (de.metis.kernel.action.Action) tvClass
+                    .getDeclaredConstructor().newInstance();
+            agent.core().executor().register(tvAction);
+            LOG.info("Registered action: " + tvAction.name() + " — TornadoVM GPU");
+        } catch (ClassNotFoundException e) {
+            LOG.info("TornadoVmAction not on classpath (built without tornadovm-gpu) — skipping GPU action");
+        } catch (Exception e) {
+            LOG.warning("TornadoVmAction registration failed: " + e.getMessage());
+        }
 
         // ── Multi-Agent Coordinator ────────────────────────────
         AgentCoordinator coordinator = new AgentCoordinator();
