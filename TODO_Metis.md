@@ -34,8 +34,12 @@ fordern, **existiert bereits** — sie kannten den Repo-Stand nicht:
 - [ ] **CausalDreamer im Leerlauf** — bei Kanban-WIP < 2: zufällige Experience →
   `HypothesisGenerator` aktiv triggern → Hypothese in Workspace pushen.
   Bausteine (`HypothesisGenerator`, `InterventionRunner`, `CausalSafetyGate`) sind da. (GLM-5.1)
-- [ ] **PersonModel minimal** — Tabelle `persons`, Bootstrap Georg + Haus,
-  Default `trust_level=1`, Input-Guard differenziert. Lokal only, Lösch-Action. (Bronxe, miniMax)
+- [x] **PersonModel minimal** — ✅ integriert (Commit 52e68e4, Tag v0.7.1-phase11-personmodel).
+  Person/PersonStore/TrustLevel/RelationshipMemory/EmpathySignal in
+  `de.metis.kernel.person`, 7 Tests grün. War uncommittete Arbeit auf miniedi.
+  **Offen (nächster Schritt):** Verdrahtung in SystemPromptBuilder (Person-Kontext)
+  + Kopplung TrustLevel an Approval-Gate + Telegram/HTTP-Pfad füllt PersonStore.
+  Bootstrap Georg + Haus, Default trust_level. (Bronxe, miniMax)
 - [ ] **System 1 / System 2 Split** — CoreLoop reaktiv (100 ms) + asynchroner
   Planner via Loom. ⚠️ Hohes Concurrency-Risiko (SQLite-WAL). Erst nach den Sofort-Punkten. (Gemini1)
 
