@@ -1367,6 +1367,24 @@ public final class AgentMain {
         }, 5, 5, TimeUnit.MINUTES);
         LOG.info("Phase 8.7 wired — PersonalityTripwire every 5 min");
 
+        // ── Phase 10.5 — CausalDreamer: Kausalhypothesen im Leerlauf ──
+        var casualDreamer = new de.metis.modules.self.CausalDreamer(
+                agent.memory(), agent.core().goals().kanbanBoard(),
+                hypothesisGenerator, hypothesisStore, selfNarrative);
+        var dreamerScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+            var t = new Thread(r, "causal-dreamer");
+            t.setDaemon(true);
+            return t;
+        });
+        dreamerScheduler.scheduleAtFixedRate(() -> {
+            try {
+                casualDreamer.dreamOnce();
+            } catch (Exception e) {
+                LOG.warning("CausalDreamer tick failed (non-fatal): " + e.getMessage());
+            }
+        }, 180, 120, TimeUnit.SECONDS);
+        LOG.info("Phase 10.5 wired — CausalDreamer every 2 min (WIP<2 trigger)");
+
         // ── Phase 9.5 — CommitmentGuard: Schutz gegen leichtfertigen Bruch ──
         // Deterministischer Wächter; vom Revision-/Planner-Pfad nutzbar, um
         // HARD-Commitments (priority≥85, tag=commitment) nicht ohne Begründung
