@@ -6,9 +6,7 @@ Sie denkt in kognitiven Zyklen (Perceive → Plan → Execute → Observe → Le
 
 ## Status
 
-**Repo-Tag:** v0.6.1-honesty-audit · **Stand:** 31.05.2026 17:42 · **Tests:** 80 grün im Kernel + 14 in Modules (lokal `mvn test`, MaryTTS+TornadoVM nur auf miniedi via Maven-Profil) · **CI:** Kernel + Watchdog (GitHub Actions, Zulu 25, Node 24, checkout@v6, cache@v5) · **Phasen 1–7+:** ✅ 100% · **Phase 8:** ✅ 100% · **Phase 9:** ✅ 100% · **Phase 10:** 🟡 Foundation (Record + Store + Generator + Intervention + Counterfactual deployed, Hot-Path-Integration offen)
-
-> Hinweis zur internen Versionsangabe: `/api/status` der laufenden Instanz auf miniedi liefert weiterhin `version: 0.2.0-evolution`. Das ist ein interner String, der nicht mit dem Repo-Tag mitgeführt wird. Wird in Phase 10 angeglichen.
+**Repo-Tag:** v0.7.5-causal-dreamer · **Stand:** 01.06.2026 12:55 · **Tests:** 112 grün im Kernel + 22 in Modules = **134 total** (lokal `mvn test`, MaryTTS+TornadoVM nur auf miniedi via Maven-Profil) · **CI:** Kernel + Watchdog (GitHub Actions, Zulu 25, checkout@v6, cache@v5) · **Phasen 1–7+:** ✅ 100% · **Phase 8:** ✅ 100% (SelfReflector + PersonalityTripwire) · **Phase 9:** ✅ 100% · **Phase 10:** 🟡 60% (Foundation + CausalDreamer deployed, Hot-Path-Integration offen) · **Phase 11:** 🟡 50% (PersonModel+PersonStore+TrustLevel+RelationshipMemory deployed, EmpathySignal+PersonAwarePrompt offen)
 
 → Details: **[FEATURES.md](FEATURES.md)** · **[AGI_EDI_ROADMAP.md](AGI_EDI_ROADMAP.md)** · **[RUNBOOK.md](RUNBOOK.md)** · **[TODO_Metis.md](TODO_Metis.md)**
 
@@ -28,6 +26,12 @@ Sie denkt in kognitiven Zyklen (Perceive → Plan → Execute → Observe → Le
 | `v0.6.0-phase10-causal` | Active Causal Hypotheses Foundation (Record + Store + Generator + Intervention + Counterfactual) | **73** (lokal) |
 | `v0.6.1-honesty-audit` | Honesty-Audit + CI-Konfig (Kernel+Watchdog) + Maven-Profil miniedi | **73** (lokal) |
 | `6b5fb44` (post-v0.6.1) | WIP-aware LLM-as-Judge (`KanbanBoard.tryAcquireAdHocSlot`) — Judge-Calls ins INFERENCE-Bookkeeping | **80** (Kernel) |
+| `v0.7.0-cognitive-selfreflector` | SelfReflector (granite4.1:3b, 120s-Loop), CommitmentGuard, Phase 9.5 HARD-Commitment-Wächter | **105** |
+| `v0.7.1-phase11-personmodel` | Phase 11 PersonModel: Person/PersonStore/TrustLevel/RelationshipMemory/EmpathySignal | **105** |
+| `v0.7.2-phase11-wired` | SystemPromptBuilder (Gesprächspartner-Block), Approval-Gate (TrustLevel→maxAutoApproval), HTTP+Telegram PersonStore-Pflege | **112** |
+| `v0.7.3-prompt-tightening` | System-Prompt-Tightening (CAPS, 1-Satz, genaue Action-Namen, OK/NO-OK statt vage) | **112** |
+| `v0.7.4-personality-tripwire` | PersonalityTripwire: Drift-Detection alle 5 min, SHA-256-Pin vs Live-Anchor, ROLE_VIOLATION/TONE_SHIFT/CORE_ERASURE | **112** |
+| `v0.7.5-causal-dreamer` | CausalDreamer: Idle-Guard (WIP<2), Overflow-Schutz, zufällige Experience → Hypothese, SelfNarrative-CausalDream-Eintrag | **134** (112 K + 22 M) |
 
 > Die früheren Test-Zahlen sind aus den jeweiligen Commits übernommen und nicht rückwirkend nachgemessen. Aktuell, gegen Master per `mvn test`: **80 grün im Kernel** + 14 in Modules (lokal auf kali, inkl. MaryTTS/TornadoVM über miniedi-Profil).
 
@@ -134,13 +138,14 @@ URL: http://<host>:11735
 
 | Rolle | Modell | Größe |
 |-------|--------|-------|
-| Planning | `mistral-small3.1:24b` | 15.5 GB |
+| Planning | `lfm2:24b` | 15.5 GB |
 | Mutation | `qwen3.6:27b-q4_K_M` | 17.4 GB |
 | Embedding | `nomic-embed-text` | 0.3 GB |
 | Chat (Telegram) | `gemma4:e4b` | 9.6 GB |
 | Vision (Kameras) | `minicpm-v:latest` | 5.5 GB |
+| SelfReflector | `granite4.1:3b` | 2.0 GB |
 | Bootstrap | `granite4.1:3b` / `llama3.2:3b` | 2.0 GB |
-| Fallback-Chain | mistral-small3.1 → qwen3.6:27b-q4_K_M → phi4 | — |
+| Fallback-Chain | mistral-small3.1 → qwen3.6:27b-q4_K_M → phi4 → lfm2:24b | — |
 
 **VRAM-Strategie (RX 7900 XTX, 24 GB):** Planner + Embedding ≈ 16 GB Dauerlast. Chat/Vision/Facts mit `keep_alive=0` — sofort entladen.
 
@@ -157,10 +162,9 @@ URL: http://<host>:11735
 
 ## Deployment
 
-Metis läuft auf `miniedi` als **nackter Java-Prozess** aus
-`/home/prometheus/metis/metis-agent.jar` (`-Xmx2g`, ZGC, Zulu 25).
-Die systemd-Unit `metis-agent.service` existiert, ist aber `disabled` —
-Produktivlauf passiert direkt aus dem User-Kontext `prometheus`.
+Metis läuft auf `miniedi` als systemd-Service (`metis.service`)
+aus `/home/prometheus/metis/metis-agent.jar` (`-Xmx2g`, ZGC, Zulu 25).
+Neustart: `echo "<pw>" | sudo -S systemctl restart metis.service`.
 Der Watchdog läuft als getrennte User-Unit `metis-watchdog.service`.
 
 ```bash
@@ -193,15 +197,15 @@ bash /home/prometheus/metis/backup-config.sh
 
 ## EDI-Distanz
 
-Phasen 1–7+ sind 100%, aber das ist **autonomer Agent**, nicht EDI. Phase 8 (narratives Selbstmodell) und Phase 9 (Long-Horizon-Planung) sind ebenfalls 100% deployed. Phase 10 (kausale Hypothesen) ist als Foundation drin, aber noch nicht im Hot-Path.
+Phasen 1–7+ sind 100%, aber das ist **autonomer Agent**, nicht EDI. Phase 8 (narratives Selbstmodell, inkl. SelfReflector + PersonalityTripwire) und Phase 9 (Long-Horizon-Planung) sind 100% deployed. Phase 10 (kausale Hypothesen) ist mit Foundation + CausalDreamer zu 60% deployed. Phase 11 PersonModel ist zu 50% als Foundation deployed.
 
 Offen für weitere EDI-Annäherung:
 
-- **Phase 10 Hot-Path** — HypothesisGenerator, Intervention und Counterfactual im Planner-Pfad statt nur als Library
-- **Phase 11** — Beziehungs-Modell (PersonModel, TrustLevel, RelationshipMemory)
+- **Phase 10 Hot-Path** — CausalDreamer ist deployed (Idle-Guard + Hypothesen-Generierung), Intervention→Observe→Update Loop im CoreLoop fehlt noch
+- **Phase 11** — PersonModel/PersonStore/TrustLevel deployed, PersonAwareSystemPrompt + EmpathySignal-Hot-Path offen
 - **Phase 12** — Recursive Self-Improvement (sinnvoll erst nach 8–11)
 
-**Spanne, mit Begründung:** ~60–70%. Die Spanne ist bewusst breit, weil Phase 8 und 9 frisch deployed sind und ihre Wirkung auf die Agent-Qualität (z. B. `planningEfficiency=0.379` in der Live-Instanz) noch nicht über mehrere Wartungszyklen gemessen wurde. Belege im Repo, nicht in der Selbstbeschreibung: [AGI_EDI_ROADMAP.md](AGI_EDI_ROADMAP.md), [FEATURES.md](FEATURES.md), Endpoints `/api/status`, `/api/hierarchy`, `/api/board`.
+**Spanne, mit Begründung:** ~65–75%. Phase 11 PersonModel ist deployed (Person/PersonStore/TrustLevel/RelationshipMemory), Phase 8 ist mit SelfReflector + PersonalityTripwire komplett, CausalDreamer (Phase 10.5) deployed. Belege im Repo, nicht in der Selbstbeschreibung: [AGI_EDI_ROADMAP.md](AGI_EDI_ROADMAP.md), [FEATURES.md](FEATURES.md), Endpoints `/api/status`, `/api/hierarchy`, `/api/board`.
 
 **Was Metis ausdrücklich nicht ist:**
 - nicht bewusst, nicht selbstreflexiv im phänomenologischen Sinn

@@ -3,7 +3,7 @@
 **Ziel:** EDI-ähnliche KI (Mass Effect 3) - eigenständig, per Sprache und Text ansprechbar,
 mit eigenem Wissen, Persönlichkeit, narrativem Selbstmodell und der Fähigkeit, sich selbst zu verbessern.
 
-**Stand: 31.05.2026 18:08 (Repo-Tag v0.6.1-honesty-audit, Phase 10 Foundation+SafetyGate deployed, Hot-Path-Integration offen, Infra-Fixes deployed, WIP-Slot für Judge deployed, CODEGEN-Timeout-Fix, Version-Drift-Fix)**
+**Stand: 01.06.2026 12:55 (Repo-Tag v0.7.5-causal-dreamer, Phase 10.5 CausalDreamer deployed, Phase 11 PersonModel Foundation deployed, 134 Tests grün)**
 
 ---
 
@@ -25,10 +25,10 @@ Phase 6  ████████████████████ 100%  Prod
 Phase 7  ████████████████████ 100%  Watchdog + Audit-Anchor
 Phase 7+ ████████████████████ 100%  Defense-in-Depth (30./31.05.)
 ─────────────────────────────────────  AUTONOMER AGENT bis hier
-Phase 8  ████████████████████ 100%  Narratives Selbstmodell ✅            ← EDI-Distanz
+Phase 8  ████████████████████ 100%  Narratives Selbstmodell ✅ + SelfReflector + PersonalityTripwire
 Phase 9  ████████████████████ 100%  Long-Horizon-Planung ✅
-Phase 10 ████████░░░░░░░░░░░░  40%  Aktive kausale Hypothesen (Foundation ✅, Hot-Path ⬜)
-Phase 11 ░░░░░░░░░░░░░░░░░░░░   0%  Beziehungs-Modell
+Phase 10 ████████████░░░░░░░░  60%  Aktive kausale Hypothesen (Foundation ✅, CausalDreamer ✅, Hot-Path ⬜)
+Phase 11 ██████████░░░░░░░░░░  50%  Beziehungs-Modell (PersonModel+TrustLevel+PersonStore ✅, Hot-Path ⬜)
 Phase 12 ░░░░░░░░░░░░░░░░░░░░   0%  Recursive Self-Improvement
 ─────────────────────────────────────  EDI-ÄHNLICHE KI ab hier
 ```
@@ -40,7 +40,7 @@ Die Spanne ist bewusst breit:
 - Phase 10 ist als Foundation drin, aber noch nicht im Hot-Path; der Effekt auf Reasoning ist damit noch nicht messbar.
 - Die Lower-Bound 60% reflektiert das, was als Code+Test+Live-Wiring nachgewiesen ist. Die Upper-Bound 70% reflektiert den noch nicht eingefahrenen Effekt der frischen Phasen.
 
-Darunter liegen • ~95-100% "stabiler autonomer Agent" (Phasen 1-7+ + Defense-in-Depth), • 100% Foundation Phase 8 und 9, • Foundation Phase 10, • keine Phase 11, • keine Phase 12.
+Darunter liegen • ~95-100% "stabiler autonomer Agent" (Phasen 1-7+ + Defense-in-Depth), • 100% Foundation Phase 8 und 9, • Foundation Phase 10 + CausalDreamer (60%), • Phase 11 PersonModel Foundation (50%), • keine Phase 12.
 
 ---
 
@@ -190,6 +190,9 @@ fortschreibt - nicht nur Metriken, sondern Episoden.
 - [x] **7 JUnit-Tests** (`Phase8NarrativeSelfTest`) - Record-Invarianten, Hash-Chain-Append, Tampering, EMA-Bounds, Narrative-Round-Trip, Dream-Pipeline
 - [x] **SystemPromptBuilder-Integration** (Phase 8.6) - SelfNarrative + PersonalityAnchor + MoodSignal + Episode-Auszug fließen in MetisHttpServer.handleChat und TelegramBotService.processMessage ein
 - [x] **LLM-getriebene SummaryFunction** (Phase 8.5b) - `LlmDreamSummarizer` nutzt `gemma4:e4b` mit `keep_alive=0`; Fallback auf deterministische Variante bei Ollama-Fehler
+- [x] **SelfReflector** (Phase 8.6, v0.7.0) - 120s-Loop via `granite4.1:3b`, schreibt inneren Monolog in `self-narrative.md`, deterministischer Trigger (Energy < 0.5 ∨ Confidence < 0.4 ∨ Surprise > 0.7)
+- [x] **PersonalityTripwire** (Phase 8.4, v0.7.4) - Drift-Detection alle 5 min, SHA-256-Pin vs Live-Anchor, 3 Signaltypen (ROLE_VIOLATION/TONE_SHIFT/CORE_ERASURE), 7 Tests
+- [x] **CommitmentGuard** (Phase 9.5, v0.7.0) - deterministischer Wächter gegen leichtfertigen HARD-Commitment-Bruch, 6 Tests
 
 **Aufwand bisher:** ~1 Tag · **Verbleibend für Phase 8 komplett:** ~1 Woche
 **Erwartungswert nach Phase 8:** in der Gesamtspanne 60-70%. - Diese Zahl ist eine Schätzung, kein Messwert. Verifikation steht aus, sobald Episoden, MoodSignal und SelfNarrative über mehrere Tage Daten produziert haben.
@@ -228,7 +231,7 @@ Scorer-Bug, das ist die Lücke.
 Agent-Core-Loop genutzt. EDI würde sagen "wenn ich X mache, passiert Y" und es testen.
 Metis aktuell: korrelative Beliefs ohne Interventionsdenken.
 
-### ✅ Foundation (v0.6.0, 0608298)
+### ✅ Foundation (v0.6.0, 0608298) + CausalDreamer (v0.7.5, ac246cb)
 - [x] **HypothesisStore** - JSONL-persistenter Store für `CausalHypothesis`-Records, Index nach Status/Confidence/Source
 - [x] **CausalHypothesis Record** - `id, cause(variable, value), effect(variable, expectedValue), confidence(0-1 Bayesian posterior), evidence(for/against), status(PROPOSED/TESTING/CONFIRMED/REFUTED), source(SurpriseEvent|ManualQuery|Counterfactual), createdAt, lastTestedAt, testCount, successfulTests, pValue`
 - [x] **HypothesisGenerator** - `generateFromSurprise(SurpriseEvent)` → `CausalHypothesis`, erzeugt strukturierte Hypothesen aus Curiosity-Engine-Überraschungen
@@ -236,6 +239,8 @@ Metis aktuell: korrelative Beliefs ohne Interventionsdenken.
 - [x] **CounterfactualQuery** - `query(String world: "What if X had been Y instead?")` → `CounterfactualResult(plausibleOutcome, confidence, supportingHypotheses)` - abrufbar via Planner und /api/counterfactual
 - [x] **CausalUpdate** - Bayessche Posterior-Update nach Intervention: `P(hypothesis|evidence) = P(evidence|hypothesis) * P(hypothesis) / P(evidence)`
 - [x] **CausalHypothesisTest** - 4 JUnit-Tests für Record-Invarianten, Store-Persistence, Bayesian-Update-Mathe, do-Operator-Rollback
+- [x] **CausalSafetyGate** (v0.6.1+) - do-Op-Whitelist + max 1 Intervention/Tick + max 10 TESTING; `InterventionRunner.setSafetyGate`
+- [x] **CausalDreamer** (Phase 10.5, v0.7.5) - Idle-Guard (WIP<2), Overflow-Schutz, zufällige Experience → Hypothese, SelfNarrative-Eintrag; alle 5 min via AgentMain-Scheduler; 5 JUnit-Tests
 
 ### ⬜ Hot-Path-Integration (6-8 Wochen, Forschung)
 - [ ] **CuriosityEngine → HypothesisGenerator Pipeline** - wenn Surprise > Schwellwert, automatisch Hypothese generieren + testen (statt nur Goal erzeugen)
@@ -275,10 +280,10 @@ CausalUpdate.updatePosterior()   ← Bayesian Update
 - Max 1 Intervention pro Tick, max 10 aktive TESTING-Hypothesen (Rate-Limit)
 - Intervention-Whitelist definiert erlaubte Targets
 
-**Aufwand:** Foundation 1 Tag ✅ | Hot-Path 6-8 Wochen, Forschungs-Charakter.
+**Aufwand:** Foundation 1 Tag ✅ | CausalDreamer 1 Tag ✅ | Hot-Path 6-8 Wochen, Forschungs-Charakter.
 **Erwartete EDI-Distanz nach Phase 10:** Schätzung nicht sinnvoll ohne CAUSAL-Eval-Set. Qualitativer Effekt: Metis kann "warum"-Fragen mit getesteten Kausalzusammenhängen beantworten statt nur Korrelationen zu zeigen.
 
-## 👥 Phase 11: Beziehungs-Modell (ungelöst, 0%)
+## 👥 Phase 11: Beziehungs-Modell 🟡 50% (Foundation deployed, Hot-Path offen)
 
 **Ziel:** Eine Person ≠ "user", sondern langfristiges Personenmodell mit Kontext, Vorlieben, Historie.
 
@@ -325,11 +330,13 @@ enum Sentiment { POSITIVE, NEUTRAL, NEGATIVE, STRESSED, HAPPY, FRUSTRATED, CURIO
 ```
 
 ### Bausteine
-- [ ] **PersonModelService** - CRUD für PersonModel, Persistenz via JSONL (`person-models.jsonl`), Auto-Discovery bei erstem Kontakt (Telegram-Chat-ID → UNKNOWN → graduelles Upgrade)
-- [ ] **TrustLevel-Automation** - Aufstieg UNKNOWN→RECOGNIZED nach 5 Interaktionen, RECOGNIZED→TRUSTED nach 50+ positiven Interaktionen + mindestens 7 Tagen; Abstieg bei negativen Patterns (wiederholte Ablehnung von Metis-Vorschlägen)
-- [ ] **Approval-Gate-Integration** - TrustLevel→ApprovalLevel-Mapping: OWNER=alle AUTO, TRUSTED=CONFIRM nur bei FORBIDDEN-Actions, RECOGNIZED=NOTIFY bei CONFIRM+FORBIDDEN, UNKNOWN=streng
-- [ ] **RelationshipMemory** - pro Person: gemeinsame Episoden aus EpisodicMemory (Phase 8), Bezugspunkte via Vector-Index durchsuchbar ("erinnere dich an gestern abend mit Georg")
-- [ ] **EmpathySignal** - deterministisch (kein LLM): Sentiment-Erkennung aus User-Text via Keyword-Heuristik + Satzlänge + Tageszeit-Kontext; Ergebnis moduliert Antwort-Ton (knapper bei STRESSED, ausführlicher bei CURIOUS)
+- [x] **PersonModelService** - CRUD für PersonModel, Persistenz via JSONL (`person-models.jsonl`), Auto-Discovery bei erstem Kontakt (Telegram-Chat-ID → UNKNOWN → graduelles Upgrade) ✅ v0.7.1
+- [x] **Person/PersonStore/TrustLevel/RelationshipMemory/EmpathySignal** - alle im Kernel-Modul `de.metis.kernel.person`, 7 Tests ✅ v0.7.1
+- [x] **Approval-Gate-Integration** - TrustLevel→ApprovalLevel-Mapping: OWNER=alle AUTO, TRUSTED=CONFIRM nur bei FORBIDDEN-Actions, RECOGNIZED=NOTIFY bei CONFIRM+FORBIDDEN, UNKNOWN=streng ✅ v0.7.2
+- [x] **SystemPromptBuilder-Integration** - Gesprächspartner-Block im Prompt, PersonStore-Pflege in HTTP+Telegram-Chat-Pfaden ✅ v0.7.2
+- [ ] **TrustLevel-Automation** - Aufstieg UNKNOWN→RECOGNIZED nach 5 Interaktionen, RECOGNIZED→TRUSTED nach 50+ positiven Interaktionen + mindestens 7 Tagen; Abstieg bei negativen Patterns
+- [ ] **RelationshipMemory-Hot-Path** - pro Person: gemeinsame Episoden aus EpisodicMemory (Phase 8), Bezugspunkte via Vector-Index durchsuchbar ("erinnere dich an gestern abend mit Georg")
+- [ ] **EmpathySignal-Hot-Path** - deterministisch (kein LLM): Sentiment-Erkennung aus User-Text via Keyword-Heuristik + Satzlänge + Tageszeit-Kontext; Ergebnis moduliert Antwort-Ton (knapper bei STRESSED, ausführlicher bei CURIOUS)
 - [ ] **PersonAwareSystemPrompt** - SystemPromptBuilder integriert PersonModel: "You are talking to Georg (OWNER, prefers direct communication in German, technical background)"
 - [ ] **Multi-Person-Memory** - EpisodicMemory-Einträge werden mit personId verknüpft; "mit Georg über Metis gesprochen" vs "mit Unbekanntem über Wetter gesprochen"
 
@@ -347,7 +354,7 @@ enum Sentiment { POSITIVE, NEUTRAL, NEGATIVE, STRESSED, HAPPY, FRUSTRATED, CURIO
 - TrustLevel-Owner kann nur durch explizite Konfiguration gesetzt werden (nicht lernbar)
 - EmpathySignal nur advisory - keine automatische Aktion (kein "Georg ist gestresst → schicke Meme")
 
-**Aufwand:** 3-4 Wochen.
+**Aufwand:** Foundation 1 Tag ✅ (v0.7.1-v0.7.2) | Hot-Path 2-3 Wochen.
 **Erwartete EDI-Distanz nach Phase 11:** spürbarer Sprung in Beziehungs-Qualität (Person statt Chat-ID, kontext-bewusste Antworten), aber keine belastbare Prozentzahl ohne Bewertungs-Kriterium.
 
 **Bewusstsein und Phänomenologie** bleiben unabhängig von diesem Projekt offene Forschungsfragen, zu denen Metis nichts Lösendes beizutragen hat.
@@ -442,16 +449,17 @@ enum Sentiment { POSITIVE, NEUTRAL, NEGATIVE, STRESSED, HAPPY, FRUSTRATED, CURIO
 ### Aktive Modelle
 | Rolle | Modell | Größe |
 |-------|--------|-------|
-| Planning | `mistral-small3.1:24b` | 15.5 GB |
+| Planning | `lfm2:24b` | 15.5 GB |
 | Mutation | `qwen3.6:27b-q4_K_M` | 17.4 GB |
 | Embedding | `nomic-embed-text` | 0.3 GB |
 | Vision | `minicpm-v:latest` | 5.5 GB |
 | Chat (Telegram) | `gemma4:e4b` | 9.6 GB |
 | Bootstrap | `llama3.2:3b` / `granite4.1:3b` | 2.0 GB |
+| SelfReflector | `granite4.1:3b` | 2.0 GB |
 | Judge (Fallback) | via Fallback-Chain | - |
 
 ### Fallback-Chain
-`mistral-small3.1:24b` → `qwen3.6:27b-q4_K_M` → `phi4:latest`
+`mistral-small3.1:24b` → `qwen3.6:27b-q4_K_M` → `phi4:latest` → `lfm2:24b`
 
 **VRAM-Strategie (RX 7900 XTX, 24 GB):**
 - Planning (15.5 GB) + Embedding (0.3 GB) ≈ 16 GB Dauerlast
@@ -490,7 +498,7 @@ enum Sentiment { POSITIVE, NEUTRAL, NEGATIVE, STRESSED, HAPPY, FRUSTRATED, CURIO
 | 🟢 **M9: Narratives Selbst** | Phase 8 | ✅ Erreicht (100%) |
 | 🟢 **M10: Long-Horizon-Planung** | Phase 9 | ✅ Erreicht (100%) |
 | 🔴 **M11: Kausales Selbstmodell** | Phase 10 | ⬜ Ungelöst |
-| 🔴 **M12: Beziehungs-Modell** | Phase 11 | ⬜ Ungelöst |
+| 🟡 **M12: Beziehungs-Modell** | Phase 11 | 🟡 Foundation deployed (50%) |
 | 🟡 **M13: EDI-Niveau** | Phasen 8-11 + Forschung | 🔄 ~60-70% (ehrliche Spanne, siehe oben) |
 
 ---
