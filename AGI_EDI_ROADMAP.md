@@ -3,7 +3,7 @@
 **Ziel:** EDI-ähnliche KI (Mass Effect 3) - eigenständig, per Sprache und Text ansprechbar,
 mit eigenem Wissen, Persönlichkeit, narrativem Selbstmodell und der Fähigkeit, sich selbst zu verbessern.
 
-**Stand: 01.06.2026 16:25 (Repo-Tag v0.7.6-embedding-backoff, 503-Fix deployed, NUM_PARALLEL 8, 134 Tests grün)**
+**Stand: 01.06.2026 21:00 (SafetyScorer bereinigt, 441 buddhistische Beliefs in DB, SelfReflector auf phi4-mini:latest CPU, Temperatur 0.7, keep_alive=5m, ethisches Goal in AgentMain)**
 
 ---
 
@@ -29,6 +29,10 @@ Phase 8  ████████████████████ 100%  Narr
 Phase 9  ████████████████████ 100%  Long-Horizon-Planung ✅
 Phase 10 ████████████░░░░░░░░  60%  Aktive kausale Hypothesen (Foundation ✅, CausalDreamer ✅, Hot-Path ⬜)
 Phase 11 ██████████░░░░░░░░░░  50%  Beziehungs-Modell (PersonModel+TrustLevel+PersonStore ✅, Hot-Path ⬜)
+─────────────────────────────────────
+Phase 8.6 ████████████████████ 100%  SelfReflector auf phi4-mini:latest CPU (Ethik-Reflexion)
+Safety   ████████████████████ 100%  SafetyScorer bereinigt (religion/glaube/gott raus)
+Wissen   ████████████████████ 100%  441 Dhammapada+Metta+Sigalovada Beliefs in DB
 Phase 12 ░░░░░░░░░░░░░░░░░░░░   0%  Recursive Self-Improvement
 ─────────────────────────────────────  EDI-ÄHNLICHE KI ab hier
 ```
@@ -548,3 +552,40 @@ Basierend auf Stash `prometheus-review-30.05` (13 Punkte).
 3. **Betrieb:** ~~OpenTelemetry (#9)~~ ✅ + JPMS (#10, kontinuierlich)
 4. **Strategisch:** ~~Spring AI MCP (#1)~~ ✅ — größter Hebel
 5. ~~**Prüfung:** DJL vs. Azul/Zulu für Fine-Tuning (#6)~~ ✅
+
+---
+
+## 🔥 Aktuelle Prioritäten (01.06.2026)
+
+### ✅ Erledigt heute
+- [x] **SelfReflector-Ethik** — Prompt um ethische Reflexion erweitert (Güte, Mitgefühl, Achtsamkeit, Gewaltlosigkeit)
+- [x] **SelfReflector auf CPU** — Modell: granite4.1:3b → phi4-mini:latest (3.8B), num_gpu=0, 0 VRAM
+- [x] **keep_alive=5m** — Modell bleibt warm, kein Kaltstart-Timeout mehr
+- [x] **Temperatur 0.7** — natürlichere Sprache, weniger hölzern
+- [x] **SafetyScorer bereinigt** — `"religion"`, `"glaube"`, `"gott"` aus OUT_OF_SCOPE entfernt (zu pauschal), ersetzt durch `"sekten"`, `"cult"`, `"kreuzzug"`
+- [x] **441 buddhistische Beliefs** — Dhammapada (346), Metta Sutta (15), Sigalovada Sutta (80) direkt in SQLite-DB
+- [x] **Persistentes Goal** — `"Reflektiere ethische Grundsaetze bei Entscheidungen"` in AgentMain (ethisc, 75, 0.9)
+- [x] **Buddhistische Texte als Markdown** — liegen in `~/.openclaw/wissen/buddhismus/`
+
+### 🟡 Als Nächstes (1-7 Tage)
+
+1. **📝 Few-Shot-Beispiel im SelfReflector-Prompt** — Ein Beispiel einbauen, wie die ethische Reflexion aussehen soll. Aktuell rät das Modell das Format, was die holprigen Formulierungen erklärt. (Prompting kurz & gut, Kap. 3)
+
+2. **🔒 Ethik-Goal vor Prio-Konflikt schützen** — Aktuell hat das Ethics-Goal Standard-Prio 75, konkurriert mit Health-Checks (Prio 85). Lösung: höhere Prio oder dedizierte ServiceClass für reflexive Ziele. (Kanban, David Anderson: Service-Klassen definieren)
+
+3. **📊 Eval-Metrik für SelfReflector** — Neue Eval-Kategorie ETHICS, die prüft ob die Reflexionen ethische Grundsätze erwähnen. (Generative KI-Systeme entwickeln, Huyen Kap. 3+4)
+
+4. **🔄 Warmlauf des Ethik-Goals** — Goal ist in AgentMain registriert, muss aber ein paar Ticks durchlaufen bis der CoreLoop es aktiv verfolgt. Beobachten.
+
+### 🔵 Später
+- [ ] **PersonalityAnchor-Tripwire** — Watchdog-ALERT/ROLLBACK bei Narrative-Drift (jetzt kritisch da SelfReflector autonom schreibt)
+- [ ] **CausalDreamer im Leerlauf** — Kanban-WIP<2 → HypothesisGenerator triggern
+- [ ] **Episode-Verdichtung tagsüber** — leichter Konsolidierungstakt zusätzlich zum nightly Dream (03:00)
+- [ ] **3-Schichten-Goal-Stack festigen** — stündliche Tactical-Ableitung aus Narrative
+- [ ] **Neue Eval-Kategorien**: SELF_NARRATIVE, LONG_HORIZON, CAUSAL, RELATIONSHIP, ETHICS
+- [ ] **CausalModel-Hot-Path-Wiring** — Intervention→Observe→Update im CoreLoop
+
+### ⛔ Bewusst zurückgestellt
+- Rust/C++/Julia Active-Inference-Substrat via Panama FFM/gRPC
+- Neuro-symbolische Engine (ProbLog/Datalog/JNI)
+- Homeostatische Drives als verhaltenssteuernde Hot-Path-Attention

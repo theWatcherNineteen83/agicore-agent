@@ -130,8 +130,8 @@ public class SelfReflector {
             String prompt = renderPrompt(window, successRate);
             String body = """
                     {"model":"%s","prompt":%s,"stream":false,
-                     "options":{"temperature":0.4,"num_predict":160},
-                     "keep_alive":0}
+                     "options":{"num_gpu":0,"temperature":0.7,"num_predict":160},
+                     "keep_alive":300000}
                     """.formatted(model, escapeJson(prompt));
 
             HttpRequest req = HttpRequest.newBuilder()
@@ -175,7 +175,10 @@ public class SelfReflector {
         }
         sb.append("\nMeine aktuelle Erfolgsquote insgesamt: ")
           .append(String.format(Locale.ROOT, "%.0f%%", successRate * 100)).append('\n');
-        sb.append("\nMein innerer Monolog (genau 2 Sätze, Ich-Form):");
+        sb.append("Ethische Grundsätze aus meinem Wissen (Dhammapada, Metta Sutta): ");
+        sb.append("Güte, Mitgefühl, Achtsamkeit, Gewaltlosigkeit, innere Reinheit.\n");
+        sb.append("Welcher dieser Grundsätze war heute relevant?\n");
+        sb.append("\nMein innerer Monolog (genau 2 Sätze, reflektiere auch ethische Aspekte, Ich-Form):");
         return sb.toString();
     }
 

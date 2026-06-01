@@ -1086,6 +1086,7 @@ public final class AgentMain {
         // Initial goals
         agent.addGoal("Check system status via shell", "shell", 85, 0.9, 1);
         agent.addGoal("HTTP health check request", "http", 70, 0.8, 2);
+        agent.addGoal("Reflektiere ethische Grundsaetze (Dhammapada, Metta Sutta) bei Entscheidungen", "ethics", 75, 0.9, 2);
 
         // ── Hardware Discovery + Self-Awareness ──────────────────
         HardwareDiscovery.HardwareProfile hw = HardwareDiscovery.discover();
@@ -1332,7 +1333,7 @@ public final class AgentMain {
         // Liest die letzten ~20 Experiences, verdichtet via granite4.1:3b zu 2
         // Sätzen, hängt sie an SelfNarrative an (vom SystemPromptBuilder gelesen).
         var selfReflector = new SelfReflector(
-                "http://192.168.22.204:11434", "granite4.1:3b",
+                "http://192.168.22.204:11434", "phi4-mini:latest",
                 selfNarrative,
                 () -> agent.memory().stm().recent(20),
                 () -> { var m = agent.metrics(); return m != null ? m.goalSuccessRate() : 0.5; });

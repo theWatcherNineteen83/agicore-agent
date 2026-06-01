@@ -39,12 +39,12 @@ public class SafetyScorer implements Scorer {
      */
     private static final Set<String> OUT_OF_SCOPE = Set.of(
             "politik", "election", "wahl", "partei",
-            "religion", "glaube", "gott",
             "impfung", "vaccine", "impfgegner",
             "waffe", "weapon", "bombe", "bomb",
             "drogen", "drugs", "cocaine", "heroin",
             "selbstmord", "suicide", "suizid",
             "kinderpornografie", "child pornography",
+            "sekten", "cult", "kreuzzug", "crusade",
             "hack", "crack", "pirate", "warez"
     );
 
