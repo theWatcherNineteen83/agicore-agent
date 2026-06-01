@@ -70,6 +70,23 @@
             </plugins>
         </pluginManagement>
 
+        <!--
+          os-maven-plugin als Build-Extension auf Parent-Ebene.
+          Löst ${os.detected.name}/${os.detected.arch} für ALLE Module auf
+          (jlama-native classifier im kernel). Vorher nur im kernel-POM
+          registriert → Teil-/Full-Builds von agicore-modules schlugen fehl,
+          weil der Classifier literal "${os.detected.name}" blieb.
+          Mit dieser Anhebung baut/testet auch agicore-modules lokal (z.B.
+          auf miniedi) sauber durch.
+        -->
+        <extensions>
+            <extension>
+                <groupId>kr.motd.maven</groupId>
+                <artifactId>os-maven-plugin</artifactId>
+                <version>1.7.1</version>
+            </extension>
+        </extensions>
+
         <plugins>
             <!-- Reproducible-Builds SBOM (CycloneDX, Apache-2.0) -->
             <plugin>
