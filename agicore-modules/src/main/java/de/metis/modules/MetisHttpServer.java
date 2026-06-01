@@ -62,6 +62,8 @@ public class MetisHttpServer {
     private SystemPromptBuilder systemPromptBuilder;  // Phase 8.6
     private GoalHierarchy goalHierarchy;  // Phase 9
     private HypothesisStore hypothesisStore;  // Phase 10
+    private de.metis.kernel.person.PersonStore personStore;        // Phase 11
+    private de.metis.kernel.person.EmpathySignal empathySignal;    // Phase 11
 
     public MetisHttpServer(Agent agent, int port) throws IOException {
         this.agent = agent;
@@ -116,6 +118,11 @@ public class MetisHttpServer {
     public void setSystemPromptBuilder(SystemPromptBuilder spb) { this.systemPromptBuilder = spb; }
     public void setGoalHierarchy(GoalHierarchy gh) { this.goalHierarchy = gh; }
     public void setHypothesisStore(HypothesisStore hs) { this.hypothesisStore = hs; }
+    public void setPersonStore(de.metis.kernel.person.PersonStore ps,
+                               de.metis.kernel.person.EmpathySignal es) {
+        this.personStore = ps;
+        this.empathySignal = es;
+    }
 
     public void start() {
         server.start();
@@ -209,6 +216,30 @@ public class MetisHttpServer {
         }
 
         LOG.info("Chat [" + sessionId + "]: \"" + truncate(userMessage, 80) + "\"");
+
+        // ── Phase 11: Person-aware interaction ────────────────────
+        // Fill the PersonStore (ensureOwner, withInteraction, EmpathySignal)
+        // and adjust the CoreLoop approval level based on trust.
+        if (personStore != null && empathySignal != null) {
+            personStore.ensureOwner("265324594", "Georg");  // bootstrap
+            var sp = empathySignal.analyze(userMessage);
+            var updated = personStore.get(sessionId)
+                    .orElse(new de.metis.kernel.person.Person(sessionId, sessionId,
+                            java.util.List.of(), de.metis.kernel.person.TrustLevel.GUEST,
+                            java.util.Map.of(), java.util.List.of(), java.util.List.of(),
+                            java.time.Instant.now(), null, 0, java.util.List.of()))
+                    .withInteraction()
+                    .withSentiment(sp);
+            personStore.upsert(updated);
+            // Bind approval level to person's trust
+            agent.core().setMaxAutoApprovalLevel(updated.trustLevel().maxAutoApproval());
+            // Tell the SystemPromptBuilder who Metis is talking to
+            if (systemPromptBuilder != null) {
+                systemPromptBuilder.setCurrentPerson(sessionId);
+            }
+            LOG.fine("PersonStore: " + sessionId + " trust=" + updated.trustLevel()
+                    + " interactions=" + updated.interactionCount());
+        }
 
         // Load conversation context from KnowledgeStore
         String conversationContext = "";

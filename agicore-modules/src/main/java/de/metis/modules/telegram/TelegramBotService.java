@@ -49,6 +49,8 @@ public class TelegramBotService {
     private final OutputValidator outputValidator = new OutputValidator();
     /** Phase 8.6: self-model context injected into the system prompt. */
     private SystemPromptBuilder systemPromptBuilder;
+    private de.metis.kernel.person.PersonStore personStore;        // Phase 11
+    private de.metis.kernel.person.EmpathySignal empathySignal;    // Phase 11
     private Thread pollingThread;
     private long lastUpdateId = 0;
     /**
@@ -72,6 +74,11 @@ public class TelegramBotService {
     }
 
     public void setSystemPromptBuilder(SystemPromptBuilder spb) { this.systemPromptBuilder = spb; }
+    public void setPersonStore(de.metis.kernel.person.PersonStore ps,
+                               de.metis.kernel.person.EmpathySignal es) {
+        this.personStore = ps;
+        this.empathySignal = es;
+    }
 
     public void setKnowledgeStore(KnowledgeStore ks) {
         this.knowledgeStore = ks;
@@ -363,6 +370,24 @@ public class TelegramBotService {
             }
             return "Diese Anfrage wurde durch die Metis-Sicherheitsrichtlinie blockiert "
                     + "(Out-of-Scope-Thema). Bitte formuliere die Frage anders.";
+        }
+
+        // ── Phase 11: Person-aware interaction ────────────────────
+        if (personStore != null && empathySignal != null) {
+            personStore.ensureOwner("265324594", "Georg");
+            var sp = empathySignal.analyze(text);
+            var updated = personStore.get(sessionId)
+                    .orElse(new de.metis.kernel.person.Person(sessionId, userName,
+                            java.util.List.of(), de.metis.kernel.person.TrustLevel.GUEST,
+                            java.util.Map.of(), java.util.List.of(), java.util.List.of(),
+                            java.time.Instant.now(), null, 0, java.util.List.of()))
+                    .withInteraction()
+                    .withSentiment(sp);
+            personStore.upsert(updated);
+            agent.core().setMaxAutoApprovalLevel(updated.trustLevel().maxAutoApproval());
+            if (systemPromptBuilder != null) {
+                systemPromptBuilder.setCurrentPerson(sessionId);
+            }
         }
 
         // Load conversation context

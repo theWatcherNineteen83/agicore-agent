@@ -1316,6 +1316,16 @@ public final class AgentMain {
                 + ", anchor=" + (personalityAnchor.isTampered() ? "TAMPERED" : "verified")
                 + ", next dream in " + initialDreamDelaySec + "s");
 
+        // ── Phase 11: PersonModel + Verdrahtung ─────────────────────
+        var empathySignal = new de.metis.kernel.person.EmpathySignal();
+        var personStore = new de.metis.kernel.person.PersonStore();
+        // Bootstrap Georg as Owner
+        personStore.ensureOwner("265324594", "Georg");
+        // Wire into SystemPromptBuilder (Partner-Block im Prompt)
+        systemPromptBuilder.setPersonStore(personStore, empathySignal);
+        LOG.info("Phase 11 wired — PersonStore=" + personStore.size()
+                + " persons, trust-to-approval mapping active");
+
         // ── Phase 8.6 — SelfReflector: kontinuierlicher innerer Monolog ──────
         // Konvergente Empfehlung aus 9 KI-Reviews (2026-05-31): kleiner, schneller
         // Reflexions-Takt schließt die Lücke zwischen nightly-dream und revision.
@@ -1383,6 +1393,7 @@ public final class AgentMain {
             httpServer.setSystemPromptBuilder(systemPromptBuilder);
             httpServer.setGoalHierarchy(goalHierarchy);
             httpServer.setHypothesisStore(hypothesisStore);
+            httpServer.setPersonStore(personStore, empathySignal);
             httpServer.start();
         }
 
@@ -1392,6 +1403,7 @@ public final class AgentMain {
             telegramBot = new TelegramBotService(telegramToken, agent);
             telegramBot.setKnowledgeStore(knowledgeStore);
             telegramBot.setSystemPromptBuilder(systemPromptBuilder);
+            telegramBot.setPersonStore(personStore, empathySignal);
             telegramBot.start();
             LOG.info("Telegram bot active — direct messaging enabled");
         }

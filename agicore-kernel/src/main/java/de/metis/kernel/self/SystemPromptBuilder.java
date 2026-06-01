@@ -35,6 +35,9 @@ public class SystemPromptBuilder {
     private final MoodSignal mood;
     private final EpisodicMemory episodes;
     private GoalHierarchy hierarchy;  // Phase 9 — optional
+    private de.metis.kernel.person.PersonStore personStore;   // Phase 11 — optional
+    private de.metis.kernel.person.EmpathySignal empathy;     // Phase 11 — optional
+    private volatile String currentPersonId;                  // wer spricht gerade
 
     public SystemPromptBuilder(PersonalityAnchor anchor,
                                SelfNarrative narrative,
@@ -53,6 +56,16 @@ public class SystemPromptBuilder {
      */
     /** Phase 9: inject the goal hierarchy into the self-prompt. */
     public void setGoalHierarchy(GoalHierarchy h) { this.hierarchy = h; }
+
+    /** Phase 11: inject the person store + empathy heuristic for the partner block. */
+    public void setPersonStore(de.metis.kernel.person.PersonStore s,
+                               de.metis.kernel.person.EmpathySignal e) {
+        this.personStore = s;
+        this.empathy = e;
+    }
+
+    /** Phase 11: set who Metis is currently talking to (person id), or null. */
+    public void setCurrentPerson(String personId) { this.currentPersonId = personId; }
 
     public String buildPromptHeader() {
         StringBuilder sb = new StringBuilder(4096);
@@ -118,6 +131,42 @@ public class SystemPromptBuilder {
                             .append(" — ").append(g.title()).append('\n');
                 }
             }
+        }
+
+        // Phase 11 — Gesprächspartner-Block: wen kenne ich, wie vertraut, welche Stimmung.
+        if (personStore != null && currentPersonId != null) {
+            personStore.get(currentPersonId).ifPresent(p -> {
+                sb.append("\n=== GESPRÄCHSPARTNER ===\n");
+                sb.append("Name: ").append(p.name())
+                  .append(" | Vertrauen: ").append(p.trustLevel())
+                  .append(" | Interaktionen: ").append(p.interactionCount()).append('\n');
+                if (!p.roles().isEmpty()) {
+                    sb.append("Rollen: ").append(String.join(", ", p.roles())).append('\n');
+                }
+                if (p.preferences() != null && !p.preferences().isEmpty()) {
+                    StringBuilder prefs = new StringBuilder();
+                    p.preferences().forEach((k, v) -> {
+                        if (prefs.length() > 0) prefs.append(", ");
+                        prefs.append(k).append('=').append(v);
+                    });
+                    sb.append("Präferenzen: ").append(prefs).append('\n');
+                }
+                if (p.knownFacts() != null && !p.knownFacts().isEmpty()) {
+                    sb.append("Bekannte Fakten: ")
+                      .append(String.join("; ", p.knownFacts())).append('\n');
+                }
+                if (empathy != null && p.sentimentHistory() != null
+                        && !p.sentimentHistory().isEmpty()) {
+                    String moodLabel = empathy.aggregateLabel(p.sentimentHistory());
+                    if (moodLabel != null && !moodLabel.isBlank()) {
+                        sb.append("Stimmung dieser Person zuletzt: ").append(moodLabel).append('\n');
+                    }
+                }
+                if (p.bannedTopics() != null && !p.bannedTopics().isEmpty()) {
+                    sb.append("Gesperrte Themen: ")
+                      .append(String.join(", ", p.bannedTopics())).append('\n');
+                }
+            });
         }
 
         if (narrative != null) {
