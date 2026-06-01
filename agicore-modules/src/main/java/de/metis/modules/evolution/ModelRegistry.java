@@ -41,9 +41,10 @@ public class ModelRegistry {
     private static final List<String> REASONING_FAMILIES = List.of(
             "deepseek-r1",      // CoT-native, strongest reasoning
             "phi4-reasoning",   // CoT-native
+            "lfm2",             // 12h-Live-Test: planningEff 0.81, ½ Latenz von Mistral
             "qwen3.6",          // general + reasoning
             "phi4",             // strong reasoning
-            "mistral-small3",   // fast reasoning
+            "mistral-small3",   // fast reasoning (Fallback #1)
             "olmo-3",           // thinking model
             "nemotron",         // NVIDIA reasoning cascade
             "granite4",         // IBM reasoning
@@ -60,7 +61,7 @@ public class ModelRegistry {
             "gemma4",           // capable code
             "nemotron",         // NVIDIA code generation
             "devstral",         // code-aware
-            "lfm2",             // fast, capable
+            // lfm2:24b ist ein Reasoner, kein dedizierter Coder → nur in REASONING
             "laguna"            // general code
     );
 
@@ -83,7 +84,7 @@ public class ModelRegistry {
 
     // ── Defaults (used when discovery fails) ─────────────────────────────
 
-    private static final String DEFAULT_PLANNING = "mistral-small3.1:24b";
+    private static final String DEFAULT_PLANNING = "lfm2:24b";
     private static final String DEFAULT_MUTATION = "deepseek-r1:32b";
     private static final String DEFAULT_EMBEDDING = "nomic-embed-text";
 
