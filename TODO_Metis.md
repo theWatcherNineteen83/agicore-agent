@@ -26,8 +26,8 @@ fordern, **existiert bereits** — sie kannten den Repo-Stand nicht:
 
 ### 🟡 Als Nächstes (1–14 Tage, priorisiert nach Nutzen/Aufwand)
 
-1. ☐ **lfm2 in REASONING_FAMILIES** (vor Mistral) + aus CODE_GEN_FAMILIES
-   → schneller Win, seit 12h-Live-Test überfällig.
+1. [x] **lfm2 in REASONING_FAMILIES** ✅ — erledigt (5f19387). lfm2 vor qwen3.6,
+   aus CODE_GEN_FAMILIES entfernt, DEFAULT_PLANNING auf lfm2:24b.
 2. ☐ **System-Prompt-Tightening** gegen `{"thought":...,"action":...}`-Drift
    → 2.7% plannerFallbacks eliminieren.
 3. ☐ **PersonalityAnchor-Tripwire** — Watchdog-ALERT/ROLLBACK bei Narrative-Drift.
@@ -68,8 +68,8 @@ Aktuell: append-only mit `MAX_ENTRY_BYTES`-Cap. → Tendenz append-only beibehal
 `planningEfficiency = 0.812` über 2.678 Ticks, alle Entscheidungs-Schwellen
 erfüllt, Latenz gegenüber Mistral halbiert. Nächste Schritte:
 
-- [ ] `lfm2` in `ModelRegistry.REASONING_FAMILIES` aufnehmen (Position vor Mistral).
-- [ ] `lfm2` aus `CODE_GEN_FAMILIES` entfernen oder niedriger priorisieren.
+- [x] `lfm2` in `ModelRegistry.REASONING_FAMILIES` aufnehmen (5f19387).
+- [x] `lfm2` aus `CODE_GEN_FAMILIES` entfernen (5f19387).
 - [ ] Nach 48 h problemlosen Laufs: Backup `metis.service.bak-pre-lfm2-1928` archivieren.
 - [ ] Optional: OllamaPlanner-Refactoring für echtes `tools`-Field (lfm2 0,25 s warm im Pre-Live-Test).
 - [ ] System-Prompt-Tightening gegen `{"thought":...,"action":...}`-Format-Drift
