@@ -1346,6 +1346,27 @@ public final class AgentMain {
                 120, 120, TimeUnit.SECONDS);
         LOG.info("Phase 8.6 wired — SelfReflector every 120s (granite4.1:3b, append-only)");
 
+        // ── Phase 8.7 — PersonalityTripwire: Drift-Erkennung alle 5 min ──
+        var tripwire = new de.metis.kernel.self.PersonalityTripwire(
+                personalityAnchor, selfNarrative,
+                alert -> LOG.severe("TRIPWIRE ALERT (for Watchdog): " + alert));
+        var tripwireScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+            var t = new Thread(r, "personality-tripwire");
+            t.setDaemon(true);
+            return t;
+        });
+        tripwireScheduler.scheduleAtFixedRate(() -> {
+            try {
+                if (tripwire.checkForDrift()) {
+                    LOG.warning("PersonalityTripwire: narrative drift detected ("
+                            + tripwire.driftCount() + " incidents)");
+                }
+            } catch (Exception e) {
+                LOG.warning("Tripwire check failed (non-fatal): " + e.getMessage());
+            }
+        }, 5, 5, TimeUnit.MINUTES);
+        LOG.info("Phase 8.7 wired — PersonalityTripwire every 5 min");
+
         // ── Phase 9.5 — CommitmentGuard: Schutz gegen leichtfertigen Bruch ──
         // Deterministischer Wächter; vom Revision-/Planner-Pfad nutzbar, um
         // HARD-Commitments (priority≥85, tag=commitment) nicht ohne Begründung
