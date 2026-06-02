@@ -42,6 +42,7 @@ import de.metis.modules.hardware.DeepNettsAction;
 import de.metis.kernel.goal.Goal;
 import de.metis.kernel.goal.KanbanBoard;
 import de.metis.modules.knowledge.WikipediaKnowledgeService;
+import de.metis.modules.knowledge.BookIngestionService;
 import de.metis.kernel.self.EpisodicMemory;
 import de.metis.kernel.self.SelfNarrative;
 import de.metis.kernel.self.MoodSignal;
@@ -751,6 +752,7 @@ public final class AgentMain {
         boolean kernelEvolution = false;
         boolean requireApproval = true;
         boolean kanbanEnabled = false;
+        String bookDir = null;
         boolean voiceLoopEnabled = true;  // always-on for voice interaction
         int maxTicks = 0;
         int apiPort = 0;  // 0 = disabled
@@ -789,6 +791,7 @@ public final class AgentMain {
                 case "--mqtt-pass" -> mqttPass = args[++i];
                 case "--no-approval-gate" -> requireApproval = false;
                 case "--kanban" -> kanbanEnabled = true;
+                case "--book-dir" -> bookDir = args[++i];
                 case "--voice-loop" -> voiceLoopEnabled = true;
                 case "--help", "-h" -> {
                     System.out.println("""
@@ -800,6 +803,7 @@ public final class AgentMain {
                               --evolution           Enable module evolution (non-kernel)
                               --kernel-evolution    Enable kernel + module evolution
                               --kanban              Enable Kanban goal board (WIP limits, pull system)
+                              --book-dir <path>     Directory with PDF/EPUB books to learn from
                               --max-ticks N         Stop after N ticks (default: unlimited)
                               --api-port N          Start Ollama-compatible HTTP API on port N
                               --planning-model M    Override auto-selected planning model
@@ -1454,6 +1458,9 @@ public final class AgentMain {
             telegramBot.setKnowledgeStore(knowledgeStore);
             telegramBot.setSystemPromptBuilder(systemPromptBuilder);
             telegramBot.setPersonStore(personStore, empathySignal);
+            if (agent.core().goals().kanbanBoard() != null) {
+                telegramBot.setKanbanBoard(agent.core().goals().kanbanBoard());
+            }
             telegramBot.start();
             LOG.info("Telegram bot active — direct messaging enabled");
         }
@@ -1636,6 +1643,33 @@ public final class AgentMain {
             }
         }), 3, 10, TimeUnit.MINUTES);
         LOG.info("Wikipedia knowledge acquisition active — API-based, curiosity-driven, every 10 min");
+
+        // ── Book Ingestion Service ───────────────────────────
+        if (bookDir != null && !bookDir.isBlank()) {
+            var bookIngestion = new BookIngestionService(
+                    knowledgeStore, agent.core().goals().kanbanBoard(),
+                    java.nio.file.Path.of(bookDir));
+            
+            // Initial ingestion
+            int ingested = bookIngestion.ingestNewBooks();
+            LOG.info("Book ingestion: " + ingested + " books from " + bookDir);
+            
+            // Periodic re-scan (every 30 min, daemon thread)
+            Thread.ofPlatform().name("book-scanner").daemon().start(() -> {
+                while (!Thread.interrupted()) {
+                    try { Thread.sleep(1_800_000); } catch (InterruptedException e) { break; }
+                    try {
+                        int newly = bookIngestion.ingestNewBooks();
+                        if (newly > 0) {
+                            LOG.info("Book scanner: ingested " + newly + " new books");
+                        }
+                    } catch (Exception ex) {
+                        LOG.warning("Book scanner error: " + ex.getMessage());
+                    }
+                }
+            });
+            LOG.info("Book ingestion active — directory: " + bookDir + ", rescan every 30 min");
+        }
 
         // Phase 7: Camera Vision (minicpm-v) — periodic observations from existing cameras
         var visionCameras = List.of(

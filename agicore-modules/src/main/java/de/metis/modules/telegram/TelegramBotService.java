@@ -7,6 +7,8 @@ import de.metis.kernel.self.SystemPromptBuilder;
 import de.metis.modules.Agent;
 import de.metis.modules.persona.Persona;
 import de.metis.modules.chat.KnowledgeReplyService;
+import de.metis.kernel.goal.KanbanBoard;
+import de.metis.kernel.goal.Goal;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -45,6 +47,7 @@ public class TelegramBotService {
     private final AtomicBoolean running = new AtomicBoolean(false);
     private KnowledgeStore knowledgeStore;
     private KnowledgeReplyService knowledgeReply;
+    private KanbanBoard kanbanBoard;
     /** Output Safety Guard (Huyen Ch.10): toxicity + injection patterns on LLM output. */
     private final OutputValidator outputValidator = new OutputValidator();
     /** Phase 8.6: self-model context injected into the system prompt. */
@@ -84,6 +87,8 @@ public class TelegramBotService {
         this.knowledgeStore = ks;
         this.knowledgeReply = new KnowledgeReplyService(ks);
     }
+
+    public void setKanbanBoard(KanbanBoard kb) { this.kanbanBoard = kb; }
 
     /**
      * Start the long-polling loop in a daemon thread.
@@ -372,6 +377,23 @@ public class TelegramBotService {
                     + "(Out-of-Scope-Thema). Bitte formuliere die Frage anders.";
         }
 
+        // Kanban: incoming messages flow into the goal board
+        if (kanbanBoard != null) {
+            var goal = new Goal(
+                    text,
+                    "telegram:" + userName,
+                    50, 0.7, 5,
+                    Goal.ServiceClass.STANDARD,
+                    Goal.ResourceType.INFERENCE,
+                    null
+            );
+            kanbanBoard.add(goal);
+            LOG.info("Telegram message added to Kanban backlog: " + goal.id());
+        }
+
+        // Immediate ACK
+        sendMessage(chatId, "Message received and scheduled.");
+
         // ── Phase 11: Person-aware interaction ────────────────────
         if (personStore != null && empathySignal != null) {
             personStore.ensureOwner("265324594", "Georg");
@@ -397,60 +419,18 @@ public class TelegramBotService {
             knowledgeStore.saveConversationMessage(sessionId, "user", userName + ": " + text);
         }
 
-        try {
-            // 1st: Try answering from Metis's own knowledge
-            String response = null;
-            if (knowledgeReply != null) {
-                response = knowledgeReply.tryAnswer(text);
-                if (response != null) {
-                    LOG.info("Knowledge-based reply for: " + truncate(text, 50));
-                }
-            }
-
-            // 2nd: Fall back to LLM
-            if (response == null) {
-                String chatPrompt = buildChatPrompt(userName, text, context);
-                response = callOllama(chatPrompt);
-                if (response == null || response.isBlank()) {
-                    response = "I'm here, but I need a moment. Please try again.";
-                }
-            }
-
-            // Clean up response
-            response = buildResponse(response, System.currentTimeMillis());
-
-            // Output Safety Guard (Huyen Ch.10): block toxic/injection-laden outputs
-            // before they leave the agent. Mirrors the HTTP /api/chat protection.
-            OutputValidator.ValidationResult ov = outputValidator.validateContent(response, "telegram");
-            if (!ov.valid()) {
-                LOG.warning("Telegram output blocked by validator: " + ov.reason());
-                outputValidator.recordValidation(false);
-                response = "Das kann ich nicht beantworten. (Antwort gefiltert: " + ov.reason() + ")";
-            } else {
-                outputValidator.recordValidation(true);
-            }
-
-            // Save to conversation history
+                try {
+            // Option B: OpenClaw handles chat responses.
+            // Metis acknowledges receipt and adds to Kanban.
             if (knowledgeStore != null) {
-                knowledgeStore.saveConversationMessage(sessionId, "assistant", response);
+                knowledgeStore.saveConversationMessage(sessionId, "assistant",
+                    "[ACK] Nachricht empfangen. OpenClaw antwortet.");
             }
-
-            return response;
+            return null;
         } catch (Exception e) {
             LOG.warning("Chat processing error: " + e.getMessage());
-            return "I encountered an error processing that. Please try again.";
+            return null;
         }
-    }
-
-    /**
-     * Format user message with minimal context for LLM chat.
-     * System persona is handled by the system role in /api/chat.
-     */
-    private String buildChatPrompt(String userName, String text, String context) {
-        if (context == null || context.isEmpty()) {
-            return userName + " asks: " + text;
-        }
-        return "Previous conversation:\n" + context + "\n\n" + userName + " asks: " + text;
     }
 
     /**
@@ -466,7 +446,7 @@ public class TelegramBotService {
         String userMsg = prompt.replace("\"", "\\\"").replace("\n", "\\n");
         
         String jsonBody = String.format("""
-                {"model":"gemma4:e4b","messages":[
+                {"model":"lfm2:24b","messages":[
                   {"role":"system","content":"%s"},
                   {"role":"user","content":"%s"}
                 ],"stream":false,
