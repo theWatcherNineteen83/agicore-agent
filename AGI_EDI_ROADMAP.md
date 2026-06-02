@@ -3,7 +3,7 @@
 **Ziel:** EDI-ähnliche KI (Mass Effect 3) - eigenständig, per Sprache und Text ansprechbar,
 mit eigenem Wissen, Persönlichkeit, narrativem Selbstmodell und der Fähigkeit, sich selbst zu verbessern.
 
-**Stand: 01.06.2026 21:00 (SafetyScorer bereinigt, 441 buddhistische Beliefs in DB, SelfReflector auf phi4-mini:latest CPU, Temperatur 0.7, keep_alive=5m, ethisches Goal in AgentMain)**
+**Stand: 03.06.2026 00:30 (v0.8.0: Option B Chat-Architektur + BookIngestionService + Ollama-GPU-Analyse, 134 Tests)**
 
 ---
 
