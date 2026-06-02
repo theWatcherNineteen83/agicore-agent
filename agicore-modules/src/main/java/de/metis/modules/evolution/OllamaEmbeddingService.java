@@ -47,6 +47,16 @@ public class OllamaEmbeddingService {
     private volatile int cacheEvictions = 0;
     private volatile int serviceUnavailable = 0;
 
+    // ── Circuit breaker ───────────────────────────────────────────────
+    // After N consecutive 503s, stop calling the API for a cooldown period
+    // to avoid flooding Ollama's request queue (which caused 103+ 503s on 2026-06-02).
+    private static final int CB_FAILURE_THRESHOLD = 5;
+    private static final long CB_COOLDOWN_MS = 60_000; // 1 minute
+    private volatile int consecutive503s = 0;
+    private volatile long circuitOpenUntil = 0;
+    private volatile int circuitOpenCount = 0;
+    private volatile int requestsSkipped = 0;
+
     public OllamaEmbeddingService() {
         this(DEFAULT_MODEL, DEFAULT_CACHE_SIZE);
     }
@@ -85,6 +95,14 @@ public class OllamaEmbeddingService {
      *             then truncated to ~200 chars for the API call to bound tokens)
      * @return embedding vector, or a zero vector on failure
      */
+    /**
+     * Returns true if the circuit breaker is currently open (cooldown active),
+     * meaning we should skip embedding API calls entirely.
+     */
+    public boolean circuitOpen() {
+        return circuitOpenUntil > 0 && System.currentTimeMillis() < circuitOpenUntil;
+    }
+
     public double[] embed(String text) {
         if (text == null) return new double[0];
 
@@ -95,6 +113,12 @@ public class OllamaEmbeddingService {
         if (cached != null) {
             cacheHits++;
             return cached;
+        }
+
+        // ── Circuit breaker: skip API call during cooldown ─────────
+        if (circuitOpen()) {
+            requestsSkipped++;
+            return new double[0];
         }
 
         // API input is still truncated to bound token usage
@@ -125,9 +149,26 @@ public class OllamaEmbeddingService {
             }
             if (response.statusCode() != 200) {
                 serviceUnavailable++;
+                consecutive503s++;
                 LOG.warning("Embedding API returned " + response.statusCode()
-                        + " (total 503s: " + serviceUnavailable + ")");
+                        + " (total 503s: " + serviceUnavailable
+                        + ", consecutive: " + consecutive503s + ")");
+
+                // Open circuit breaker when consecutive failures exceed threshold
+                if (consecutive503s >= CB_FAILURE_THRESHOLD) {
+                    circuitOpenUntil = System.currentTimeMillis() + CB_COOLDOWN_MS;
+                    circuitOpenCount++;
+                    LOG.warning("Embedding circuit breaker OPEN for " + (CB_COOLDOWN_MS / 1000)
+                            + "s (" + consecutive503s + " consecutive 503s, trip #" + circuitOpenCount + ")");
+                }
                 return new double[0];
+            }
+
+            // Success — reset circuit breaker
+            consecutive503s = 0;
+            if (circuitOpenUntil > 0) {
+                LOG.info("Embedding circuit breaker CLOSED (API healthy)");
+                circuitOpenUntil = 0;
             }
 
             double[] vector = parseEmbedding(response.body());
@@ -142,6 +183,13 @@ public class OllamaEmbeddingService {
             return vector;
 
         } catch (Exception e) {
+            consecutive503s++;
+            if (consecutive503s >= CB_FAILURE_THRESHOLD) {
+                circuitOpenUntil = System.currentTimeMillis() + CB_COOLDOWN_MS;
+                circuitOpenCount++;
+                LOG.warning("Embedding circuit breaker OPEN for " + (CB_COOLDOWN_MS / 1000)
+                        + "s after exception: " + e.getMessage());
+            }
             LOG.warning("Embedding failed: " + e.getMessage());
             return new double[0];
         }
@@ -202,4 +250,7 @@ public class OllamaEmbeddingService {
         int total = embedCount + cacheHits;
         return total == 0 ? 0.0 : (double) cacheHits / total;
     }
+    public int consecutive503s() { return consecutive503s; }
+    public int circuitOpenCount() { return circuitOpenCount; }
+    public int requestsSkipped() { return requestsSkipped; }
 }

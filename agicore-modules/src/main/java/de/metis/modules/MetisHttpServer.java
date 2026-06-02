@@ -763,6 +763,10 @@ public class MetisHttpServer {
                   "embeddingCacheEvictions": %d,
                   "embeddingCalls": %d,
                   "embedding503s": %d,
+                  "embeddingConsecutive503s": %d,
+                  "embeddingCircuitOpen": %b,
+                  "embeddingCircuitTrips": %d,
+                  "embeddingRequestsSkipped": %d,
                   %s
                   %s
                 }
@@ -788,6 +792,10 @@ public class MetisHttpServer {
                 embeddingService != null ? embeddingService.cacheEvictions() : 0,
                 embeddingService != null ? embeddingService.embedCount() : 0,
                 embeddingService != null ? embeddingService.serviceUnavailable() : 0,
+                embeddingService != null ? embeddingService.consecutive503s() : 0,
+                embeddingService != null ? embeddingService.circuitOpen() : false,
+                embeddingService != null ? embeddingService.circuitOpenCount() : 0,
+                embeddingService != null ? embeddingService.requestsSkipped() : 0,
                 rollbackManager != null ? rollbackManager.healthJson() + "," : "",
                 bugfixingAgent != null ? bugfixingAgent.healthJson() : ""
         );
