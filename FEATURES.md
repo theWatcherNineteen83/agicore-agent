@@ -57,6 +57,38 @@
 **Live-Status nach v0.5.0-Boot:**
 - `GoalHierarchy: seeded lifetime goal`
 - `Phase 9 wired — hierarchy=1 goals`
+
+
+## 📚 Book Ingestion Service (v0.8.0)
+
+| Komponente | Datei | Funktion |
+|---|---|---|
+| **BookIngestionService** | `modules/knowledge/BookIngestionService.java` | Scannt --book-dir, extrahiert PDF (mutool) / EPUB (unzip+HTML), chunked via DocumentChunker, erzeugt Beliefs + Kanban-Lern-Goals |
+| PDF-Extraktion | `mutool draw -F text` | Shell-out zu mupdf-tools, 120s Timeout, Control-Char-Cleanup |
+| EPUB-Extraktion | `unzip` + HTML-Parsing | Regex-basierte Tag-Entfernung, Entity-Decoding, Whitespace-Normalisierung |
+| Chunking | `DocumentChunker` (PARAGRAPH) | 512 chars, 64 overlap, max 200 Beliefs/Buch |
+| Kanban-Learning | `Goal.ResourceType.CPU_HEAVY` | INTANGIBLE Service Class, 60 Prio, auto-pull wenn WIP < 50% |
+
+## 💬 Chat-Architektur Option B (v0.8.0)
+
+| Komponente | Beschreibung |
+|---|---|
+| **OpenClaw** | Beantwortet Telegram-Chats direkt (deepseek Cloud), kein GPU-Konflikt |
+| **Metis TelegramBot** | Empfängt Nachrichten → Kanban-Goal + Immediate-ACK, keine LLM-Antwort |
+| **Kanban-Integration** | Eingehende Nachrichten als `Goal.ResourceType.INFERENCE` im Backlog |
+| **GPU-Strategie** | lfm2:24b (14.4 GB) exklusiv für Agent-Planning, kein zweites GPU-Modell |
+
+## 🔬 Ollama-Modell-Analyse (v0.8.0)
+
+| Modell | Größe | Typ | Nutzung |
+|---|---|---|---|
+| lfm2:24b | 14.4 GB | GPU | Agent-Planning (alle 5s Ticks) |
+| phi4-mini:latest | 2.5 GB | CPU (zu langsam) | SelfReflector (Ethik-Reflexion) |
+| nomic-embed-text | 0.3 GB | On-Demand | Belief-Embeddings |
+| granite4.1:3b-q2_K | 1.4 GB | CPU | Notiz: >60s Latenz, ungeeignet für Chat |
+| gemma4:e4b | 9.6 GB | GPU | Würde lfm2 verdrängen → nicht parallel nutzbar |
+
+**GPU:** RX 7900 XTX (24 GB), nur 1 Modell gleichzeitig in VRAM. Freier VRAM: ~9.6 GB, aber Ollama entlädt Modell 1 beim Laden von Modell 2.
 - `/api/hierarchy` → 1 goal (LIFETIME, ACTIVE, prio 100, owner=metis)
 - GoalRevision-Scheduler aktiv, alle 30 Min
 

@@ -6,9 +6,13 @@ Sie denkt in kognitiven Zyklen (Perceive → Plan → Execute → Observe → Le
 
 ## Status
 
-**Stand:** 01.06.2026 21:00 · **Tests:** 112 grün im Kernel + 22 in Modules = **134 total** · **CI:** Kernel + Watchdog (GitHub Actions, Zulu 25)
+**Stand:** 03.06.2026 00:30 · **Tests:** 112 grün im Kernel + 22 in Modules = **134 total** · **CI:** Kernel + Watchdog (GitHub Actions, Zulu 25)
 
 **Safety:** SafetyScorer bereinigt (religion/glaube/gott raus) · **Wissen:** 441 buddhistische Beliefs (Dhammapada, Metta Sutta, Sigalovada) in SQLite-DB · **Ethik:** SelfReflector auf phi4-mini:latest CPU (0 VRAM, Temp 0.7, keep_alive=5m) + ethisches Goal in AgentMain
+**Chat:** Option B — OpenClaw beantwortet Telegram-Chats direkt, Metis macht Agent-Arbeit (Kanban-Integration fuer eingehende Nachrichten)
+**Buecher:** BookIngestionService — PDF/EPUB→Text→Chunks→Beliefs→Kanban-Goals (--book-dir)
+**Chat:** Option B — OpenClaw beantwortet Telegram-Chats direkt, Metis macht Agent-Arbeit (Kanban-Integration für eingehende Nachrichten)
+**Bücher:** BookIngestionService — PDF/EPUB→Text→Chunks→Beliefs→Kanban-Goals (--book-dir)
 
 | Phase | Status | Key Facts |
 |-------|--------|-----------|
@@ -45,6 +49,7 @@ Sie denkt in kognitiven Zyklen (Perceive → Plan → Execute → Observe → Le
 | `v0.7.6-embedding-backoff` | 503-Fix: Embedding-Backoff (1s/2s/4s), NUM_PARALLEL 4→8, embedding503s-Metrik in /api/status | **134** (112 K + 22 M) |
 | `v0.7.7` | VideoAnalysisAction + HTTP-Resilienz + 5 Coburg-Webcams (Videoframes), SafetyScrub, Buddhist-Beliefs (441) | **134** (112 K + 22 M) |
 | `v0.7.8` | GermanLanguageGuard (Code-Switching, Umlaute, Anrede, Anglizismen), Ethic-SelfReflector (phi4-mini CPU, Ethik-Goal Prio 90, Few-Shot), CPU-Idle-Erkennung | **134** (112 K + 22 M) |
+| `v0.8.0` | **Option B Chat-Architektur + BookIngestionService**: TelegramBot→Kanban+ACK, OpenClaw antwortet, PDF/EPUB→Beliefs, Ollama-GPU-Analyse | **134** (112 K + 22 M) |
 | `v0.7.9` | **Embedding-Circuit-Breaker**: 5×503 → 60s Cooldown (verhindert Queue-Überflutung). Neue Metriken: embeddingCircuitOpen/Trips/Consecutive503s/RequestsSkipped | **134** (112 K + 22 M) |
 
 > Die früheren Test-Zahlen sind aus den jeweiligen Commits übernommen und nicht rückwirkend nachgemessen. Aktuell, gegen Master per `mvn test`: **112 Kernel + 22 Modules = 134 Tests grün**.
