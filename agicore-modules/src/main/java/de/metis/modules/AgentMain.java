@@ -34,6 +34,7 @@ import de.metis.modules.events.CameraPollingTrigger;
 import de.metis.modules.events.CameraPollingTrigger.CameraConfig;
 import de.metis.modules.action.CameraVisionAction;
 import de.metis.modules.action.CameraSnapshotAction;
+import de.metis.modules.action.VideoAnalysisAction;
 import de.metis.modules.events.ProactiveNotificationService;
 import de.metis.modules.hardware.HardwareDiscovery;
 import de.metis.modules.hardware.HardwareProfileAction;
@@ -964,6 +965,15 @@ public final class AgentMain {
         agent.core().executor().register(new CameraSnapshotAction(
                 "keller", "rtsp://3insicht:w1rB3obachtenEuc@192.168.22.148/H265/ch1/main/av_stream"));
         LOG.info("Camera actions registered: camera-snapshot-tuerkamera, camera-snapshot-keller");
+
+        // ── Phase 3.3: Video-Analyse (Coburg Webcams + Live-Streams) ──
+        agent.core().executor().register(new VideoAnalysisAction(
+                "https://images.bergfex.at/webcams/?id=14275&2&format=44",
+                "Coburg-Marktplatz-Stream", 5, 0.2, 25));
+        agent.core().executor().register(new VideoAnalysisAction(
+                "rtsp://3insicht:w1rB3obachtenEuc@192.168.22.148/H265/ch1/main/av_stream",
+                "Keller-Live", 5, 0.2, 20));
+        LOG.info("Video analysis actions registered: video-analyze (Coburg + Keller)");
 
         // ── Voice Loop Service (optional, controlled by voice-loop flag) ──
         VoiceLoopService voiceLoop = null;

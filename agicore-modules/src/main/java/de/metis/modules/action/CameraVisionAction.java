@@ -151,12 +151,16 @@ public class CameraVisionAction {
      * Fetch JPEG snapshot from camera URL.
      */
     private byte[] fetchSnapshot() throws Exception {
+        // Frischer HttpClient pro Request — verhindert "selector manager closed"
+        HttpClient client = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(5))
+                .build();
         HttpRequest req = HttpRequest.newBuilder()
                 .uri(URI.create(snapshotUrl))
-                .timeout(Duration.ofSeconds(5))
+                .timeout(Duration.ofSeconds(8))
                 .GET()
                 .build();
-        HttpResponse<byte[]> resp = http.send(req, HttpResponse.BodyHandlers.ofByteArray());
+        HttpResponse<byte[]> resp = client.send(req, HttpResponse.BodyHandlers.ofByteArray());
         if (resp.statusCode() != 200) return null;
         return resp.body();
     }
@@ -182,7 +186,11 @@ public class CameraVisionAction {
                 .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
                 .build();
 
-        HttpResponse<String> resp = http.send(req, HttpResponse.BodyHandlers.ofString());
+        // Frischer HttpClient pro Request — verhindert "selector manager closed"
+        HttpClient client = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(15))
+                .build();
+        HttpResponse<String> resp = client.send(req, HttpResponse.BodyHandlers.ofString());
         if (resp.statusCode() != 200) {
             LOG.warning("Ollama vision returned " + resp.statusCode());
             return null;

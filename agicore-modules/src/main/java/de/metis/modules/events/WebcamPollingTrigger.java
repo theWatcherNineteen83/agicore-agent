@@ -36,7 +36,8 @@ public class WebcamPollingTrigger implements EventTrigger {
     private static final Duration HTTP_TIMEOUT = Duration.ofSeconds(30);
     private static final Duration POLL_INTERVAL = Duration.ofMinutes(5);
 
-    private final HttpClient http;
+    // Kein shared HttpClient mehr — jeder Request bekommt einen frischen Client
+    // (vermeidet "selector manager closed" bei Dauer-Polling)
     private final AtomicBoolean running = new AtomicBoolean(false);
     private Thread pollingThread;
 
@@ -49,15 +50,41 @@ public class WebcamPollingTrigger implements EventTrigger {
      * @param webcamUrls list of webcam image URLs to monitor
      */
     public WebcamPollingTrigger() {
-        this.http = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(10))
-                .build();
+        // ── Coburg Live-Webcams ──────────────────────────────────
 
-        // Coburg Marktplatz — bergfex Webcam
+        // Coburg Marktplatz — bergfex
         webcams.add(new WebcamConfig(
                 "Coburg-Marktplatz",
                 "https://images.bergfex.at/webcams/?id=14275&2&format=44",
                 "Historischer Marktplatz Coburg mit Rathaus, Stadthaus und Markttreiben"
+        ));
+
+        // Coburg Marktplatz — feratel (Stadt Coburg, Blick auf Stadthaus)
+        webcams.add(new WebcamConfig(
+                "Coburg-Stadthaus",
+                "https://www.feratel.com/webcams/?id=02d4e2aa-2c1c-4f0b-a7d1-0a5e3b8f9c1d&design=live&cam=1",
+                "Blick vom Stadthaus auf den Coburger Marktplatz"
+        ));
+
+        // Coburg — Veste von der Morizkirche (Coburg Marketing)
+        webcams.add(new WebcamConfig(
+                "Coburg-Veste-Panorama",
+                "https://www.coburgmarketing.de/informieren/webcam",
+                "Panoramablick von der Morizkirche über Coburg mit Veste"
+        ));
+
+        // Flugplatz Coburg Brandensteinsebene (EDQC)
+        webcams.add(new WebcamConfig(
+                "Coburg-Flugplatz",
+                "https://www.coburg.de/coburg-erleben/webcams/webcams/webcam-flugplatz-steinruecken.php",
+                "Flugplatz Coburg Brandensteinsebene — Landebahn und Flugbetrieb"
+        ));
+
+        // Albertsplatz Coburg
+        webcams.add(new WebcamConfig(
+                "Coburg-Albertsplatz",
+                "https://www.coburg.de/coburg-erleben/webcams/webcams/webcam-blick-auf-albertsplatz.php",
+                "Albertsplatz Coburg — Geschäfte und Fußgängerzone"
         ));
     }
 
@@ -163,13 +190,18 @@ public class WebcamPollingTrigger implements EventTrigger {
 
     private byte[] downloadImage(String url) {
         try {
+            // Frischer HttpClient pro Request — verhindert "selector manager closed"
+            HttpClient client = HttpClient.newBuilder()
+                    .connectTimeout(Duration.ofSeconds(10))
+                    .build();
+
             HttpRequest req = HttpRequest.newBuilder()
                     .uri(URI.create(url))
                     .timeout(HTTP_TIMEOUT)
                     .GET()
                     .build();
 
-            HttpResponse<byte[]> resp = http.send(req,
+            HttpResponse<byte[]> resp = client.send(req,
                     HttpResponse.BodyHandlers.ofByteArray());
 
             if (resp.statusCode() != 200 || resp.body().length < 100) {
@@ -209,9 +241,15 @@ public class WebcamPollingTrigger implements EventTrigger {
                       "options": {
                         "temperature": 0.2,
                         "num_predict": 100
-                      }
+                      },
+                      "keep_alive": 0
                     }
                     """, VISION_MODEL, escapeJson(prompt), base64Image);
+
+            // Frischer HttpClient pro Request — verhindert "selector manager closed"
+            HttpClient client = HttpClient.newBuilder()
+                    .connectTimeout(Duration.ofSeconds(15))
+                    .build();
 
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(OLLAMA_URL))
@@ -220,7 +258,7 @@ public class WebcamPollingTrigger implements EventTrigger {
                     .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
                     .build();
 
-            HttpResponse<String> response = http.send(request,
+            HttpResponse<String> response = client.send(request,
                     HttpResponse.BodyHandlers.ofString());
 
             if (response.statusCode() != 200) {
