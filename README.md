@@ -43,11 +43,11 @@ Sie denkt in kognitiven Zyklen (Perceive → Plan → Execute → Observe → Le
 | `v0.7.4-personality-tripwire` | PersonalityTripwire: Drift-Detection alle 5 min, SHA-256-Pin vs Live-Anchor, ROLE_VIOLATION/TONE_SHIFT/CORE_ERASURE | **112** |
 | `v0.7.5-causal-dreamer` | CausalDreamer: Idle-Guard (WIP<2), Overflow-Schutz, zufällige Experience → Hypothese, SelfNarrative-CausalDream-Eintrag | **134** (112 K + 22 M) |
 | `v0.7.6-embedding-backoff` | 503-Fix: Embedding-Backoff (1s/2s/4s), NUM_PARALLEL 4→8, embedding503s-Metrik in /api/status | **134** (112 K + 22 M) |
-| `v0.7.7-safety-scrub` | SafetyScorer bereinigt (religion/glaube/gott raus, sekten/cult/kreuzzug rein) | — |
-| `v0.7.8-buddhist-beliefs` | 441 Beliefs in SQLite-DB (Dhammapada, Metta Sutta, Sigalovada Sutta) | — |
-| `v0.7.9-ethic-reflector` | SelfReflector: phi4-mini:latest CPU + Ethik-Prompt + keep_alive=5m + Temp 0.7 + ethisches Goal | — |
+| `v0.7.7` | VideoAnalysisAction + HTTP-Resilienz + 5 Coburg-Webcams (Videoframes), SafetyScrub, Buddhist-Beliefs (441) | **134** (112 K + 22 M) |
+| `v0.7.8` | GermanLanguageGuard (Code-Switching, Umlaute, Anrede, Anglizismen), Ethic-SelfReflector (phi4-mini CPU, Ethik-Goal Prio 90, Few-Shot), CPU-Idle-Erkennung | **134** (112 K + 22 M) |
+| `v0.7.9` | **Embedding-Circuit-Breaker**: 5×503 → 60s Cooldown (verhindert Queue-Überflutung). Neue Metriken: embeddingCircuitOpen/Trips/Consecutive503s/RequestsSkipped | **134** (112 K + 22 M) |
 
-> Die früheren Test-Zahlen sind aus den jeweiligen Commits übernommen und nicht rückwirkend nachgemessen. Aktuell, gegen Master per `mvn test`: **80 grün im Kernel** + 14 in Modules (lokal auf kali, inkl. MaryTTS/TornadoVM über miniedi-Profil).
+> Die früheren Test-Zahlen sind aus den jeweiligen Commits übernommen und nicht rückwirkend nachgemessen. Aktuell, gegen Master per `mvn test`: **112 Kernel + 22 Modules = 134 Tests grün**.
 
 ## Architektur
 

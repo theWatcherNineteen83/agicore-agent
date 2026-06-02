@@ -67,6 +67,7 @@ Darunter liegen • ~95-100% "stabiler autonomer Agent" (Phasen 1-7+ + Defense-i
 - ModelRegistry (Auto-Discovery, 23 Modelle), VRAM-Budget-Management
 - Prompt-Caching (keep_alive=10m), Latenz-/Token-Tracking
 - **31.05.** Embedding-LRU-Cache (LinkedHashMap, SHA-256-keyed, 4096 Einträge)
+- **02.06.** Embedding-Circuit-Breaker: nach 5 konsekutiven Ollama-503ern → 60s Cooldown, verhindert Request-Queue-Überflutung (103+ 503s in 5 Min). Neue /api/status-Felder: embeddingCircuitOpen, embeddingCircuitTrips, embeddingConsecutive503s, embeddingRequestsSkipped.
 
 ## Phase 3: Wahrnehmung ✅ 100%
 
@@ -138,7 +139,7 @@ Darunter liegen • ~95-100% "stabiler autonomer Agent" (Phasen 1-7+ + Defense-i
 | Feature | Tag |
 |---------|-----|
 | Java 25 Loom: Camera-Vision + Wikipedia + Telegram-Worker auf Virtual Threads | v0.3.0/v0.3.1/v0.3.3 |
-| Embedding-Cache LRU (bounded, SHA-256-keyed) + Metriken in /api/status | v0.2.1 |
+| Embedding-Cache LRU (bounded, SHA-256-keyed) + Circuit-Breaker (5×503→60s Cooldown) + Metriken in /api/status | v0.7.9 |
 | SQLite WAL-Mode + busy_timeout (parallele Schreiber ohne Lock-Konflikt) | v0.3.2 |
 | Wiki-Feed-Härtung (atomic state, retry, reboot-sicher unter /home/prometheus/metis) | v0.3.2 |
 | Wissens-State Auto-Backup auf GitHub alle 6h (config-backup/) | v0.3.2 |
