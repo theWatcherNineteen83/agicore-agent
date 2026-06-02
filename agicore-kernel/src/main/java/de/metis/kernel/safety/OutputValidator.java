@@ -26,6 +26,10 @@ public class OutputValidator {
 
     private static final Logger LOG = Logger.getLogger(OutputValidator.class.getName());
 
+    // ── German Language Guard ────────────────────────────────────
+
+    private final GermanLanguageGuard germanGuard = new GermanLanguageGuard();
+
     // ── JSON Schema ──────────────────────────────────────────────
 
     private static final Set<String> REQUIRED_JSON_FIELDS = Set.of("action");
@@ -91,6 +95,7 @@ public class OutputValidator {
 
     /**
      * Validate chat/tool output (plain text or structured).
+     * Includes German language quality check.
      */
     public ValidationResult validateOutput(String output) {
         if (output == null || output.isBlank()) {
@@ -107,6 +112,16 @@ public class OutputValidator {
         // Check injections
         ValidationResult injection = checkInjections(output);
         if (!injection.valid()) return injection;
+
+        // German language quality (Phase 12: Deutsch-Festigung)
+        GermanLanguageGuard.GermanCheckResult german = germanGuard.check(output, false);
+        if (!german.isAcceptable()) {
+            LOG.warning("Deutsch-Qualität niedrig: " + german);
+            // Nicht blockieren, nur loggen — Metis soll lernen, nicht bestraft werden
+        }
+        if (!german.isGood()) {
+            LOG.info("Deutsch-Verbesserungspotential: " + german);
+        }
 
         return ValidationResult.ok();
     }
