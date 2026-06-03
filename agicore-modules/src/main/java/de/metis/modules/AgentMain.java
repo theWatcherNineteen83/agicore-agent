@@ -145,6 +145,7 @@ public final class AgentMain {
     private int bugfixCheckInterval = 50;  // ticks between bugfix evaluations
     private double lastSuccessRate = 1.0;
     private long lastEmergenceReportTick = 0;
+    private final int maxTicks;
 
     private AgentMain(Builder builder) {
         this.tickIntervalMs = builder.tickIntervalMs;
@@ -154,6 +155,7 @@ public final class AgentMain {
         this.emergenceReportInterval = builder.emergenceReportInterval;
         this.knowledgeStore = builder.knowledgeStore;
         this.agent = builder.agent;
+        this.maxTicks = builder.maxTicks;
 
         this.scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
             Thread t = new Thread(r, "agicore-agent");
@@ -214,6 +216,13 @@ public final class AgentMain {
                 // ── Tick ──────────────────────────────────────
                 var result = agent.core().tick();
                 totalTicks++;
+
+                // maxTicks check
+                if (maxTicks > 0 && totalTicks >= maxTicks) {
+                    LOG.info("Reached max ticks (" + maxTicks + ") - stopping");
+                    running.set(false);
+                    break;
+                }
 
                 if (result == null) {
                     idleTicks++;
@@ -714,6 +723,7 @@ public final class AgentMain {
         private final Agent agent;
         private long tickIntervalMs = 3000;
         private Path persistPath = null;
+        private int maxTicks = 0;
         private boolean enableEvolution = false; // off by default for safety
         private int idleGoalInterval = 15;
         private long emergenceReportInterval = 100;
@@ -732,6 +742,8 @@ public final class AgentMain {
 
         /** Ticks between autonomous goal generation. */
         public Builder idleGoalInterval(int ticks) { this.idleGoalInterval = ticks; return this; }
+
+        public Builder maxTicks(int n) { this.maxTicks = n; return this; }
 
         /** Ticks between emergence reports. */
         public Builder emergenceReportInterval(long ticks) { this.emergenceReportInterval = ticks; return this; }
@@ -1761,6 +1773,7 @@ public final class AgentMain {
                 .knowledgeStore(knowledgeStore)
                 .idleGoalInterval(10)
                 .emergenceReportInterval(50)
+                .maxTicks(maxTicks)
                 .build();
 
         // Phase 5: Blue/Green Rollback + Bugfixing
@@ -1787,21 +1800,13 @@ public final class AgentMain {
                     .withEvolution()
                     .idleGoalInterval(10)
                     .emergenceReportInterval(50)
+                    .maxTicks(maxTicks)
                     .build();
         }
 
         try {
-            if (maxTicks > 0) {
-                // Limited run for testing
-                LOG.info("Running " + maxTicks + " ticks...");
-                for (int i = 0; i < maxTicks && runtime.running.get(); i++) {
-                    agent.core().tick();
-                }
-                runtime.persistState();
-                runtime.printSummary();
-            } else {
-                runtime.run();
-            }
+            // maxTicks is now handled inside run()
+            runtime.run();
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "Agent runtime crashed", e);
             runtime.persistState();
