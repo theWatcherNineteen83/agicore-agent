@@ -6,7 +6,8 @@ Sie denkt in kognitiven Zyklen (Perceive → Plan → Execute → Observe → Le
 
 ## Status
 
-**Stand:** 03.06.2026 00:30 · **Tests:** 112 grün im Kernel + 22 in Modules = **134 total** · **CI:** Kernel + Watchdog (GitHub Actions, Zulu 25)
+**Stand:** 04.06.2026 01:30 · **Tests:** 112 grün im Kernel + 22 in Modules = **134 total** · **CI:** Kernel + Watchdog (GitHub Actions, Zulu 25)
+**JVM:** Zing 26.04 C4 GenPauseless (27% schneller als Zulu ZGC) · **Benchmark:** `bench-zing-vs-zulu-20260603` · **Empfehlung:** Zing für Produktion
 
 **Safety:** SafetyScorer bereinigt (religion/glaube/gott raus) · **Wissen:** 441 buddhistische Beliefs (Dhammapada, Metta Sutta, Sigalovada) in SQLite-DB · **Ethik:** SelfReflector auf phi4-mini:latest CPU (0 VRAM, Temp 0.7, keep_alive=5m) + ethisches Goal in AgentMain
 **Chat:** Option B — OpenClaw beantwortet Telegram-Chats direkt, Metis macht Agent-Arbeit (Kanban-Integration fuer eingehende Nachrichten)
@@ -23,6 +24,24 @@ Sie denkt in kognitiven Zyklen (Perceive → Plan → Execute → Observe → Le
 | 11 | 🟡 50% | PersonModel+TrustLevel+RelationshipMemory, Hot-Path offen |
 
 → Details: **[FEATURES.md](FEATURES.md)** · **[AGI_EDI_ROADMAP.md](AGI_EDI_ROADMAP.md)** · **[RUNBOOK.md](RUNBOOK.md)**
+
+### 🔬 Zing vs Zulu Benchmark (03.06.2026)
+| Metrik | Zulu ZGC | Zing C4 |
+|--------|---------|---------|
+| 500 Ticks (60+ min) | 77 min | **62 min** |
+| s/Tick | 9,3s | **7,5s** |
+| Max GC-Pause | 461ms | **0,57ms** |
+| Success Rate | 100% | 100% |
+
+Zing 27% schneller, C4 pauslos. Monitoring via `-XX:+PrintCPUUtilization -XX:+UseZingMXBeans`.
+
+### 🔧 Embedding-Resilienz (04.06.)
+- Circuit-Toleranz: 5→20 consecutive 503s, Cooldown 60s→120s
+- Ollama `num_gpu=0` für Embeddings (CPU-only)
+- nomic-embed-text mit `keep_alive=-1` vorgeladen
+- JLama 3-Stufen-Fallback (multilingual-e5→bge-small→Ollama) — Code steht, blockiert auf JLama 0.8.4 (Issue #202)
+
+### 📋 Nächster Sprint: [Modell-Optimierung](#🔧-Modell-Optimierungs-Sprint-04062026)
 
 ### Tag-Linie (30./31.05.2026, chronologisch)
 | Tag | Inhalt | Tests bei Tag |

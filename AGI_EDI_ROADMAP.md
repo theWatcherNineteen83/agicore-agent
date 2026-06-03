@@ -556,6 +556,44 @@ Basierend auf Stash `prometheus-review-30.05` (13 Punkte).
 
 ---
 
+## 🔧 Modell-Optimierungs-Sprint (04.06.2026)
+> Beratung mit ChatGPT, Claude, Qwen3.7 — Synthese in vorschlaege.md
+
+### Ziel
+VRAM-stabile Co-Residenz von Planer + Embedding + Vision, objektive Modellauswahl per Benchmark.
+
+### 🔴 Sofort (04.06.)
+
+- [ ] **lfm2.5:8b Kurztest** — Planungsmodell-Wechsel validieren. Schwelle: >=80% Parse-Erfolg ggü. lfm2:24b. 5,2 GB statt 14,4 GB → 9 GB VRAM frei.
+- [ ] **Ollama Env-Vars + ROCm** — `OLLAMA_MAX_LOADED_MODELS=3`, `OLLAMA_NUM_PARALLEL=1`, `HSA_OVERRIDE_GFX_VERSION=11.0.0` (FlashAttention für RX 7900 XT)
+- [ ] **8 Modelle löschen** — nemotron3:33b, llama3.1-70b-IQ1_M, granite4.1:3b-q2_K, gemma2:2b, laguna-xs.2, deepseek-r1:32b, glm-4.7-flash, phi4+phi4-reasoning → 130 GB frei
+- [ ] **C4-GC Default auf Zing** — `-XX:+UseZGC` aus metis.service entfernen (Zing nutzt C4 GenPauseless als Default)
+
+### 🟡 Diese Woche
+
+- [ ] **Evo-Benchmark bauen** — Defekt in Java-Datei → Mutationsmodell patcht → Kompilieren → Unit-Test → Erfolgsquote messen (50-100 Durchläufe). Kandidaten: qwen3.6:35b-a3b, devstral-small-2:24b, nemotron-cascade-2:30b, granite4.1:30b
+- [ ] **lfm2.5:8b 24h-Dauertest** — 17.280 Ticks, Parse-Erfolg + Fallback-Rate tracken. Ziel: >=90% Parse ggü. lfm2:24b Referenz (75-100%)
+
+### 🟢 Nächste Wochen
+
+- [ ] **ONNX Runtime für Embeddings evaluieren** — multilingual-e5-small (47 MB, 384d, 80+ Sprachen) via ONNX Runtime Java direkt in Metis einbinden. Umgeht JLama-Blocker + Ollama-Abhängigkeit. Inferenz <100ms.
+- [ ] **Spezialrollen definieren** — qwen3.6:35b (Mutation), granite4.1:3b/phi4-mini (Fallback), minicpm-v (Vision), gemma4:e4b (Alt-Planer)
+
+### ⚠️ Konsens-Warnungen
+- **Reasoning-Modelle sind Gift für Tick-Loop** — Thinking-Tokens = Latenz + JSON-Entgleisung
+- **VRAM-Summe ≠ Real-Footprint** — KV-Cache + Fragmentierung addieren 3-5 GB pro Modell
+- **lfm2.5:8b erst messen, dann switchen** — 1B-aktiv bei deutschen Prompts ist ein Qualitäts-Gamble
+- **Embedding ist nicht der Bottleneck** — 2-5 Calls/min CPU-only reichen. Fokus auf Planer + Mutation
+
+### 📊 Referenz: Zing vs Zulu Benchmark (03.06.)
+| Metrik | Zulu ZGC | Zing C4 |
+|--------|---------|---------|
+| 500 Ticks | 77 min | 62 min |
+| s/Tick | 9,3s | 7,5s |
+| Max GC-Pause | 461ms | 0,57ms |
+
+---
+
 ## 🔥 Aktuelle Prioritäten (01.06.2026)
 
 ### ✅ Erledigt heute
