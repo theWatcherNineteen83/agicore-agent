@@ -126,7 +126,7 @@ public class OllamaEmbeddingService {
 
         try {
             String jsonBody = String.format("""
-                    {"model": "%s", "prompt": %s}
+                    {"model": "%s", "prompt": %s, "options": {"num_gpu": 0}}
                     """, model, escapeJson(apiInput));
 
             HttpRequest request = HttpRequest.newBuilder()
