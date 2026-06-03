@@ -293,7 +293,7 @@
 | **CameraPollingTrigger** | 60s | Kamera-Motion-Detection |
 | **CameraVisionAction** 🆕 | 5 Min | minicpm-v Bildanalyse Tür + Balkon → Beliefs |
 | **WikipediaKnowledgeService** 🆕 | 10 Min | Curiosity-gesteuertes Wikipedia-Lernen per API |
-| **MqttEventService** | Echtzeit | MQTT-Broker (Paho, grappas.unterlandselite.de) |
+| **MqttEventService** | Echtzeit | MQTT-Broker (Paho) |
 | **ProactiveNotificationService** | Event-basiert | Telegram-Notifications bei Wetter/HA/MQTT-Events |
 | **SystemHealthProbe** | 60s | GPU VRAM/Temp, Ollama Models, dmesg |
 | **Health-Monitor** 🆕 | 5 Min | Cron: Metis+Ollama+Watchdog Health-Check → Telegram Alert |
@@ -362,7 +362,7 @@
 | **Ollama** | API | LLM-Inferenz + Embeddings + Vision (miniedi:11434) |
 | **Wikipedia** 🆕 | API | de.wikipedia.org — Curiosity-gesteuerte Wissensakquise |
 | **ADS-B** | JSON | Flugdaten via readsb/tar1090 |
-| **MQTT** | Broker | grappas.unterlandselite.de:51820 |
+| **MQTT** | Broker | |
 | **Wetter** | API | weather.com (ICOBURG22) |
 | **OpenWebUI** | API | Chat-Schnittstelle kompatibel |
 | **Kamera Tür** | MJPEG | 192.168.22.161:9081 → minicpm-v Vision |
