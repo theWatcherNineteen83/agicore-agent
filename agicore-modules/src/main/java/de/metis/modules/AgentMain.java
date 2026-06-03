@@ -1007,9 +1007,10 @@ public final class AgentMain {
         agent.worldModel().setKnowledgeStore(knowledgeStore);
         agent.worldModel().loadFromStore();
 
-        // Wire embedding provider for semantic belief search
-        var embedSvc = new OllamaEmbeddingService();
-        agent.worldModel().setEmbeddingProvider(embedSvc::embed);
+        // Embedding: Ollama nomic-embed-text CPU-only (num_gpu=0, circuit-tolerant)
+        // JLama multi-model embedding targeted for JLama >= 0.9.x
+        var ollamaEmbedSvc = new OllamaEmbeddingService();
+        agent.worldModel().setEmbeddingProvider(ollamaEmbedSvc::embed);
 
         // Enable RAG Advanced: persistent embeddings + hybrid keyword/semantic search
         var vectorsPath = dbPath.resolveSibling("metis-vectors.bin");
@@ -1455,7 +1456,7 @@ public final class AgentMain {
             if (kanbanEnabled) {
                 httpServer.setKanbanBoard(agent.core().goals().kanbanBoard());
             }
-            httpServer.setEmbeddingService(embedSvc);
+            httpServer.setEmbeddingService(ollamaEmbedSvc);
             httpServer.setSystemPromptBuilder(systemPromptBuilder);
             httpServer.setGoalHierarchy(goalHierarchy);
             httpServer.setHypothesisStore(hypothesisStore);

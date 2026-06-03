@@ -2,6 +2,7 @@ package de.metis.kernel.inference;
 
 import com.github.tjake.jlama.model.AbstractModel;
 import com.github.tjake.jlama.model.ModelSupport;
+import com.github.tjake.jlama.model.functions.Generator.PoolingType;
 import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.safetensors.prompt.PromptContext;
 import com.github.tjake.jlama.util.Downloader;
@@ -188,6 +189,33 @@ public class JlamaInferenceService {
             return response.responseText;
         } catch (Exception e) {
             LOG.warning("JLama chat failed: " + e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Generate an embedding vector for the given text.
+     * Uses mean pooling — suitable for semantic similarity / RAG retrieval.
+     *
+     * @param text input text to embed
+     * @return embedding vector as double[], or null on error
+     */
+    public double[] embed(String text) {
+        if (!checkReady()) return null;
+        try {
+            float[] f = model.embed(text, PoolingType.MODEL);
+            if (f == null || f.length == 0) {
+                LOG.warning("JLama embed returned null/empty vector");
+                return null;
+            }
+            double[] d = new double[f.length];
+            for (int i = 0; i < f.length; i++) {
+                d[i] = f[i];
+            }
+            LOG.fine(() -> "JLama embed: " + f.length + " dims for text of " + text.length() + " chars");
+            return d;
+        } catch (Exception e) {
+            LOG.warning("JLama embed failed: " + e.getMessage());
             return null;
         }
     }
