@@ -1405,6 +1405,8 @@ public final class AgentMain {
         var gapAnalyzer = new de.metis.modules.evolution.GapAnalyzer();
         var riskGate = new de.metis.modules.evolution.RiskGate();
         var metricSeries = new de.metis.modules.evolution.MetricTimeSeries();
+        var autoABTest = new de.metis.modules.evolution.AutoABTest(
+                hypothesisGenerator, hypothesisStore, interventionRunner);
         LOG.info("Phase 12b: GapAnalyzer + RiskGate + MetricTimeSeries ready");
 
         // ── Phase 8.6 — SelfReflector: kontinuierlicher innerer Monolog ──────
