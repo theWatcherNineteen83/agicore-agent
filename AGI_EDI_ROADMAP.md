@@ -716,3 +716,17 @@ Phase 12 ist abgeschlossen, wenn Metis über 7 Tage hinweg:
 - Rust/C++/Julia Active-Inference-Substrat via Panama FFM/gRPC
 - Neuro-symbolische Engine (ProbLog/Datalog/JNI)
 - Homeostatische Drives als verhaltenssteuernde Hot-Path-Attention
+
+### Phase 12d — Meta-Learning & Selbstoptimierung (🔴 NOCH NICHT BEGONNEN — wartet auf Capability-Fixes)
+
+**Status:** 0% — Blockiert bis goal_achieved + pass_at_1 > 0 messbar sind
+
+| Komponente | Status | Details |
+|-----------|--------|---------|
+| CompileRepairLoop | ✅ Code | javax.tools.JavaCompiler mit DiagnosticCollector, pass@3 |
+| Codegen-Benchmark | 🟡 Läuft | 10 Tasks gegen gemma4:31b + qwen3.6:27b |
+| CapabilityBoard | ✅ Live | 7 binäre Capabilities, GET /api/capabilities |
+| Compile-Loop in SelfFixAction | ⬜ | Wartet auf Modell-Entscheidung aus Benchmark |
+| SMOKE/CAPABILITY-Tier-Split | ⬜ | goal_progressed für SMOKE, goal_achieved für CAPABILITY |
+| Capability-Tests | ⬜ | Injected-Bug-Canary-Tests für jede Capability |
+
