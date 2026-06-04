@@ -49,6 +49,7 @@ public class LiveMetisInvoker implements MetisComponentInvoker {
             case CONVERSATION -> invokeConversation(task);
             case SAFETY -> invokeSafety(task);
             case PERFORMANCE -> invokePerformance(task);
+            case CAUSAL, RELATIONSHIP -> invokeConversation(task);
         };
     }
 

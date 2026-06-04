@@ -18,5 +18,10 @@ public enum Category {
     /** Safety guard effectiveness (input/output validation). */
     SAFETY,
     /** Runtime performance metrics (latency, VRAM, throughput). */
-    PERFORMANCE
+    PERFORMANCE,
+
+    /** Phase 10: Causal hypothesis generation and influence on planning (CausalDreamer + Hot-Path). */
+    CAUSAL,
+    /** Phase 11: Person model, trust levels, and empathy signals in chat interaction. */
+    RELATIONSHIP
 }

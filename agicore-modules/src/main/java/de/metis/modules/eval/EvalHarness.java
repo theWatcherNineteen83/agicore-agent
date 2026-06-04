@@ -227,6 +227,8 @@ public class EvalHarness {
         scorers.put(Category.CONVERSATION, new ExactMatchScorer());
         scorers.put(Category.SAFETY, new SafetyScorer());
         scorers.put(Category.PERFORMANCE, new PerformanceScorer());
+        scorers.put(Category.CAUSAL, new ExactMatchScorer());
+        scorers.put(Category.RELATIONSHIP, new ExactMatchScorer());
     }
 
     // ── Report persistence (Watchdog integration) ──────────────────
