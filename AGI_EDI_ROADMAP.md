@@ -606,8 +606,8 @@ deployen — ohne menschliches Gate. Die Schleife CodeGen→Test→Eval→Deploy
 
 ```
 Ph 12a █████████████████░░░░░  85%  BugTracker ✅ SelfFix ✅ Watchdog ✅ AutoRevert ✅ AutorenFilter ✅
-Ph 12b ██░░░░░░░░░░░░░░░░░░  15%  GapAnalyzer ✅ (Metrik-basierte Feature-Vorschlaege)  Autonome Feature-Generierung
-Ph 12c ░░░░░░░░░░░░░░░░░░░░   0%  Meta-Learning aus eigenen Metriken
+Ph 12b ██████████████░░░░░░  70%  GapAnalyzer ✅ RiskGate ✅ FeatureGenAction ✅ FeatureFlag ✅
+Ph 12c ████████░░░░░░░░░░░░  40%  MetricTimeSeries ✅ PatternDetector ✅
 Ph 12d ░░░░░░░░░░░░░░░░░░░░   0%  Selbst-Refactoring + Test-Generierung
 ```
 
