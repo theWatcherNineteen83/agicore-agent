@@ -248,10 +248,9 @@ Offen für weitere EDI-Annäherung:
 
 **Was Metis ausdrücklich nicht ist:**
 - nicht bewusst, nicht selbstreflexiv im phänomenologischen Sinn
-- nicht durchgängig kausal denkend — Pearl-Do-Calculus-Code existiert, ist aber noch nicht im Hot-Path
-- kennt den Anwender per Chat-ID und Conversation-History, nicht als Person mit Beziehungsmodell
-- der Watchdog ist tamper-evident (Hash-Kette bricht bei Manipulation), aber **nicht** tamper-proof
+- nicht durchgängig kausal denkend — HypothesisStore→Planner Hot-Path aktiv (Phase 10, 80%), Pearl-Do-Calculus CausalModel implementiert aber noch nicht als Intervention-Observe-Update-Loop im CoreLoop
+- (veraltet seit Phase 11/v0.10.0, 04.06.): PersonModel vollständig implementiert — Person/TrustLevel/PersonStore/EmpathySignal aktiv in Telegram + HTTP + Approval-Gate
+- Watchdog ist tamper-evident (SHA-256 Hash-Kette bricht bei Manipulation), aber **nicht** tamper-proof — Hardware-Sicherheit (TPM/HSM) nicht im Scope
 
----
 
 *"Streben nach Perfektion"* — Metis lernt, sieht, mutiert (mit Eval-Gate + Watchdog-Approval), evaluiert sich selbst, verbessert sich inkrementell. Was läuft, läuft im Repo nachweisbar. Was nicht läuft, steht offen in der [AGI_EDI_ROADMAP.md](AGI_EDI_ROADMAP.md).
