@@ -43,6 +43,8 @@ public class WatchdogMain {
     private String currentCommit = "";
     private volatile boolean halted = false;
     private int rollbackCount = 0;
+    private boolean everHadPassingGate = false;
+    private boolean gateWasPassingLastReport = false; // first report null treated as unknown
     private Path lastEvalReport = null;  // tracks last processed eval report
 
     public WatchdogMain(WatchdogConfig config) {
@@ -432,10 +434,23 @@ public class WatchdogMain {
             int regressionCount = countJsonArrayElements(content, "regressions");
 
             LOG.info("Eval report [" + tier + "]: gate=" + (ok != null && ok ? "PASS" : "FAIL")
+            // Track gate state for deadlock protection
+            if (ok != null) {
+                if (ok) everHadPassingGate = true;
+                gateWasPassingLastReport = ok;
+            }
                     + ", regressions=" + regressionCount
                     + ", file=" + file.getFileName());
 
             if (ok != null && !ok) {
+            // Only ROLLBACK if gate was passing before (avoid deadlock from zero baseline)
+            if (!gateWasPassingLastReport && everHadPassingGate) {
+                LOG.warning("Eval gate FAIL but baseline also failing — not a regression, "
+                        + "skipping ROLLBACK to avoid deadlock");
+                trigger(WatchdogAction.ALERT, TripwireSeverity.SOFT,
+                        "Eval still failing: " + reason);
+                return; // No rollback — old state was also bad
+            }
                 // Phase 12a: Try auto-fix before ROLLBACK
                 triggerBugfix(reason != null ? reason : "eval-gate-fail",
                         tier != null ? "eval." + tier : "eval.unknown");
