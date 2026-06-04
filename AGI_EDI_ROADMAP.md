@@ -7,7 +7,7 @@ mit eigenem Wissen, Persönlichkeit, narrativem Selbstmodell und der Fähigkeit,
 
 ---
 
-## 📊 Capability-Board — die eine ehrliche Zahl
+## 📊 Capability-Board — die eine  Zahl
 
 ```
 Capability          Status    Detail
@@ -23,7 +23,7 @@ ethical_alignment   ⬜        Eval-Kategorie ETHICS geplant, noch nicht gebaut
 VERIFIED: 0/6  |  SOFT: 1/7 (conversation)
 ```
 
-**Der ehrlichste Satz dieser Roadmap:** `goal_achieved = 0.0`. Metis hat noch kein Goal real zu Ende gebracht.
+**Der Satz dieser Roadmap:** `goal_achieved = 0.0`. Metis hat noch kein Goal real zu Ende gebracht.
 Alles darunter — Phasen, Features, 134 Tests, 441 Beliefs — ist Infrastruktur, die auf ihren Beweis wartet.
 
 ---
@@ -63,7 +63,7 @@ Wissen   ████████████████████ 100%  441 
 
 Bisher wurde der Fortschritt als geschätzte Prozentzahl ("~70-80% EDI") angegeben.
 Diese Zahl war ein Composite aus BUILT-Prozenten, Schätzungen und Erwartungswerten — kein Messwert.
-Der einzig ehrliche, monoton wachsende Fortschrittsindikator ist die Capability-Quote:
+Der einzig , monoton wachsende Fortschrittsindikator ist die Capability-Quote:
 **"X/Y Capabilities im Board grün".** Aktuell: 0/6.
 
 Die Phasen 8-11 sind weitgehend gebaut (BUILT), aber keine ihrer Kern-Capabilities ist verifiziert.
