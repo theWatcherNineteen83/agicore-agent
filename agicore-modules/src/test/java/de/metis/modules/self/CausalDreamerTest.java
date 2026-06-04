@@ -6,6 +6,9 @@ import de.metis.kernel.memory.MemoryConsolidator;
 import de.metis.kernel.memory.ShortTermMemory;
 import de.metis.kernel.memory.LongTermMemory;
 import de.metis.kernel.self.SelfNarrative;
+import de.metis.kernel.world.CausalModel;
+import de.metis.kernel.world.InterventionRunner;
+
 import de.metis.kernel.world.HypothesisGenerator;
 import de.metis.kernel.world.HypothesisStore;
 
@@ -42,7 +45,8 @@ class CausalDreamerTest {
         var hs = new HypothesisStore(dir.resolve("hypotheses.jsonl"));
         var hg = new HypothesisGenerator(hs);
         var sn = new SelfNarrative(dir.resolve("n.md"));
-        var dreamer = new CausalDreamer(m, kanban, hg, hs, sn, 10, 10);
+        var dreamer = new CausalDreamer(
+                m, kanban, hg, hs, sn, new InterventionRunner(hs, new CausalModel()), 10, 10);
         assertFalse(dreamer.dreamOnce(), "WIP ≥ 2 → kein Traum");
     }
 
@@ -55,10 +59,11 @@ class CausalDreamerTest {
         var hs = new HypothesisStore(dir.resolve("hypotheses.jsonl"));
         var hg = new HypothesisGenerator(hs);
         var sn = new SelfNarrative(dir.resolve("n.md"));
-        var dreamer = new CausalDreamer(m, kanban, hg, hs, sn, 10, 10);
+        var dreamer = new CausalDreamer(
+                m, kanban, hg, hs, sn, new InterventionRunner(hs, new CausalModel()), 10, 10);
         assertTrue(dreamer.dreamOnce());
         assertEquals(1, dreamer.hypothesesCreated());
-        assertEquals(1, hs.open().size());
+        assertEquals(1, hs.all().size()); // 1 hypothesis (TESTING after intervention)
     }
 
     @Test
@@ -74,7 +79,8 @@ class CausalDreamerTest {
             hs.upsert(hg.propose("cause" + i, "cond", "effect", "rationale"));
         }
         assertEquals(5, hs.open().size(), "pre-fill: 5 open hypotheses");
-        var dreamer = new CausalDreamer(m, kanban, hg, hs, sn, 10, 4);
+        var dreamer = new CausalDreamer(
+                m, kanban, hg, hs, sn, new InterventionRunner(hs, new CausalModel()), 10, 4);
         assertFalse(dreamer.dreamOnce(), "overflow: 5 >= 4 → skip");
         assertEquals(5, hs.open().size(), "no new hypothesis added");
     }
@@ -89,7 +95,8 @@ class CausalDreamerTest {
         var hs = new HypothesisStore(dir.resolve("hypotheses.jsonl"));
         var hg = new HypothesisGenerator(hs);
         var sn = new SelfNarrative(dir.resolve("n.md"));
-        var dreamer = new CausalDreamer(m, kanban, hg, hs, sn, 10, 10);
+        var dreamer = new CausalDreamer(
+                m, kanban, hg, hs, sn, new InterventionRunner(hs, new CausalModel()), 10, 10);
         assertTrue(dreamer.dreamOnce());
         assertTrue(sn.recentContext().contains("CausalDream"));
     }
@@ -101,7 +108,8 @@ class CausalDreamerTest {
         var hs = new HypothesisStore(dir.resolve("hypotheses.jsonl"));
         var hg = new HypothesisGenerator(hs);
         var sn = new SelfNarrative(dir.resolve("n.md"));
-        var dreamer = new CausalDreamer(m, kanban, hg, hs, sn, 10, 10);
+        var dreamer = new CausalDreamer(
+                m, kanban, hg, hs, sn, new InterventionRunner(hs, new CausalModel()), 10, 10);
         assertFalse(dreamer.dreamOnce(), "leeres Gedächtnis → kein Traum");
     }
 }
