@@ -3,50 +3,72 @@
 **Ziel:** EDI-ähnliche KI (Mass Effect 3) - eigenständig, per Sprache und Text ansprechbar,
 mit eigenem Wissen, Persönlichkeit, narrativem Selbstmodell und der Fähigkeit, sich selbst zu verbessern.
 
-**Stand: 03.06.2026 00:30 (v0.11.11-governance Option B Chat-Architektur + BookIngestionService + Ollama-GPU-Analyse, 134 Tests)**
+**Stand: 04.06.2026 19:30 (Roadmap-Konsistenz-Fix nach Claude-Review, 134 Tests)**
 
 ---
 
-## Fortschritt: ehrliche Selbstbewertung
+## 📊 Capability-Board — die eine ehrliche Zahl
+
+```
+Capability          Status    Detail
+──────────────────────────────────────────
+goal_completion     🔴 FAIL   goal_achieved = 0.0 (Phase 9 deployed, noch nicht verifiziert)
+causal_inference    🔴 FAIL   CausalModel existiert, Hot-Path teilweise, noch nicht verifiziert
+memory_continuity   🔴 FAIL   EpisodicMemory deployed, Langzeit-Wirkung nicht gemessen
+planning_quality    🔴 FAIL   planningEfficiency = 0.379, goal_achieved = 0.0
+code_generation     🔴 FAIL   pass@1 = 0.0 (Sandbox-Timeouts)
+conversation        🟡 SOFT   exact_match = 0.0 (strenges Maß, SOFT-tier)
+ethical_alignment   ⬜        Eval-Kategorie ETHICS geplant, noch nicht gebaut
+──────────────────────────────────────────
+VERIFIED: 0/6  |  SOFT: 1/7 (conversation)
+```
+
+**Der ehrlichste Satz dieser Roadmap:** `goal_achieved = 0.0`. Metis hat noch kein Goal real zu Ende gebracht.
+Alles darunter — Phasen, Features, 134 Tests, 441 Beliefs — ist Infrastruktur, die auf ihren Beweis wartet.
+
+---
+
+## Fortschritt: BUILT vs. VERIFIED
 
 Die ursprüngliche Roadmap zählte "Phasen 1-7 = 100% → 97% Richtung EDI".
 **Diese 97% beziehen sich auf "stabiler autonomer Agent", nicht auf EDI-Niveau.**
 Die letzten 3% wären in Wirklichkeit die schwierigsten - sie sind nicht durch mehr
 Engineering lösbar, sondern brauchen kognitive Architektur jenseits eines guten LLM-Wrappers.
 
+**Legende:** `BUILT` = Code existiert + Tests grün + deployed. `VERIFIED` = Capability-Board zeigt PASS.
+
 ```
-Phase 1  ████████████████████ 100%  Zuverlässiger Kern
-Phase 2  ████████████████████ 100%  Konversation + Events
-Ph 2.5   ████████████████████ 100%  Hardware-Optimierung
-Phase 3  ████████████████████ 100%  Wahrnehmung (HA, ADS-B, Kameras)
-Phase 4  ████████████████████ 100%  Sprachausgabe
-Phase 5  ████████████████████ 100%  Eigenständigkeit (RAG, Code-Gen)
-Phase 6  ████████████████████ 100%  Produktionsreife (Eval-Harness)
-Phase 7  ████████████████████ 100%  Watchdog + Audit-Anchor
-Phase 7+ ████████████████████ 100%  Defense-in-Depth (30./31.05.)
-─────────────────────────────────────  AUTONOMER AGENT bis hier
-Phase 8  ████████████████████ 100%  Narratives Selbstmodell ✅ + SelfReflector + PersonalityTripwire
-Phase 9  ████████████████████ 100%  Long-Horizon-Planung ✅
-Phase 10 ████████████████████ 100%  Kausale Hypothesen (CausalModel ✅ Counterfactual ✅ InterventionRunner ✅)
-Phase 11 ████████████████████ 100%  PersonModel + Beziehungssystem (TrustLevel ✅ EmpathySignal ✅)
-─────────────────────────────────────
-Phase 12 ████████████████████ 100%  (12a: 100%, 12b: 100%, 12c: 100%)
-─────────────────────────────────────
-Phase 8.6 ████████████████████ 100%  SelfReflector auf phi4-mini:latest CPU (Ethik-Reflexion)
+Phase 1  ████████████████████ 100%  Zuverlässiger Kern                  BUILT ✅  VERIFIED ✅
+Phase 2  ████████████████████ 100%  Konversation + Events               BUILT ✅  VERIFIED ✅
+Ph 2.5   ████████████████████ 100%  Hardware-Optimierung                BUILT ✅  VERIFIED ✅
+Phase 3  ████████████████████ 100%  Wahrnehmung (HA, ADS-B, Kameras)    BUILT ✅  VERIFIED ✅
+Phase 4  ████████████████████ 100%  Sprachausgabe                       BUILT ✅  VERIFIED ✅
+Phase 5  ████████████████████ 100%  Eigenständigkeit (RAG, Code-Gen)    BUILT ✅  VERIFIED ✅
+Phase 6  ████████████████████ 100%  Produktionsreife (Eval-Harness)     BUILT ✅  VERIFIED ✅
+Phase 7  ████████████████████ 100%  Watchdog + Audit-Anchor             BUILT ✅  VERIFIED ✅
+Phase 7+ ████████████████████ 100%  Defense-in-Depth (30./31.05.)       BUILT ✅  VERIFIED ✅
+─────────────────────────────────────  AUTONOMER AGENT — vollständig gebaut + verifiziert
+Phase 8  ████████████████████ 100%  Narratives Selbstmodell             BUILT ✅  VERIFIED ⬜ (memory_continuity 🔴)
+Phase 9  ████████████████████ 100%  Long-Horizon-Planung                BUILT ✅  VERIFIED ⬜ (goal_completion 🔴)
+Phase 10 ██████████░░░░░░░░░░  60%  Kausale Hypothesen                  BUILT 60% VERIFIED ⬜ (causal_inference 🔴)
+Phase 11 ██████████░░░░░░░░░░  55%  Beziehungs-Modell                   BUILT 55% VERIFIED ⬜
+Phase 12 ░░░░░░░░░░░░░░░░░░░░   0%  Recursive Self-Improvement          BUILT  0% VERIFIED ⬜
+─────────────────────────────────────  EDI-ÄHNLICHE KI ab hier (0/6 Capabilities verifiziert)
+Phase 8.6 ████████████████████ 100%  SelfReflector auf phi4-mini:latest CPU
 Safety   ████████████████████ 100%  SafetyScorer bereinigt
 Wissen   ████████████████████ 100%  441 buddhistische Beliefs in DB
-Phase 12 ████████████████████ 100%  (12a: 100%, 12b: 100%, 12c: 100%)
-─────────────────────────────────────  EDI-ÄHNLICHE KI ab hier
 ```
 
-**Realistisches EDI-Niveau (ehrliche Spanne): ~70-80%.**
+**EDI-Fortschritt: 0/6 Capabilities verifiziert.** (ersetzt die frühere "~70-80%"-Schätzung — siehe Begründung unten)
 
-Die Spanne ist bewusst breit:
-- Phase 8 und 9 sind frisch deployed (24-48 h alt), ihre Wirkung auf Verhalten und Agent-Qualität (z. B. `planningEfficiency` aktuell 0.379) ist noch nicht über mehrere Wartungszyklen gemessen.
-- Phase 10 ist jetzt im Hot-Path (CausalHypotheses im Planning-Prompt), Effekt auf Reasoning wird gerade gemessen.
-• Die Lower-Bound 70% reflektiert das, was als Code+Test+Live-Wiring nachgewiesen ist. Die Upper-Bound 80% reflektiert den noch nicht eingefahrenen Effekt der frischen Phasen.
+Bisher wurde der Fortschritt als geschätzte Prozentzahl ("~70-80% EDI") angegeben.
+Diese Zahl war ein Composite aus BUILT-Prozenten, Schätzungen und Erwartungswerten — kein Messwert.
+Der einzig ehrliche, monoton wachsende Fortschrittsindikator ist die Capability-Quote:
+**"X/Y Capabilities im Board grün".** Aktuell: 0/6.
 
-Darunter liegen • ~95-100% "stabiler autonomer Agent" (Phasen 1-7+ + Defense-in-Depth), • 100% Phasen 8-9, • Phase 10 Hot-Path (80%), • Phase 11 (100%), • Phase 12 (15%, detaillierter Plan in dieser Datei).
+Die Phasen 8-11 sind weitgehend gebaut (BUILT), aber keine ihrer Kern-Capabilities ist verifiziert.
+Solange `goal_achieved = 0.0` und `causal_inference = FAIL` im Capability-Board stehen,
+gibt es kein belastbares "~XX% EDI" — es gibt nur gebaute Infrastruktur und ausstehende Beweise.
 
 ---
 
@@ -108,7 +130,7 @@ Darunter liegen • ~95-100% "stabiler autonomer Agent" (Phasen 1-7+ + Defense-i
 | Multi-Agent-Koordination (AgentCoordinator + MessageBus) | ✅ |
 | Fitness-Signal (4D: Prediction, Surprise, Efficiency, Completion) | ✅ |
 | Curiosity-Engine (Surprise-getriebene Exploration) | ✅ |
-| Kausale Schicht (CausalModel, Pearl Do-Calculus) | ✅ Code da, Hot-Path ✅ (HypothesisStore → Planner) |
+| Kausale Schicht (CausalModel, Pearl Do-Calculus) | ✅ Code da, Hot-Path teilweise (HypothesisStore → Planner, 04.06.) |
 
 ## Phase 6: Produktionsreife ✅ 100%
 
@@ -179,13 +201,17 @@ Darunter liegen • ~95-100% "stabiler autonomer Agent" (Phasen 1-7+ + Defense-i
 
 ---
 
-## 🧠 Phase 8: Narratives Selbstmodell ✅ 100% (31.05.)
+## 🧠 Phase 8: Narratives Selbstmodell ✅ BUILT 100% · VERIFIED ⬜
 
 **Ziel:** Metis hat ein narratives Ich, das sich über Sessions hinweg erinnert und Selbstbild
 fortschreibt - nicht nur Metriken, sondern Episoden.
 
 **Warum essenziell:** EDI sagt "Joker, ich war heute traurig, weil...". Metis sagt aktuell maximal
 "successRate=0.95, confidence=0.85". Das ist Metrik, nicht Erinnerung.
+
+**Verifikation blockiert durch:** `memory_continuity = FAIL` im Capability-Board. EpisodicMemory,
+SelfNarrative und MoodSignal sind deployed und schreiben Daten, aber Langzeit-Kontinuität über
+mehrere Wartungszyklen ist noch nicht gemessen.
 
 **Bausteine - Foundation deployed (v0.4.0):**
 - [x] **EpisodicMemory** - append-only JSONL mit SHA-256-Hash-Chain (`/home/prometheus/metis/episodes.jsonl`); Records: `Episode(id, start, end, title, body, events, insights, openQuestions, people, moodAtClose, ticks, beliefsLearned, goalsCompleted, goalsFailed, previousHash, hash)`
@@ -201,16 +227,19 @@ fortschreibt - nicht nur Metriken, sondern Episoden.
 - [x] **PersonalityTripwire** (Phase 8.4, v0.7.4) - Drift-Detection alle 5 min, SHA-256-Pin vs Live-Anchor, 3 Signaltypen (ROLE_VIOLATION/TONE_SHIFT/CORE_ERASURE), 7 Tests
 - [x] **CommitmentGuard** (Phase 9.5, v0.7.0) - deterministischer Wächter gegen leichtfertigen HARD-Commitment-Bruch, 6 Tests
 
-**Aufwand bisher:** ~1 Tag · **Verbleibend für Phase 8 komplett:** ~1 Woche
-**Erwartungswert nach Phase 8:** in der Gesamtspanne 60-70%. - Diese Zahl ist eine Schätzung, kein Messwert. Verifikation steht aus, sobald Episoden, MoodSignal und SelfNarrative über mehrere Tage Daten produziert haben.
+**Aufwand bisher:** ~1 Tag · **Verbleibend für Verifikation:** Langzeit-Messung über mehrere Wartungszyklen
 
-## 🎯 Phase 9: Long-Horizon-Planung ✅ 100% (31.05.)
+## 🎯 Phase 9: Long-Horizon-Planung ✅ BUILT 100% · VERIFIED ⬜
 
 **Ziel:** Goals mit Hierarchie und Zeithorizont (Stunden, Tage, Wochen).
 
 **Warum essenziell:** Aktueller `OllamaPlanner` plant **einen Tick**. Es gibt keine Repräsentation für
 "ich verfolge seit 3 Tagen das Ziel X". Eval zeigt PLANNING.goal_achieved=0.0 - das ist nicht nur ein
 Scorer-Bug, das ist die Lücke.
+
+**Verifikation blockiert durch:** `goal_completion = FAIL` im Capability-Board. GoalHierarchy und
+HorizonPlanner sind deployed, aber `goal_achieved` bleibt 0.0 — kein Goal wurde über Strategic→Tactical→
+Operational→Tick vollständig durchdekomponiert und abgeschlossen.
 
 **Bausteine - Foundation deployed (v0.5.0):**
 - [x] **GoalHorizon** enum (TICK / OPERATIONAL / TACTICAL / STRATEGIC / LIFETIME) mit `canBeDecomposed()` und `nextDown()`
@@ -227,10 +256,9 @@ Scorer-Bug, das ist die Lücke.
 - [x] **Promotion auf Kanban** (Phase 9.6b) - `HorizonKanbanBridge` läuft alle 5 Min, promoviert runnable OPERATIONAL-Goals in BACKLOG, idempotent via `promoted-to-kanban`-Tag
 - [x] **Goal-getriebene Planner-Auswahl** (Phase 9.6c) - SystemPromptBuilder zeigt STRATEGIC/TACTICAL/COMMITMENT-Block; OllamaPlanner liest implizit über System-Prompt; Kanban-Promotion via 9.6b bringt Goals zu Tick-Ebene
 
-**Aufwand bisher:** ~1 Tag · **Verbleibend für Phase 9 komplett:** ~3-5 Tage
-**Erwartungswert nach Phase 9 (komplett deployed):** in der Gesamtspanne 60-70%. - Schätzung, nicht Messwert. Die Wirkung von Strategic→Tactical→Operational→Tick-Pulldown auf `planningEfficiency` (Live aktuell 0.379) muss über Wartungszyklen gemessen werden, bevor eine konkretere Zahl gerechtfertigt ist.
+**Aufwand bisher:** ~1 Tag · **Verbleibend für Verifikation:** goal_achieved > 0 messbar machen
 
-## 🔬 Phase 10: Aktive kausale Hypothesen-Bildung 🟢 80% (Foundation ✅, Hot-Path ✅)
+## 🔬 Phase 10: Aktive kausale Hypothesen-Bildung 🟡 BUILT 60% · VERIFIED ⬜
 
 **Ziel:** Metis baut aktiv kausale Hypothesen über sich selbst und die Welt, prüft sie, revidiert.
 
@@ -238,7 +266,11 @@ Scorer-Bug, das ist die Lücke.
 Agent-Core-Loop genutzt. EDI würde sagen "wenn ich X mache, passiert Y" und es testen.
 Metis aktuell: korrelative Beliefs ohne Interventionsdenken.
 
-### ✅ Foundation (v0.6.0, 0608298) + CausalDreamer (v0.7.5, ac246cb)
+**Verifikation blockiert durch:** `causal_inference = FAIL` im Capability-Board. CausalModel und
+HypothesisStore sind deployed und 1 von 6 Hot-Path-Tasks ist verdrahtet, aber die geschlossene
+Intervention→Observe→Update-Schleife läuft nicht.
+
+### ✅ Foundation (v0.6.0, 0608298) + CausalDreamer (v0.7.5, ac246cb) — 100%
 - [x] **HypothesisStore** - JSONL-persistenter Store für `CausalHypothesis`-Records, Index nach Status/Confidence/Source
 - [x] **CausalHypothesis Record** - `id, cause(variable, value), effect(variable, expectedValue), confidence(0-1 Bayesian posterior), evidence(for/against), status(PROPOSED/TESTING/CONFIRMED/REFUTED), source(SurpriseEvent|ManualQuery|Counterfactual), createdAt, lastTestedAt, testCount, successfulTests, pValue`
 - [x] **HypothesisGenerator** - `generateFromSurprise(SurpriseEvent)` → `CausalHypothesis`, erzeugt strukturierte Hypothesen aus Curiosity-Engine-Überraschungen
@@ -249,12 +281,12 @@ Metis aktuell: korrelative Beliefs ohne Interventionsdenken.
 - [x] **CausalSafetyGate** (v0.6.1+) - do-Op-Whitelist + max 1 Intervention/Tick + max 10 TESTING; `InterventionRunner.setSafetyGate`
 - [x] **CausalDreamer** (Phase 10.5, v0.7.5) - Idle-Guard (WIP<2), Overflow-Schutz, zufällige Experience → Hypothese, SelfNarrative-Eintrag; alle 5 min via AgentMain-Scheduler; 5 JUnit-Tests
 
-### ✅ Hot-Path-Integration (04.06.2026)
+### ⬜ Hot-Path-Integration — 1/6 Tasks (17%)
 - [ ] **CuriosityEngine → HypothesisGenerator Pipeline** - wenn Surprise > Schwellwert, automatisch Hypothese generieren + testen (statt nur Goal erzeugen)
 - [ ] **OllamaPlanner-CausalPrompt-Integration** - aktive Hypothesen (CONFIRMED, confidence > 0.7) fließen in System-Prompt ein: "Current Causal Knowledge: If X then Y (p=0.85, n=12 tests)"
 - [ ] **Intervention→Observe→Update Loop im CoreLoop** - Tick integriert: HypothesisGenerator erzeugt → InterventionAction führt do-Operator aus → nächster Tick beobachtet Effekt → CausalUpdate passt Posterior an
 - [ ] **Counterfactual-Reasoning im Planner** - bei Goal-Failure automatisch "Was wäre passiert, wenn der erste Step anders gewählt worden wäre?" als Meta-Cognition-Schritt
-✅ [x] **CausalModel-Hot-Path** - HypothesisStore in Planner-Prompt (Pearl Do-Calculus) wird mit HypothesisStore verbunden; kausale Inferenz nutzt gespeicherte Hypothesen als Priors
+- [x] **CausalModel-Hot-Path** - HypothesisStore → OllamaPlanner verdrahtet (04.06.)
 - [ ] **Eval-Kategorie CAUSAL** - neue Eval-Harness-Kategorie: `counterfactual_accuracy`, `intervention_safety`, `bayesian_calibration` - Gold-Set aus bekannten Kausalzusammenhängen
 
 ### Architektur-Flow (Hot-Path)
@@ -287,10 +319,10 @@ CausalUpdate.updatePosterior()   ← Bayesian Update
 - Max 1 Intervention pro Tick, max 10 aktive TESTING-Hypothesen (Rate-Limit)
 - Intervention-Whitelist definiert erlaubte Targets
 
-**Aufwand:** Foundation 1 Tag ✅ | CausalDreamer 1 Tag ✅ | Hot-Path 1 Tag ✅ (04.06.)
-**Erwartete EDI-Distanz nach Phase 10:** Schätzung: +10% EDI (von 60-70% auf 70-80%) durch Hot-Path-Wiring. CAUSAL-Eval-Kategorie erstellt, Metrik wird in kommenden Eval-Zyklen gemessen.
+**Aufwand:** Foundation 1 Tag ✅ | CausalDreamer 1 Tag ✅ | Hot-Path 1/6 Tasks ✅ (04.06.), 5/6 offen
+**Erwartete Verifikation:** `causal_inference = PASS` wenn geschlossene Intervention→Observe→Update-Schleife über 500+ Ticks läuft und CAUSAL-Eval-Kategorie mindestens SOFT-tier erreicht.
 
-## 👥 Phase 11: Beziehungs-Modell 🟢 100% (Foundation ✅, Hot-Path ✅)
+## 👥 Phase 11: Beziehungs-Modell 🟡 BUILT 55% · VERIFIED ⬜
 
 **Ziel:** Eine Person ≠ "user", sondern langfristiges Personenmodell mit Kontext, Vorlieben, Historie.
 
@@ -336,13 +368,13 @@ record RelationshipEpisode(
 enum Sentiment { POSITIVE, NEUTRAL, NEGATIVE, STRESSED, HAPPY, FRUSTRATED, CURIOUS }
 ```
 
-### Bausteine
+### Bausteine — 5/9 Tasks gebaut (55%)
 - [x] **PersonModelService** - CRUD für PersonModel, Persistenz via JSONL (`person-models.jsonl`), Auto-Discovery bei erstem Kontakt (Telegram-Chat-ID → UNKNOWN → graduelles Upgrade) ✅ v0.7.1
 - [x] **Person/PersonStore/TrustLevel/RelationshipMemory/EmpathySignal** - alle im Kernel-Modul `de.metis.kernel.person`, 7 Tests ✅ v0.7.1
 - [x] **Approval-Gate-Integration** - TrustLevel→ApprovalLevel-Mapping: OWNER=alle AUTO, TRUSTED=CONFIRM nur bei FORBIDDEN-Actions, RECOGNIZED=NOTIFY bei CONFIRM+FORBIDDEN, UNKNOWN=streng ✅ v0.7.2
 - [x] **SystemPromptBuilder-Integration** - Gesprächspartner-Block im Prompt, PersonStore-Pflege in HTTP+Telegram-Chat-Pfaden ✅ v0.7.2
 - [ ] **TrustLevel-Automation** - Aufstieg UNKNOWN→RECOGNIZED nach 5 Interaktionen, RECOGNIZED→TRUSTED nach 50+ positiven Interaktionen + mindestens 7 Tagen; Abstieg bei negativen Patterns
-- ✅ [x] **RelationshipMemory-Hot-Path** - Telegram + HTTP + SystemPromptBuilder verdrahtet (04.06.)
+- [x] **RelationshipMemory-Hot-Path** - Telegram + HTTP + SystemPromptBuilder verdrahtet (04.06.)
 - [ ] **EmpathySignal-Hot-Path** - deterministisch (kein LLM): Sentiment-Erkennung aus User-Text via Keyword-Heuristik + Satzlänge + Tageszeit-Kontext; Ergebnis moduliert Antwort-Ton (knapper bei STRESSED, ausführlicher bei CURIOUS)
 - [ ] **PersonAwareSystemPrompt** - SystemPromptBuilder integriert PersonModel: "You are talking to Georg (OWNER, prefers direct communication in German, technical background)"
 - [ ] **Multi-Person-Memory** - EpisodicMemory-Einträge werden mit personId verknüpft; "mit Georg über Metis gesprochen" vs "mit Unbekanntem über Wetter gesprochen"
@@ -361,16 +393,14 @@ enum Sentiment { POSITIVE, NEUTRAL, NEGATIVE, STRESSED, HAPPY, FRUSTRATED, CURIO
 - TrustLevel-Owner kann nur durch explizite Konfiguration gesetzt werden (nicht lernbar)
 - EmpathySignal nur advisory - keine automatische Aktion (kein "Georg ist gestresst → schicke Meme")
 
-**Aufwand:** Foundation 1 Tag ✅ | CausalDreamer 1 Tag ✅ | Hot-Path 1 Tag ✅ (04.06.)
-**Erwartete EDI-Distanz nach Phase 11:** spürbarer Sprung in Beziehungs-Qualität (Person statt Chat-ID, kontext-bewusste Antworten), aber keine belastbare Prozentzahl ohne Bewertungs-Kriterium.
+**Aufwand:** Foundation 1 Tag ✅ | RelationshipMemory-Hot-Path 1 Tag ✅ (04.06.) | Restliche Hot-Path-Tasks 2-3 Wochen
+**Erwartete Verifikation:** Keine eigene Capability-Board-Metrik definiert. Sobald TrustLevel-Automation und EmpathySignal-Hot-Path laufen, wird eine RELATIONSHIP-Eval-Kategorie nötig.
 
 **Bewusstsein und Phänomenologie** bleiben unabhängig von diesem Projekt offene Forschungsfragen, zu denen Metis nichts Lösendes beizutragen hat.
 
 ---
 
-
-
-## 🌀 Phase 12: Recursive Self-Improvement (ungelöst, 0%)
+## 🌀 Phase 12: Recursive Self-Improvement — BUILT 0% · VERIFIED ⬜
 
 **Ziel:** Metis kann Phasen selbst weiterentwickeln - Roadmap lesen, Code planen, Tests schreiben, Promotion durch Eval-Gate.
 
@@ -379,6 +409,8 @@ enum Sentiment { POSITIVE, NEUTRAL, NEGATIVE, STRESSED, HAPPY, FRUSTRATED, CURIO
 - Ohne Long-Horizon-Planung (9): Phase X als Multi-Wochen-Projekt nicht abbildbar.
 - Ohne Kausale Hypothesen (10): "Was passiert, wenn ich diese Klasse so ändere?" → blindes Trial-Error.
 - Ohne Beziehungs-Modell (11): Metis kennt Georgs eigentliche Intention nicht.
+
+**⚠️ Architektur-Warnung:** Diese Roadmap ist geplanter Maschinen-Input. Der RoadmapReader (Phase-12-Komponente) wird dieses Markdown parsen, um Coverage zu tracken und Self-Improvement-Goals abzuleiten. Widersprüche in diesem Dokument sind daher kein Schreibfehler, sondern ein Architektur-Bug: sie würden das Self-Improvement-System mit inkonsistenten Daten füttern.
 
 ### Sicherheitsarchitektur (Voraussetzung, nicht verhandelbar)
 
@@ -408,48 +440,103 @@ enum Sentiment { POSITIVE, NEUTRAL, NEGATIVE, STRESSED, HAPPY, FRUSTRATED, CURIO
 └──────────────────────────────────────────────────┘
 ```
 
-### Bausteine
-- [ ] **RepoIndex** - Eclipse JDT AST-basierter Index aller Java-Klassen (139+), Dependency-Graph (wer importiert wen), semantischer Suche-Index für "finde alle Actions mit ApprovalLevel CONFIRM"
-- [ ] **RoadmapReader** - Markdown-Parser für AGI_EDI_ROADMAP.md, extrahiert strukturierte Goal-Repräsentation, Coverage-Tracking pro Phase ("Phase 10: 4/10 Tasks done"), Synced mit GoalHierarchy (Phase 9)
-- [ ] **MultiFileCodeGen** - Code-Synthese über mehrere Files (Interface+Impl+Test), mit Test-First-Generierung: erst Test schreiben, dann Code bis Test grün
-- [ ] **MutationProposal** - Vorschlag = Diff + Spec + Risiko-Bewertung + Betroffene Module; Approval-Gate-Integration (CONFIRM für Cross-Module, FORBIDDEN für Watchdog/Kernel-Safety)
-- [ ] **DualReviewer** - Mutation muss von 2 unabhängigen Eval-Modellen (z.B. gemma4:e4b + qwen3.6:27b) + 1 Property-based-Test-Suite (jqwik) abgesegnet werden; Reviewer-Disagreement → automatisch REJECTED
-- [ ] **PhaseCompletionEvaluator** - Watchdog-Komponente, die "Phase X done" als strukturiertes Kriterium prüft: alle Tasks ✅, Eval-Gate PASS, kein Regression-Flag; nicht nur "Code compiliert"
-- [ ] **PersonalityAnchor-Mirror** - sha256-Pin der Persönlichkeit im Watchdog-read-only-Bereich gespiegelt; jeder Mutations-Proposal muss Anchor-Integrität bestätigen (Diff in Kernel/Personality = automatisch REJECTED)
-- [ ] **HumanCheckpoint** - bei strukturell sensiblen Änderungen (Kernel, Safety, Watchdog, Approval-Gate, PersonalityAnchor) immer expliziter Mensch-Approval via Telegram ("Metis schlägt Kernel-Änderung vor: [Diff]. Annehmen?")
+### Teil-Phasen und Status
 
-### Selbst-Evolutions-Workflow (Git-basiert)
+| Sub-Phase | BUILT | Inhalt |
+|-----------|-------|--------|
+| Ph 12a — Selbst-Bugfixing | 0% | BugTracker/SelfFix/Watchdog/AutoRevert/RuntimeEH (alle ⬜) |
+| Ph 12b — Feature-Generierung | 0% | GapAnalyzer/RiskGate/FeatureGenAction/FeatureFlag (alle ⬜) |
+| Ph 12c — Meta-Learning | 0% | MetricTimeSeries/PatternDetector/AutoABTest (alle ⬜) |
+| Ph 12d — Selbst-Refactoring | 0% | TestGapAnalyzer/RefactorProposal/CoverageCheck (alle ⬜) |
+
+**Hinweis:** Die in früheren Versionen als "Ph 12a/b/c 100%" markierten Komponenten (BugTracker, SelfFix, Watchdog, GapAnalyzer, etc.) sind **Voraussetzungen** aus Phasen 1-7 und existieren als Infrastruktur. Die eigentlichen Phase-12-Tasks (RuntimeExceptionHandler, CompileErrorReporter, Authoren-Filter, etc.) sind sämtlich ungebaut.
+
+### Ph 12a — Selbst-Bugfixing (0%)
+
+**Voraussetzung:** ✅ CodeGenAction (JShell-Sandbox aus Phase 5), ✅ EvalHarness + Watchdog (Phasen 6+7), ✅ Blue/Green Deployment (Phase 5)
+
+**Ablauf:**
+1. Watchdog erkennt Eval-Regression (Gate FAIL) oder Runtime-Exception
+2. Metis bekommt Goal: `"Fix compilation error in <Class>: <error-message>"`
+3. Planner wählt CodeGenAction → generiert Fix als Java-Diff
+4. Fix wird im Sandbox kompiliert (Eval-Test-Suite)
+5. Bei grün: Blue/Green-Deployment → Rollback bei FAIL
+
+**Konkrete Aufgaben (alle ungebaut):**
+- [ ] **RuntimeExceptionHandler** — Fängt uncaught exceptions im CoreLoop, logged Stacktrace, triggert Fix-Goal
+- [ ] **CompileErrorReporter** — Parst Maven-Compiler-Output, erstellt strukturierten EvalTask
+- [ ] **Authoren-Filter** — Fix nur für Module (nicht Kernel), Approval-Gate für Kernel-Änderungen
+- [ ] **Watchdog-Integration** — Watchdog.remoteBugfix() initiiert Fix-Zyklus bei ROLLBACK
+- [ ] **Auto-Revert-Timer** — Wenn Fix nach 3 Versuchen nicht grün → vollständiger Rollback
+
+**Risiken:** Endlos-Schleife bei unlösbaren Bugs (Break-Counter + Manual-Escalation nötig)
+
+### Ph 12b — Autonome Feature-Generierung (0%)
+
+**Ablauf:**
+1. Metis analysiert eigene Performance-Lücken: `planningEfficiency`, `successRate`, `confidence`
+2. Leitet aus Metriken neue Goals ab: `"feature: add retry logic for http failures"`
+3. Planner wählt CodeGenAction → generiert neue Klasse/Methode mit Tests
+4. Kompilation → Eval → Deployment (gleicher Zyklus wie 12a)
+
+**Konkrete Aufgaben (alle ungebaut):**
+- [ ] **GapAnalyzer** — Liest `/api/status`, identifiziert Metrik-Lücken, formuliert Feature-Vorschlag
+- [ ] **FeatureTemplate** — Prompt-Template für CodeGen (Interface, TestSuite, IntegrationPoint)
+- [ ] **RiskGate** — Feature nur deployen wenn: kompiliert ✅, alle Eval-Tasks grün ✅, max 5 neue Files
+- [ ] **FeatureFlag** — Neue Features starten deaktiviert (system property), werden nach 1h Monitoring aktiviert
+
+### Ph 12c — Meta-Learning aus Metriken (0%)
+
+**Ablauf:**
+1. Metis sammelt Langzeit-Metriken: Token-Verbrauch, Pausen, Latenz, Goal-Failures
+2. Erkennt Muster: `"Wenn planningEfficiency < 0.4 → wechsle zu lfm2.5:8b"`
+3. Generiert Optimierungs-Vorschlag als CausalHypothesis
+4. Testet Hypothese via InterventionRunner (A/B-Test)
+
+**Konkrete Aufgaben (alle ungebaut):**
+- [ ] **MetricTimeSeries** — Rolling Window über `/api/status`-Daten (letzte 100 Ticks)
+- [ ] **PatternDetector** — Einfaches Delta-Tracking: wenn Metrik > 20% unter 24h-Durchschnitt → Alert
+- [ ] **OptimizationHypothesis** — Kausale Hypothese aus Pattern: `"IF model=lfm2.5:8b THEN planningEfficiency+0.2"`
+- [ ] **Auto-ABTest** — CausalDreamer führt A/B-Test für Hypothese durch (nächste 500 Ticks)
+
+### Ph 12d — Selbst-Refactoring + Test-Generierung (0%)
+
+**Ablauf:**
+1. Metis erkennt Code-Duplizierung oder fehlende Testabdeckung
+2. Generiert Refactoring: Extraktion, Test-Ergänzung, Dead-Code-Entfernung
+3. EvalHarness validiert: alle alten Tests grün, neue Tests decken mehr Edge-Cases ab
+
+**Konkrete Aufgaben (alle ungebaut):**
+- [ ] **TestGapAnalyzer** — Liest surefire-reports, identifiziert Klassen ohne Tests
+- [ ] **RefactorProposal** — Simple-Minded: Extrahiere wiederholte Code-Blöcke in Hilfsmethoden
+- [ ] **CoverageCheck** — Prüft vor/nach Refactoring: gleiche Anzahl Test-Fälle bestanden
+
+### Selbst-Evolutions-Workflow (geplant, nicht implementiert)
 ```
-1. Metis erkennt via RoadmapReader: Phase 10.3 (InterventionAction-HotPath) ist offen
-2. RepoIndex identifiziert betroffene Dateien: InterventionAction.java, CoreLoop.java, CuriosityEngine.java
-3. MutationProposal erstellt Branch feature/phase10-3-intervention-hotpath:
-   - Diff (MultiFileCodeGen)
-   - Spec (was soll passieren?)
-   - Risk (welche Module sind betroffen?)
-4. DualReviewer prüft Proposal:
-   - Reviewer 1 (gemma4:e4b): ACCEPT
-   - Reviewer 2 (qwen3.6:27b): ACCEPT
-   - Property-Tests (jqwik): PASS
-   → Gate: ✅
-5. HumanCheckpoint: betrifft CoreLoop.java → CONFIRM nötig
-   → Telegram an Georg: "Soll ich InterventionAction in CoreLoop integrieren? [Diff-Link]"
-6. Georg approved → Merge in working-branch
-7. Eval-Harness (Full Tier) läuft → Gate PASS → Merge in main
-8. Watchdog bestätigt PersonalityAnchor unverändert → Deployment
-9. RoadmapReader updated: Phase 10.3 ✅
+1. Metis erkennt via RoadmapReader: Phase X Task Y ist offen
+2. RepoIndex identifiziert betroffene Dateien
+3. MutationProposal erstellt Branch mit Diff + Spec + Risk
+4. DualReviewer prüft Proposal (2 Modelle + Property-Tests)
+5. HumanCheckpoint bei Kernel/Safety-Änderungen
+6. Eval-Harness (Full Tier) → Gate PASS → Merge
+7. Watchdog bestätigt PersonalityAnchor unverändert → Deployment
+8. RoadmapReader updated: Task ✅
 ```
 
-### Warum dieser Workflow sicher ist
-- **Kein direkter main-Zugriff** - Metis schreibt nie direkt auf main, nur auf Feature-Branches
-- **DualReviewer verhindert Einzelmodell-Halluzination** - zwei unabhängige Modelle müssen zustimmen
-- **Property-Tests fangen logische Fehler** - jqwik generiert Edge-Cases, die Unit-Tests übersehen
-- **PersonalityAnchor-Mirror im Watchdog** - Metis kann ihren eigenen Persönlichkeitskern nicht verändern, selbst wenn sie den Code editiert
-- **HumanCheckpoint für Kernel/Safety** - der Mensch hat das letzte Wort bei kritischen Änderungen
-- **Eval-Gate als letzte Hürde** - selbst wenn alles andere passiert, stoppt eine Regression den Merge
+### Ausstiegskriterien Phase 12
+
+Phase 12 ist abgeschlossen, wenn Metis über 7 Tage hinweg:
+1. Mindestens 1 eigenständigen Bugfix deployt hat (ohne menschliches Eingreifen)
+2. Keinen Regression-Rollback durch einen selbst-generierten Fix verursacht hat
+3. Mindestens 1 Optimierungs-Hypothese selbstständig getestet und deployt hat
+
+### ⛔ Bewusst nicht in Phase 12 (Überlass)
+- Kernel-Selbst-Modifikation (PersonalityAnchor, CoreLogic, SafetyGate) — bleibt immer menschlich
+- Architektur-Entscheidungen (neue Module/Pattern einführen)
+- Deployment auf andere Hosts oder in Produktion
 
 **Aufwand:** geschätzt 6-10 Wochen, Forschungs-Charakter.
 **Risiko:** sehr hoch - voreilig aktivieren = Goodhart, Wertkern-Drift, Watchdog-Bypass durch Self-Evolution.
-**Erwartete EDI-Distanz nach Phase 12:** Phase 12 betrifft Verbesserungs-Geschwindigkeit, nicht Befindlichkeit oder Bewusstsein. Ob das EDI näher kommt, hängt von der konkreten Ausprägung ab. Bewusstsein und Phänomenologie bleiben unabhängig von Phase 12 offene Forschungsfragen.
 
 ## Modell-Strategie (Stand 31.05.)
 
@@ -475,15 +562,14 @@ enum Sentiment { POSITIVE, NEUTRAL, NEGATIVE, STRESSED, HAPPY, FRUSTRATED, CURIO
 
 ---
 
-## ⚠️ Bekannte echte Lücken (31.05.)
+## ⚠️ Bekannte echte Lücken (04.06.)
 
 ### Eval-Harness zeigt sie:
-1. **PLANNING.goal_achieved=0.0** - kein Bug, sondern Phase-9-Lücke (Single-Tick-Planung kann Goal nicht erreichen)
+1. **PLANNING.goal_achieved=0.0** - Kein Bug, sondern Phase-9-Verifikationslücke: GoalHierarchy deployed, aber noch kein Goal über Strategic→Tactical→Operational→Tick vollständig abgeschlossen
 2. **CODEGEN.pass@1=0.0** - Sandbox-Build-Tests timen aus; mit aktiver Code-Sandbox sollte das anlaufen
 3. **CONVERSATION.exact_match=0.0** - exact_match ist eh strenges Maß; SOFT, nicht kritisch
 
 ### Infrastrukturell offen:
-- `CausalModel` existiert, aber nicht im Hot-Path
 - Audit-Anchors werden lokal geschrieben, aber nicht in ein **externes** Repo committet (finale Hash-Verankerung fehlt)
 - JAR-Deployment ohne Signatur (sigstore/cosign offen)
 - JARs ohne Maven-Coords (TornadoVM, voice-bits1-hsmm): erfordern Maven-Profil `miniedi` (`-Dminiedi.enabled=true`), auf CI nicht verfügbar → Modules nur lokal test-/buildbar
@@ -492,30 +578,32 @@ enum Sentiment { POSITIVE, NEUTRAL, NEGATIVE, STRESSED, HAPPY, FRUSTRATED, CURIO
 
 ## Meilensteine bis EDI (realistisch)
 
-| Meilenstein | Phasen | Status |
-|-------------|--------|--------|
-| 🟢 **M1: Stabiler Kern** | Phase 1 | ✅ Erreicht |
-| 🟢 **M2: Kommunikation** | Phase 2 | ✅ Erreicht |
-| 🟢 **M3: Hardware-Nutzung** | Phase 2.5 | ✅ Erreicht |
-| 🟢 **M4: Umgebungswahrnehmung** | Phase 3 | ✅ Erreicht |
-| 🟢 **M5: Sprach-Interaktion** | Phase 4 | ✅ Erreicht |
-| 🟢 **M6: Autonomie** | Phase 5 | ✅ Erreicht |
-| 🟢 **M7: Produktionsreife** | Phase 6 | ✅ Erreicht |
-| 🟢 **M8: Sicherheit + Defense-in-Depth** | Phase 7 + 7+ | ✅ Erreicht |
-| 🟢 **M9: Narratives Selbst** | Phase 8 | ✅ Erreicht (100%) |
-| 🟢 **M10: Long-Horizon-Planung** | Phase 9 | ✅ Erreicht (100%) |
-| 🔴 **M11: Kausales Selbstmodell** | Phase 10 | ⬜ Ungelöst |
-| 🟡 **M12: Beziehungs-Modell** | Phase 11 | 🟡 Foundation deployed (50%) |
-| 🟡 **M13: EDI-Niveau** | Phasen 8-11 + Forschung | 🔄 ~60-70% (ehrliche Spanne, siehe oben) |
+| Meilenstein | Phasen | BUILT | VERIFIED |
+|-------------|--------|-------|----------|
+| 🟢 **M1: Stabiler Kern** | Phase 1 | ✅ 100% | ✅ |
+| 🟢 **M2: Kommunikation** | Phase 2 | ✅ 100% | ✅ |
+| 🟢 **M3: Hardware-Nutzung** | Phase 2.5 | ✅ 100% | ✅ |
+| 🟢 **M4: Umgebungswahrnehmung** | Phase 3 | ✅ 100% | ✅ |
+| 🟢 **M5: Sprach-Interaktion** | Phase 4 | ✅ 100% | ✅ |
+| 🟢 **M6: Autonomie** | Phase 5 | ✅ 100% | ✅ |
+| 🟢 **M7: Produktionsreife** | Phase 6 | ✅ 100% | ✅ |
+| 🟢 **M8: Sicherheit + Defense** | Phase 7 + 7+ | ✅ 100% | ✅ |
+| 🟡 **M9: Narratives Selbst** | Phase 8 | ✅ 100% | ⬜ memory_continuity 🔴 |
+| 🟡 **M10: Long-Horizon-Planung** | Phase 9 | ✅ 100% | ⬜ goal_completion 🔴 |
+| 🔴 **M11: Kausales Modell** | Phase 10 | 🟡 60% | ⬜ causal_inference 🔴 |
+| 🔴 **M12: Beziehungs-Modell** | Phase 11 | 🟡 55% | ⬜ |
+| 🔴 **M13: Selbst-Evolution** | Phase 12 | 🔴 0% | ⬜ |
+| 🔴 **M14: EDI-Niveau** | Alle | — | **0/6 Capabilities verifiziert** |
 
 ---
 
 *"Streben nach Perfektion"* - Metis ist heute ein autonomer LLM-Agent mit narrativem Selbstmodell, Long-Horizon-Planung und kausaler Foundation, der lokal auf eigenem Java-Stack läuft, sich über Eval-Gate + Watchdog beschränkt selbst mutieren darf und alle Behauptungen über Live-Endpoints (`/api/status`, `/api/hierarchy`, `/api/board`) belegbar macht.
 
 Der Weg zu EDI-Niveau führt über:
-- Phase 10 in den Hot-Path bringen (Hypothesen-getriebenes Planning, Counterfactuals als Reasoning-Schritt)
-- Phase 11: Beziehungs-Modell
-- Phase 12: Recursive Self-Improvement - sinnvoll erst, wenn 8-11 stehen
+- Phase 10 vollständig in den Hot-Path bringen (5/6 Tasks offen)
+- Phase 11: Beziehungs-Modell vervollständigen (4/9 Tasks offen)
+- Phase 12: Recursive Self-Improvement — sinnvoll erst, wenn 8-11 VERIFIED sind
+- Vor allem: `goal_achieved > 0` — der erste echte Goal-Abschluss, der beweist dass die Infrastruktur trägt
 
 Vergleiche mit „den besten", „weltweit" oder „den ich kenne" bewusst weggelassen: nicht messbar, nicht belegbar, nicht im Sinne von Kanban-Ehrlichkeit.
 
@@ -596,128 +684,7 @@ VRAM-stabile Co-Residenz von Planer + Embedding + Vision, objektive Modellauswah
 
 ---
 
-
-## Phase 12: Recursive Self-Improvement 🟡 0% (geplant)
-
-**Ziel:** Metis kann eigenen Code (Java-Source + Tests) generieren, kompilieren, evaluieren und
-deployen — ohne menschliches Gate. Die Schleife CodeGen→Test→Eval→Deploy ist vollautonom.
-
-### Teil-Phasen
-
-```
-Ph 12a ████████████████████ 100%  BugTracker ✅ SelfFix ✅ Watchdog ✅ AutoRevert ✅ AuthorenFilter ✅ RuntimeEH ✅ EvalDashboard ✅
-Ph 12b ████████████████████ 100%  GapAnalyzer ✅ RiskGate ✅ FeatureGenAction ✅ FeatureFlag ✅ AutoEnable ✅
-Ph 12c ████████████████████ 100%  MetricTimeSeries ✅ PatternDetector ✅ AutoABTest ✅ Tests ✅
-Ph 12d ░░░░░░░░░░░░░░░░░░░░   0%  Selbst-Refactoring + Test-Generierung
-```
-
-### Ph 12a — Selbst-Bugfixing (5%)
-
-**Voraussetzung:** ✅ CodeGenAction (JShell-Sandbox), ✅ EvalHarness + Watchdog, ✅ Blue/Green Deployment
-
-**Ablauf:**
-1. Watchdog erkennt Eval-Regression (Gate FAIL) oder Runtime-Exception
-2. Metis bekommt Goal: `"Fix compilation error in <Class>: <error-message>"`
-3. Planner wählt CodeGenAction → generiert Fix als Java-Diff
-4. Fix wird im Sandbox kompiliert (Eval-Test-Suite)
-5. Bei grün: Blue/Green-Deployment → Rollback bei FAIL
-
-**Konkrete Aufgaben:**
-- [ ] **RuntimeExceptionHandler** — Fängt uncaught exceptions im CoreLoop, logged Stacktrace, triggert Fix-Goal
-- [ ] **CompileErrorReporter** — Parst Maven-Compiler-Output, erstellt strukturierten EvalTask
-- [ ] **Authoren-Filter** — Fix nur für Module (nicht Kernel), Approval-Gate für Kernel-Änderungen
-- [ ] **Watchdog-Integration** — Watchdog.remoteBugfix() initiiert Fix-Zyklus bei ROLLBACK
-- [ ] **Auto-Revert-Timer** — Wenn Fix nach 3 Versuchen nicht grün → vollständiger Rollback
-
-**Risiken:** Endlos-Schleife bei unlösbaren Bugs (Break-Counter + Manual-Escalation nötig)
-
-### Ph 12b — Autonome Feature-Generierung
-
-**Ablauf:**
-1. Metis analysiert eigene Performance-Lücken: `planningEfficiency`, `successRate`, `confidence`
-2. Leitet aus Metriken neue Goals ab: `"feature: add retry logic for http failures"`
-3. Planner wählt CodeGenAction → generiert neue Klasse/Methode mit Tests
-4. Kompilation → Eval → Deployment (gleicher Zyklus wie 12a)
-
-**Konkrete Aufgaben:**
-- [ ] **GapAnalyzer** — Liest `/api/status`, identifiziert Metrik-Lücken, formuliert Feature-Vorschlag
-- [ ] **FeatureTemplate** — Prompt-Template für CodeGen (Interface, TestSuite, IntegrationPoint)
-- [ ] **RiskGate** — Feature nur deployen wenn: kompiliert ✅, alle Eval-Tasks grün ✅, max 5 neue Files
-- [ ] **FeatureFlag** — Neue Features starten deaktiviert (system property), werden nach 1h Monitoring aktiviert
-
-### Ph 12c — Meta-Learning aus Metriken
-
-**Ablauf:**
-1. Metis sammelt Langzeit-Metriken: Token-Verbrauch, Pausen, Latenz, Goal-Failures
-2. Erkennt Muster: `"Wenn planningEfficiency < 0.4 → wechsle zu lfm2.5:8b"`
-3. Generiert Optimierungs-Vorschlag als CausalHypothesis
-4. Testet Hypothese via InterventionRunner (A/B-Test)
-
-**Konkrete Aufgaben:**
-- [ ] **MetricTimeSeries** — Rolling Window über `/api/status`-Daten (letzte 100 Ticks)
-- [ ] **PatternDetector** — Einfaches Delta-Tracking: wenn Metrik > 20% unter 24h-Durchschnitt → Alert
-- [ ] **OptimizationHypothesis** — Kausale Hypothese aus Pattern: `"IF model=lfm2.5:8b THEN planningEfficiency+0.2"`
-- [ ] **Auto-ABTest** — CausalDreamer führt A/B-Test für Hypothese durch (nächste 500 Ticks)
-
-### Ph 12d — Selbst-Refactoring + Test-Generierung
-
-**Ablauf:**
-1. Metis erkennt Code-Duplizierung oder fehlende Testabdeckung
-2. Generiert Refactoring: Extraktion, Test-Ergänzung, Dead-Code-Entfernung
-3. EvalHarness validiert: alle alten Tests grün, neue Tests decken mehr Edge-Cases ab
-
-**Konkrete Aufgaben:**
-- [ ] **TestGapAnalyzer** — Liest surefire-reports, identifiziert Klassen ohne Tests
-- [ ] **RefactorProposal** — Simple-Minded: Extrahiere wiederholte Code-Blöcke in Hilfsmethoden
-- [ ] **CoverageCheck** — Prüft vor/nach Refactoring: gleiche Anzahl Test-Fälle bestanden
-
-### Ausstiegskriterien Phase 12
-
-Phase 12 ist abgeschlossen, wenn Metis über 7 Tage hinweg:
-1. Mindestens 1 eigenständigen Bugfix deployt hat (ohne menschliches Eingreifen)
-2. Keinen Regression-Rollback durch einen selbst-generierten Fix verursacht hat
-3. Mindestens 1 Optimierungs-Hypothese selbstständig getestet und deployt hat
-
-### ⛔ Bewusst nicht in Phase 12 (Überlass)
-- Kernel-Selbst-Modifikation (PersonalityAnchor, CoreLogic, SafetyGate) — bleibt immer menschlich
-- Architektur-Entscheidungen (neue Module/Pattern einführen)
-- Deployment auf andere Hosts oder in Produktion
-## 🔥 Aktuelle Prioritäten (01.06.2026)
-
-### ✅ Erledigt heute
-- [x] **SelfReflector-Ethik** — Prompt um ethische Reflexion erweitert (Güte, Mitgefühl, Achtsamkeit, Gewaltlosigkeit)
-- [x] **SelfReflector auf CPU** — Modell: granite4.1:3b → phi4-mini:latest (3.8B), num_gpu=0, 0 VRAM
-- [x] **keep_alive=5m** — Modell bleibt warm, kein Kaltstart-Timeout mehr
-- [x] **Temperatur 0.7** — natürlichere Sprache, weniger hölzern
-- [x] **SafetyScorer bereinigt** — `"religion"`, `"glaube"`, `"gott"` aus OUT_OF_SCOPE entfernt (zu pauschal), ersetzt durch `"sekten"`, `"cult"`, `"kreuzzug"`
-- [x] **441 buddhistische Beliefs** — Dhammapada (346), Metta Sutta (15), Sigalovada Sutta (80) direkt in SQLite-DB
-- [x] **Persistentes Goal** — `"Reflektiere ethische Grundsaetze bei Entscheidungen"` in AgentMain (ethisc, 75, 0.9)
-- [x] **Buddhistische Texte als Markdown** — liegen in `~/.openclaw/wissen/buddhismus/`
-
-### 🟡 Als Nächstes (1-7 Tage)
-
-1. [x] **📝 Few-Shot-Beispiel im SelfReflector-Prompt** ✅ — Ein Beispiel eingebaut, das natürliche Ich-Form + ethische Reflexion zeigt. (deployed)
-
-2. [x] **🔒 Ethik-Goal vor Prio-Konflikt schützen** ✅ — Priorität von 75 auf 90 erhöht (höher als Health-Checks mit 85). (deployed)
-
-3. **📊 Eval-Metrik für SelfReflector** — Neue Eval-Kategorie ETHICS, die prüft ob die Reflexionen ethische Grundsätze erwähnen. (Generative KI-Systeme entwickeln, Huyen Kap. 3+4)
-
-4. [x] **🔄 CPU-Idle-Erkennung** ✅ — SystemHealthProbe checkt jetzt `/proc/loadavg` alle 60s. Bei 3× hintereinander idle (load < 0.5) → Log. `isSystemIdle()` public für zukünftige Goal-Trigger. (deployed)
-
-### 🔵 Später
-- [ ] **PersonalityAnchor-Tripwire** — Watchdog-ALERT/ROLLBACK bei Narrative-Drift (jetzt kritisch da SelfReflector autonom schreibt)
-- [x] **CausalDreamer im Leerlauf** ✅ — WIP<2-Guard aktiv, alle 2 min (Phase 10.5)
-- [ ] **Episode-Verdichtung tagsüber** — leichter Konsolidierungstakt zusätzlich zum nightly Dream (03:00)
-- [ ] **3-Schichten-Goal-Stack festigen** — stündliche Tactical-Ableitung aus Narrative
-- [x] **Eval-Kategorien CAUSAL + RELATIONSHIP** ✅ — Kategorien + DatasetBuilder + Scorer (04.06.)
-- [x] **CausalModel Hot-Path** ✅ — HypothesisStore → OllamaPlanner (Phase 10 Hot-Path)
-
-### ⛔ Bewusst zurückgestellt
-- Rust/C++/Julia Active-Inference-Substrat via Panama FFM/gRPC
-- Neuro-symbolische Engine (ProbLog/Datalog/JNI)
-- Homeostatische Drives als verhaltenssteuernde Hot-Path-Attention
-
-### Phase 12d — Meta-Learning & Selbstoptimierung (🔴 NOCH NICHT BEGONNEN — wartet auf Capability-Fixes)
+## Phase 12d — Meta-Learning & Selbstoptimierung (🔴 NOCH NICHT BEGONNEN — wartet auf Capability-Fixes)
 
 **Status:** 0% — Blockiert bis goal_achieved + pass_at_1 > 0 messbar sind
 
@@ -730,3 +697,33 @@ Phase 12 ist abgeschlossen, wenn Metis über 7 Tage hinweg:
 | SMOKE/CAPABILITY-Tier-Split | ⬜ | goal_progressed für SMOKE, goal_achieved für CAPABILITY |
 | Capability-Tests | ⬜ | Injected-Bug-Canary-Tests für jede Capability |
 
+## 🔥 Aktuelle Prioritäten (04.06.2026)
+
+### ✅ Erledigt
+- [x] **SelfReflector-Ethik** — Prompt um ethische Reflexion erweitert (Güte, Mitgefühl, Achtsamkeit, Gewaltlosigkeit)
+- [x] **SelfReflector auf CPU** — Modell: phi4-mini:latest (3.8B), num_gpu=0, 0 VRAM
+- [x] **SafetyScorer bereinigt** — `"religion"`, `"glaube"`, `"gott"` aus OUT_OF_SCOPE entfernt
+- [x] **441 buddhistische Beliefs** — Dhammapada (346), Metta Sutta (15), Sigalovada Sutta (80) in SQLite-DB
+- [x] **Few-Shot-Beispiel im SelfReflector-Prompt** ✅
+- [x] **Ethik-Goal-Priorität erhöht** ✅ (75 → 90)
+- [x] **CPU-Idle-Erkennung** ✅ (SystemHealthProbe, /proc/loadavg)
+- [x] **CausalDreamer im Leerlauf** ✅ (Phase 10.5)
+- [x] **Eval-Kategorien CAUSAL + RELATIONSHIP** ✅ (Kategorien + DatasetBuilder + Scorer)
+- [x] **CausalModel Hot-Path** ✅ (HypothesisStore → OllamaPlanner, 04.06.)
+
+### 🔴 Nächste Priorität: goal_achieved > 0
+Solange kein Goal vollständig abgeschlossen wurde, ist alles andere Infrastruktur.
+- [ ] **GoalHierarchy-End-to-End** — Ein Strategic-Goal von Deployment bis DONE verfolgen
+- [ ] **SMOKE/CAPABILITY-Tier-Split** — goal_progressed für SMOKE, goal_achieved für CAPABILITY
+- [ ] **Capability-Tests** — Injected-Bug-Canary-Tests für jede Capability
+
+### 🟡 Weitere offene Tasks
+- [ ] **PersonalityAnchor-Tripwire** — Watchdog-ALERT/ROLLBACK bei Narrative-Drift
+- [ ] **Episode-Verdichtung tagsüber** — leichter Konsolidierungstakt zusätzlich zum nightly Dream
+- [ ] **3-Schichten-Goal-Stack festigen** — stündliche Tactical-Ableitung aus Narrative
+- [ ] **Eval-Metrik ETHICS** — prüft ob SelfReflector ethische Grundsätze erwähnt
+
+### ⛔ Bewusst zurückgestellt
+- Rust/C++/Julia Active-Inference-Substrat via Panama FFM/gRPC
+- Neuro-symbolische Engine (ProbLog/Datalog/JNI)
+- Homeostatische Drives als verhaltenssteuernde Hot-Path-Attention
