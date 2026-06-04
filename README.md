@@ -22,7 +22,7 @@ Sie denkt in kognitiven Zyklen (Perceive → Plan → Execute → Observe → Le
 | 9 | ✅ 100% | Long-Horizon-Planung + CommitmentGuard |
 | 10 | 🟢 80% | Causal Foundation + CausalDreamer ✅, Hot-Path ✅ |
 | 12 | 🟡 15% | Selbst-Bugfixing: BugTracker ✅, SelfFixAction ✅, Watchdog-RemoteBugfix ✅ |
-| 11 | 🟡 50% | PersonModel+TrustLevel+RelationshipMemory, Hot-Path offen |
+| 11 | 🟢 100% | PersonModel + TrustLevel + PersonStore ✅, Hot-Path ✅ |
 
 → Details: **[FEATURES.md](FEATURES.md)** · **[AGI_EDI_ROADMAP.md](AGI_EDI_ROADMAP.md)** · **[RUNBOOK.md](RUNBOOK.md)**
 
@@ -254,4 +254,4 @@ Offen für weitere EDI-Annäherung:
 
 ---
 
-*"Streben nach Perfektion"* — Metis lernt, sieht, mutiert (mit Eval-Gate + Watchdog-Approval), evaluiert sich selbst, verbessert sich inkrementell. Was läuft, läuft im Repo nachweisbar. Was nicht läuft, steht offen in [TODO_Metis.md](TODO_Metis.md).
+*"Streben nach Perfektion"* — Metis lernt, sieht, mutiert (mit Eval-Gate + Watchdog-Approval), evaluiert sich selbst, verbessert sich inkrementell. Was läuft, läuft im Repo nachweisbar. Was nicht läuft, steht offen in der [AGI_EDI_ROADMAP.md](AGI_EDI_ROADMAP.md).
