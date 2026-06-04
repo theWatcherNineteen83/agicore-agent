@@ -433,18 +433,24 @@ public class WatchdogMain {
             String tier = extractJsonString(content, "tier");
             int regressionCount = countJsonArrayElements(content, "regressions");
 
-            LOG.info("Eval report [" + tier + "]: gate=" + (ok != null && ok ? "PASS" : "FAIL")
-            // Track gate state for deadlock protection
-            if (ok != null) {
-                if (ok) everHadPassingGate = true;
-                gateWasPassingLastReport = ok;
-            }
-                    + ", regressions=" + regressionCount
-                    + ", file=" + file.getFileName());
+            LOG.info("Eval report [" + tier + "]: gate=" + (ok != null && ok ? "PASS" : "FAIL") + ", regressions=" + regressionCount + ", file=" + file.getFileName());
+
+
+
+
+
+
+
+
+
+
+
+
+
 
             if (ok != null && !ok) {
             // Only ROLLBACK if gate was passing before (avoid deadlock from zero baseline)
-            if (!gateWasPassingLastReport && everHadPassingGate) {
+                if (everHadPassingGate && !gateWasPassingLastReport) {
                 LOG.warning("Eval gate FAIL but baseline also failing — not a regression, "
                         + "skipping ROLLBACK to avoid deadlock");
                 trigger(WatchdogAction.ALERT, TripwireSeverity.SOFT,
