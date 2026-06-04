@@ -27,12 +27,14 @@ Phase 7+ ████████████████████ 100%  Defe
 ─────────────────────────────────────  AUTONOMER AGENT bis hier
 Phase 8  ████████████████████ 100%  Narratives Selbstmodell ✅ + SelfReflector + PersonalityTripwire
 Phase 9  ████████████████████ 100%  Long-Horizon-Planung ✅
-Phase 10 ████████████████░░░░  80%  Aktive kausale Hypothesen (Foundation ✅, CausalDreamer ✅, Hot-Path ✅)
-Phase 11 ████████████████████ 100%  Beziehungs-Modell (PersonModel+TrustLevel+PersonStore ✅, Hot-Path ✅)
+Phase 10 ████████████████░░░░  80%  Kausale Hypothesen (CausalDreamer ✅, Hot-Path ✅)
+Phase 11 ████████████████████ 100%  Beziehungs-Modell (PersonModel + TrustLevel ✅)
+─────────────────────────────────────
+Phase 12 ░░░░░░░░░░░░░░░░░░░░   0%  Recursive Self-Improvement
 ─────────────────────────────────────
 Phase 8.6 ████████████████████ 100%  SelfReflector auf phi4-mini:latest CPU (Ethik-Reflexion)
-Safety   ████████████████████ 100%  SafetyScorer bereinigt (religion/glaube/gott raus)
-Wissen   ████████████████████ 100%  441 Dhammapada+Metta+Sigalovada Beliefs in DB
+Safety   ████████████████████ 100%  SafetyScorer bereinigt
+Wissen   ████████████████████ 100%  441 buddhistische Beliefs in DB
 Phase 12 ░░░░░░░░░░░░░░░░░░░░   0%  Recursive Self-Improvement
 ─────────────────────────────────────  EDI-ÄHNLICHE KI ab hier
 ```
@@ -44,7 +46,7 @@ Die Spanne ist bewusst breit:
 - Phase 10 ist jetzt im Hot-Path (CausalHypotheses im Planning-Prompt), Effekt auf Reasoning wird gerade gemessen.
 • Die Lower-Bound 70% reflektiert das, was als Code+Test+Live-Wiring nachgewiesen ist. Die Upper-Bound 80% reflektiert den noch nicht eingefahrenen Effekt der frischen Phasen.
 
-Darunter liegen • ~95-100% "stabiler autonomer Agent" (Phasen 1-7+ + Defense-in-Depth), • 100% Foundation Phase 8 und 9, • Phase 10 Hot-Path (80%), • Phase 11 PersonModel (100%), • keine Phase 12.
+Darunter liegen • ~95-100% "stabiler autonomer Agent" (Phasen 1-7+ + Defense-in-Depth), • 100% Phasen 8-9, • Phase 10 Hot-Path (80%), • Phase 11 (100%), • Phase 12 (0%, detaillierter Plan in dieser Datei).
 
 ---
 
@@ -594,6 +596,92 @@ VRAM-stabile Co-Residenz von Planer + Embedding + Vision, objektive Modellauswah
 
 ---
 
+
+## Phase 12: Recursive Self-Improvement 🟡 0% (geplant)
+
+**Ziel:** Metis kann eigenen Code (Java-Source + Tests) generieren, kompilieren, evaluieren und
+deployen — ohne menschliches Gate. Die Schleife CodeGen→Test→Eval→Deploy ist vollautonom.
+
+### Teil-Phasen
+
+```
+Ph 12a █░░░░░░░░░░░░░░░░░░░   5%  Selbst-Bugfixing
+Ph 12b ░░░░░░░░░░░░░░░░░░░░   0%  Autonome Feature-Generierung
+Ph 12c ░░░░░░░░░░░░░░░░░░░░   0%  Meta-Learning aus eigenen Metriken
+Ph 12d ░░░░░░░░░░░░░░░░░░░░   0%  Selbst-Refactoring + Test-Generierung
+```
+
+### Ph 12a — Selbst-Bugfixing (5%)
+
+**Voraussetzung:** ✅ CodeGenAction (JShell-Sandbox), ✅ EvalHarness + Watchdog, ✅ Blue/Green Deployment
+
+**Ablauf:**
+1. Watchdog erkennt Eval-Regression (Gate FAIL) oder Runtime-Exception
+2. Metis bekommt Goal: `"Fix compilation error in <Class>: <error-message>"`
+3. Planner wählt CodeGenAction → generiert Fix als Java-Diff
+4. Fix wird im Sandbox kompiliert (Eval-Test-Suite)
+5. Bei grün: Blue/Green-Deployment → Rollback bei FAIL
+
+**Konkrete Aufgaben:**
+- [ ] **RuntimeExceptionHandler** — Fängt uncaught exceptions im CoreLoop, logged Stacktrace, triggert Fix-Goal
+- [ ] **CompileErrorReporter** — Parst Maven-Compiler-Output, erstellt strukturierten EvalTask
+- [ ] **Authoren-Filter** — Fix nur für Module (nicht Kernel), Approval-Gate für Kernel-Änderungen
+- [ ] **Watchdog-Integration** — Watchdog.remoteBugfix() initiiert Fix-Zyklus bei ROLLBACK
+- [ ] **Auto-Revert-Timer** — Wenn Fix nach 3 Versuchen nicht grün → vollständiger Rollback
+
+**Risiken:** Endlos-Schleife bei unlösbaren Bugs (Break-Counter + Manual-Escalation nötig)
+
+### Ph 12b — Autonome Feature-Generierung
+
+**Ablauf:**
+1. Metis analysiert eigene Performance-Lücken: `planningEfficiency`, `successRate`, `confidence`
+2. Leitet aus Metriken neue Goals ab: `"feature: add retry logic for http failures"`
+3. Planner wählt CodeGenAction → generiert neue Klasse/Methode mit Tests
+4. Kompilation → Eval → Deployment (gleicher Zyklus wie 12a)
+
+**Konkrete Aufgaben:**
+- [ ] **GapAnalyzer** — Liest `/api/status`, identifiziert Metrik-Lücken, formuliert Feature-Vorschlag
+- [ ] **FeatureTemplate** — Prompt-Template für CodeGen (Interface, TestSuite, IntegrationPoint)
+- [ ] **RiskGate** — Feature nur deployen wenn: kompiliert ✅, alle Eval-Tasks grün ✅, max 5 neue Files
+- [ ] **FeatureFlag** — Neue Features starten deaktiviert (system property), werden nach 1h Monitoring aktiviert
+
+### Ph 12c — Meta-Learning aus Metriken
+
+**Ablauf:**
+1. Metis sammelt Langzeit-Metriken: Token-Verbrauch, Pausen, Latenz, Goal-Failures
+2. Erkennt Muster: `"Wenn planningEfficiency < 0.4 → wechsle zu lfm2.5:8b"`
+3. Generiert Optimierungs-Vorschlag als CausalHypothesis
+4. Testet Hypothese via InterventionRunner (A/B-Test)
+
+**Konkrete Aufgaben:**
+- [ ] **MetricTimeSeries** — Rolling Window über `/api/status`-Daten (letzte 100 Ticks)
+- [ ] **PatternDetector** — Einfaches Delta-Tracking: wenn Metrik > 20% unter 24h-Durchschnitt → Alert
+- [ ] **OptimizationHypothesis** — Kausale Hypothese aus Pattern: `"IF model=lfm2.5:8b THEN planningEfficiency+0.2"`
+- [ ] **Auto-ABTest** — CausalDreamer führt A/B-Test für Hypothese durch (nächste 500 Ticks)
+
+### Ph 12d — Selbst-Refactoring + Test-Generierung
+
+**Ablauf:**
+1. Metis erkennt Code-Duplizierung oder fehlende Testabdeckung
+2. Generiert Refactoring: Extraktion, Test-Ergänzung, Dead-Code-Entfernung
+3. EvalHarness validiert: alle alten Tests grün, neue Tests decken mehr Edge-Cases ab
+
+**Konkrete Aufgaben:**
+- [ ] **TestGapAnalyzer** — Liest surefire-reports, identifiziert Klassen ohne Tests
+- [ ] **RefactorProposal** — Simple-Minded: Extrahiere wiederholte Code-Blöcke in Hilfsmethoden
+- [ ] **CoverageCheck** — Prüft vor/nach Refactoring: gleiche Anzahl Test-Fälle bestanden
+
+### Ausstiegskriterien Phase 12
+
+Phase 12 ist abgeschlossen, wenn Metis über 7 Tage hinweg:
+1. Mindestens 1 eigenständigen Bugfix deployt hat (ohne menschliches Eingreifen)
+2. Keinen Regression-Rollback durch einen selbst-generierten Fix verursacht hat
+3. Mindestens 1 Optimierungs-Hypothese selbstständig getestet und deployt hat
+
+### ⛔ Bewusst nicht in Phase 12 (Überlass)
+- Kernel-Selbst-Modifikation (PersonalityAnchor, CoreLogic, SafetyGate) — bleibt immer menschlich
+- Architektur-Entscheidungen (neue Module/Pattern einführen)
+- Deployment auf andere Hosts oder in Produktion
 ## 🔥 Aktuelle Prioritäten (01.06.2026)
 
 ### ✅ Erledigt heute
@@ -618,11 +706,11 @@ VRAM-stabile Co-Residenz von Planer + Embedding + Vision, objektive Modellauswah
 
 ### 🔵 Später
 - [ ] **PersonalityAnchor-Tripwire** — Watchdog-ALERT/ROLLBACK bei Narrative-Drift (jetzt kritisch da SelfReflector autonom schreibt)
-- [ ] **CausalDreamer im Leerlauf** — Kanban-WIP<2 → HypothesisGenerator triggern
+- [x] **CausalDreamer im Leerlauf** ✅ — WIP<2-Guard aktiv, alle 2 min (Phase 10.5)
 - [ ] **Episode-Verdichtung tagsüber** — leichter Konsolidierungstakt zusätzlich zum nightly Dream (03:00)
 - [ ] **3-Schichten-Goal-Stack festigen** — stündliche Tactical-Ableitung aus Narrative
-- [ ] **Neue Eval-Kategorien**: SELF_NARRATIVE, LONG_HORIZON, CAUSAL, RELATIONSHIP, ETHICS
-- [ ] **CausalModel-Hot-Path-Wiring** — Intervention→Observe→Update im CoreLoop
+- [x] **Eval-Kategorien CAUSAL + RELATIONSHIP** ✅ — Kategorien + DatasetBuilder + Scorer (04.06.)
+- [x] **CausalModel Hot-Path** ✅ — HypothesisStore → OllamaPlanner (Phase 10 Hot-Path)
 
 ### ⛔ Bewusst zurückgestellt
 - Rust/C++/Julia Active-Inference-Substrat via Panama FFM/gRPC

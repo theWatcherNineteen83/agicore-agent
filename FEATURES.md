@@ -59,6 +59,62 @@
 - `Phase 9 wired — hierarchy=1 goals`
 
 
+
+## 🔬 Kausale Hypothesen (Phase 10, v0.8.2, 04.06.2026)
+
+| Komponente | Pfad | Status |
+|-----------|------|--------|
+| **HypothesisStore** | `kernel/world/HypothesisStore.java` | Append-only JSONL, 44 Hypothesen persistent geladen |
+| **HypothesisGenerator** | `kernel/world/HypothesisGenerator.java` | Generiert PROPOSED-Hypothesen aus Surprise-Signalen |
+| **CausalModel** | `kernel/world/CausalModel.java` | Pearl Do-Calculus für kausale Inferenz (Foundation) |
+| **CausalHypothesis** | `kernel/world/CausalHypothesis.java` | Record: cause/condition/effect/predictedDirection/magnitude |
+| **Counterfactual** | `kernel/world/Counterfactual.java` | What-if-Analyse auf CausalModel-Basis |
+| **InterventionRunner** | `kernel/world/InterventionRunner.java` | Plant+executiert Interventionen zum Testen von Hypothesen |
+| **CausalDreamer** | `modules/self/CausalDreamer.java` | Idle-Guard (WIP<2): 2-Min-Takt, generiert Hypothesen aus zufälligen Experiences |
+| **Hot-Path** | `modules/planner/OllamaPlanner.java` | Top-3 offene Hypothesen im Planning-Prompt (ACTIVE CAUSAL HYPOTHESES) |
+
+**Status:** Foundation ✅ · CausalDreamer ✅ · **Hot-Path ✅**
+
+### Wirkung
+- Planner sieht kausale Zusammenhänge im Prompt: `IF "<cause>" -> "<effect>" (pred: UP, rationale: ...)`
+- Metis kann bei der Aktionsauswahl bestehende Kausalhypothesen berücksichtigen
+- 44 geladene Hypothesen, davon 0 bestätigt / 0 widerlegt — CausalDreamer arbeitet im Hintergrund
+
+### Logging
+- `Phase 10 wired — hypotheses=44, confirmed=0, refuted=0`
+- `Phase 10 Hot-Path wired — causal hypotheses in planning prompt`
+
+## 👥 Beziehungs-Modell (Phase 11, v0.7.1, 04.06.2026)
+
+| Komponente | Pfad | Status |
+|-----------|------|--------|
+| **Person** | `kernel/person/Person.java` | Record: userId, name, trustLevel, tags, interactionCount, sentimentHistory |
+| **PersonStore** | `kernel/person/PersonStore.java` | Personen-DB mit Upsert, Lookup nach Session-ID |
+| **TrustLevel** | `kernel/person/TrustLevel.java` | OWNER → CONFIRM / TRUSTED → NOTIFY / GUEST → AUTO / STRANGER → FORBIDDEN |
+| **EmpathySignal** | `kernel/person/EmpathySignal.java` | Sentiment-Analyse aus Text (positive/negative/neutral + score) |
+| **RelationshipMemory** | `kernel/person/RelationshipMemory.java` | Interaktionsverlauf pro Person |
+
+**Status:** PersonModel ✅ · TrustLevel ✅ · PersonStore ✅ · **Hot-Path ✅**
+
+### Hot-Path Verdrahtung
+- **SystemPromptBuilder** zeigt Partner-Block (Name + TrustLevel) im Prompt
+- **TelegramBotService**: jede Nachricht → EmpathySignal → PersonStore → Approval-Level-Anpassung
+- **MetisHttpServer**: Chat-Handler → Person-aware Interaktion mit Trust-basiertem Approval
+- **AgentCoreLoop.setMaxAutoApprovalLevel** wird dynamisch per `person.trustLevel().maxAutoApproval()` gesetzt
+
+### Trust Level → Approval Mapping
+```
+OWNER(4)    → CONFIRM   (alles außer FORBIDDEN automatisch)
+TRUSTED(3)  → NOTIFY    (non-destructive Actions automatisch)
+KNOWN(2)    → NOTIFY    (sensible Actions geloggt-automatisch)
+GUEST(1)    → AUTO      (nur read-only automatisch)
+STRANGER(0) → AUTO      (strenger Allow-List-Modus)
+```
+
+### Logging
+- `Phase 11 wired — PersonStore=3 persons, trust-to-approval mapping active`
+- `Phase 11 PersonModel Foundation (50%) → 100% (Hot-Path bereits vollstaendig verdrahtet)`
+
 ## 📚 Book Ingestion Service (v0.8.0)
 
 | Komponente | Datei | Funktion |

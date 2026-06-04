@@ -6,7 +6,7 @@ Sie denkt in kognitiven Zyklen (Perceive → Plan → Execute → Observe → Le
 
 ## Status
 
-**Stand:** 04.06.2026 01:30 · **Tests:** 112 grün im Kernel + 22 in Modules = **134 total** · **CI:** Kernel + Watchdog (GitHub Actions, Zulu 25)
+**Stand:** 04.06.2026 13:30 · **Tests:** 112 grün im Kernel + 22 in Modules = **134 total** · **CI:** Kernel + Watchdog (GitHub Actions, Zulu 25)
 **JVM:** Zing 26.04 C4 GenPauseless (27% schneller als Zulu ZGC) · **Benchmark:** `bench-zing-vs-zulu-20260603` · **Empfehlung:** Zing für Produktion
 
 **Safety:** SafetyScorer bereinigt (religion/glaube/gott raus) · **Wissen:** 441 buddhistische Beliefs (Dhammapada, Metta Sutta, Sigalovada) in SQLite-DB · **Ethik:** SelfReflector auf phi4-mini:latest CPU (0 VRAM, Temp 0.7, keep_alive=5m) + ethisches Goal in AgentMain
@@ -61,6 +61,8 @@ Zing 27% schneller, C4 pauslos. Monitoring via `-XX:+PrintCPUUtilization -XX:+Us
 | `6b5fb44` (post-v0.6.1) | WIP-aware LLM-as-Judge (`KanbanBoard.tryAcquireAdHocSlot`) — Judge-Calls ins INFERENCE-Bookkeeping | **80** (Kernel) |
 | `v0.7.0-cognitive-selfreflector` | SelfReflector (granite4.1:3b, 120s-Loop), CommitmentGuard, Phase 9.5 HARD-Commitment-Wächter | **105** |
 | `v0.7.1-phase11-personmodel` | Phase 11 PersonModel: Person/PersonStore/TrustLevel/RelationshipMemory/EmpathySignal | **105** |
+| `v0.8.2-phase10-hotpath` | Phase 10 Hot-Path: CausalHypotheses im Planning-Prompt, 44 Hypothesen | **134** |
+| `v0.8.3-phase10-11-finish` | Phase 10+11 abgeschlossen: CAUSAL/RELATIONSHIP Eval-Kategorien, Roadmap konsolidiert | **134** |
 | `v0.7.2-phase11-wired` | SystemPromptBuilder (Gesprächspartner-Block), Approval-Gate (TrustLevel→maxAutoApproval), HTTP+Telegram PersonStore-Pflege | **112** |
 | `v0.7.3-prompt-tightening` | System-Prompt-Tightening (CAPS, 1-Satz, genaue Action-Namen, OK/NO-OK statt vage) | **112** |
 | `v0.7.4-personality-tripwire` | PersonalityTripwire: Drift-Detection alle 5 min, SHA-256-Pin vs Live-Anchor, ROLE_VIOLATION/TONE_SHIFT/CORE_ERASURE | **112** |
