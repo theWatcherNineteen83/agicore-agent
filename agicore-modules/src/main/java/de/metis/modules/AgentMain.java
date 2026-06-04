@@ -1397,6 +1397,10 @@ public final class AgentMain {
         agent.core().executor().register(fixAction);
         LOG.info("Phase 12a: SelfFixAction registered — self-fix action available");
 
+        // Phase 12b: GapAnalyzer
+        var gapAnalyzer = new de.metis.modules.evolution.GapAnalyzer();
+        LOG.info("Phase 12b: GapAnalyzer ready");
+
         // ── Phase 8.6 — SelfReflector: kontinuierlicher innerer Monolog ──────
         // Konvergente Empfehlung aus 9 KI-Reviews (2026-05-31): kleiner, schneller
         // Reflexions-Takt schließt die Lücke zwischen nightly-dream und revision.
