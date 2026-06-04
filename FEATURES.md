@@ -133,7 +133,7 @@
 - **OllamaPlanner** — LLM-basierter Planner (CoT 4-Schritt: ANALYZE→MATCH→CHECK→DECIDE)
 - **10 Few-Shot-Beispiele** (1 pro Action-Typ)
 - **Model-Fallback-Chain** — 3-stufig: Primary → Secondary → Tertiary
-- **ModelRegistry** — Auto-Discovery aller Ollama-Modelle, Selektion nach Task-Typ, Live-Refresh via API
+- **ModelRegistry — Auto-Discovery aller Ollama-Modelle, Selektion nach Task-Typ, Live-Refresh via API. MoE-aware: Familien-Match vor Size-Gate (z.B. lfm2.5:8b)
 - **Prompt Chaining** — Decompose→Execute→Aggregate für komplexe Aufgaben
 - **StubPlanner** — Keyword-Heuristik als Non-LLM-Fallback
 - **ReAct-Pattern** — Thought→Action→Observation Zyklus
@@ -262,7 +262,7 @@
 
 ## 🔍 RAG & Embeddings
 
-- **OllamaEmbeddingService** — nomic-embed-text (768d)
+- **OllamaEmbeddingService — nomic-embed-text (768d), CircuitBreaker mit 5s Timeout (503 + Timeouts)
 - **InMemoryVectorIndex** — Bucketed Cosinus-Ähnlichkeit
 - **PersistentVectorIndex** — Binärformat, ~5.000 Vektoren, ~34 MB
 - **HybridSearch** — BM25 (Keyword) + Cosinus (Semantik), alpha=0.7

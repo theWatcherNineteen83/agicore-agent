@@ -303,39 +303,47 @@ public class ModelRegistry {
         return 999;
     }
 
+    private static final double ABSOLUTE_MINIMUM_GB = 2.0;
+
     private boolean isGoodForPlanning(ModelInfo m) {
         double gb = m.sizeGb();
-        if (gb < MIN_PLANNING_GB || gb > MAX_PLANNING_GB) return false;
-
         String name = m.name().toLowerCase();
+
+        // Hard floor — nothing smaller should ever be a planner
+        if (gb < ABSOLUTE_MINIMUM_GB) return false;
+
         // Skip pure embedding models
         if (name.contains("embed") || name.contains("nomic")) return false;
         // Skip med-specific models
         if (name.contains("medgemma")) return false;
 
-        // Family match is preferred
+        // Family match is preferred — accept any size >= ABSOLUTE_MINIMUM_GB
+        // (MoE models like lfm2.5:8b are 4.8 GB but strong reasoners)
         for (String f : REASONING_FAMILIES) {
             if (name.contains(f.toLowerCase())) return true;
         }
 
-        // Also accept general models of appropriate size
-        return gb >= 12.0 && gb <= 35.0;
+        // For unknown families, enforce original size constraints
+        return gb >= MIN_PLANNING_GB && gb <= MAX_PLANNING_GB;
     }
 
     private boolean isGoodForMutation(ModelInfo m) {
         double gb = m.sizeGb();
-        if (gb < MIN_MUTATION_GB || gb > MAX_MUTATION_GB) return false;
-
         String name = m.name().toLowerCase();
+
+        // Hard floor
+        if (gb < ABSOLUTE_MINIMUM_GB) return false;
+
         if (name.contains("embed") || name.contains("nomic")) return false;
         if (name.contains("medgemma")) return false;
 
+        // Family match — accept known code-gen families even for smaller MoE models
         for (String f : CODE_GEN_FAMILIES) {
             if (name.contains(f.toLowerCase())) return true;
         }
 
-        // Accept any large model
-        return gb >= 16.0;
+        // For unknown families, enforce original size constraints
+        return gb >= MIN_MUTATION_GB && gb <= MAX_MUTATION_GB;
     }
 
     private boolean isGoodForEmbedding(ModelInfo m) {
