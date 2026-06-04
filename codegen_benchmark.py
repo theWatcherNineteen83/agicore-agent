@@ -229,7 +229,7 @@ def generate(prompt, model):
         }).encode()
         req = urllib.request.Request(OLLAMA_URL, data=payload,
             headers={"Content-Type": "application/json"})
-        resp = urllib.request.urlopen(req, timeout=120)
+        resp = urllib.request.urlopen(req, timeout=300)
         data = json.loads(resp.read())
         text = data.get("response", "").strip()
         m = re.search(r'```(?:java)?\n(.*?)```', text, re.DOTALL)
