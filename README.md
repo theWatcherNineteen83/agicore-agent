@@ -49,7 +49,7 @@ Zing 27% schneller, C4 pauslos. Monitoring via `-XX:+PrintCPUUtilization -XX:+Us
 ### Tag-Linie (30./31.05.2026, chronologisch)
 | Tag | Inhalt | Tests bei Tag |
 |---|---|---|
-| `v0.11.11-governance` | Phasen 1–7 abgeschlossen | 1 |
+| `v0.11.21-night-final` | Phasen 1–7 abgeschlossen | 1 |
 | `v0.2.1-hardened` | CI + Embedding-LRU + Java 25 + Input-Guard | 21 |
 | `v0.3.0-agi-push` | Multi-Modal-Memory + Loom-Vision + Subprocess-Isolation + Audit-Anchor | 23 |
 | `v0.3.1-observability` | Locale-Fix + Wiki-Persistence + git-cwd-Fix + Wiki-Loom | 25 |
