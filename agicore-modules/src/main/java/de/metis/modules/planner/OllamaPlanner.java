@@ -10,6 +10,8 @@ import de.metis.kernel.world.Belief;
 import de.metis.kernel.world.WorldModel;
 import de.metis.kernel.world.HypothesisStore;
 import de.metis.kernel.world.CausalHypothesis;
+import de.metis.kernel.world.CausalModel;
+import de.metis.kernel.world.Counterfactual;
 
 import de.metis.modules.evolution.ModelRegistry;
 import de.metis.kernel.goal.Goal;
@@ -75,6 +77,8 @@ public class OllamaPlanner implements Planner {
 
     // ── Causal hypothesis store (Phase 10 Hot-Path) ──────────
     private HypothesisStore hypothesisStore;
+    private CausalModel causalModel;
+    private Counterfactual counterfactual;
 
     // ── Available action names (cached for prompt context) ────
     private Set<String> availableActions = Set.of("shell", "http");
@@ -203,6 +207,16 @@ public class OllamaPlanner implements Planner {
 
     public OllamaPlanner withWorldModel(WorldModel wm) {
         this.worldModel = wm;
+        return this;
+    }
+
+    public OllamaPlanner withCounterfactual(Counterfactual cf) {
+        this.counterfactual = cf;
+        return this;
+    }
+
+    public OllamaPlanner withCausalModel(CausalModel cm) {
+        this.causalModel = cm;
         return this;
     }
 

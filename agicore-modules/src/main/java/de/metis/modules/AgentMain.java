@@ -1305,7 +1305,6 @@ public final class AgentMain {
         var hypothesisGenerator = new HypothesisGenerator(hypothesisStore);
         var causalModel = new CausalModel();
         var interventionRunner = new InterventionRunner(hypothesisStore, causalModel);
-        var counterfactual = new Counterfactual(causalModel);
         LOG.info("Phase 10 wired — hypotheses=" + hypothesisStore.size()
                 + ", confirmed=" + hypothesisStore.confirmedCount()
                 + ", refuted=" + hypothesisStore.refutedCount());
@@ -1313,6 +1312,9 @@ public final class AgentMain {
         // Phase 10 Hot-Path: inject HypothesisStore into planner for causal awareness
         if (agent.planner() instanceof de.metis.modules.planner.OllamaPlanner op) {
             op.withHypothesisStore(hypothesisStore);
+            op.withCausalModel(causalModel);
+            var counterfactual = new de.metis.kernel.world.Counterfactual(causalModel);
+            op.withCounterfactual(counterfactual);
             LOG.info("Phase 10 Hot-Path wired — causal hypotheses in planning prompt");
         }
 
