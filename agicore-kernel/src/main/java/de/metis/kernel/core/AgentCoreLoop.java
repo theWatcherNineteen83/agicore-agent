@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.logging.Logger;
+import java.util.function.Consumer;
 
 /**
  * Phase 3: Global Workspace + Self Model + World Model.
@@ -99,6 +100,9 @@ public class AgentCoreLoop {
     private boolean requireApprovalForWrite = true;
 
     private long tickCount = 0;
+    // ── Phase 12a: Self-healing exception handler ─────────────
+    private Consumer<Throwable> exceptionHandler = null;
+
     private CognitiveCycle currentPhase = CognitiveCycle.PERCEIVE;
     private HyperparameterMutator.Configuration activeConfig;
 
@@ -135,6 +139,7 @@ public class AgentCoreLoop {
      * Execute one full cognitive cycle with Global Workspace attention routing.
      */
     public ActionResult tick() {
+    try {
         tickCount++;
 
         // Periodic goal cleanup: prevent unbounded accumulation from MQTT floods
@@ -387,7 +392,19 @@ public class AgentCoreLoop {
                 predictionError, meta.confidence(),
                 attentionSummary, workspace.attentionEntropy(), metrics));
 
-        return result;
+                return result;
+        } catch (Exception e) {
+            LOG.severe("Uncaught exception in tick: " + e.getMessage()
+                    + " (" + e.getClass().getSimpleName() + ")");
+            if (exceptionHandler != null) {
+                try {
+                    exceptionHandler.accept(e);
+                } catch (Exception handlerEx) {
+                    LOG.severe("Exception handler itself failed: " + handlerEx.getMessage());
+                }
+            }
+            return null;
+        }
     }
 
     /**
@@ -520,6 +537,12 @@ public class AgentCoreLoop {
     public void setMaxAutoApprovalLevel(Action.ApprovalLevel level) {
         this.maxAutoApprovalLevel = level;
         this.requireApprovalForWrite = (level == Action.ApprovalLevel.FORBIDDEN);
+    }
+
+    /** Phase 12a: Register handler for uncaught exceptions during tick. */
+    public AgentCoreLoop withExceptionHandler(Consumer<Throwable> handler) {
+        this.exceptionHandler = handler;
+        return this;
     }
 
     /** @return the maximum auto-approval level */

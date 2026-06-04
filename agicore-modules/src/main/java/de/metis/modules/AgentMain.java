@@ -1359,6 +1359,23 @@ public final class AgentMain {
         systemPromptBuilder.setPersonStore(personStore, empathySignal);
         LOG.info("Phase 11 wired — PersonStore=" + personStore.size()
                 + " persons, trust-to-approval mapping active");
+        // ── Phase 12a: BugTracker — Self-healing exception handler ──
+        var bugTracker = new de.metis.kernel.self.BugTracker();
+        bugTracker.withFixGoalTrigger(goalDesc -> {
+            agent.core().goals().add(new de.metis.kernel.goal.Goal(
+                    goalDesc, "fix", 90, 0.9, 1,
+                    de.metis.kernel.goal.Goal.ServiceClass.EXPEDITE,
+                    de.metis.kernel.goal.Goal.ResourceType.CPU_HEAVY,
+                    null));
+            LOG.info("Phase 12a: BugFix goal created: " + goalDesc);
+        });
+        agent.core().withExceptionHandler(e -> {
+            var source = e.getStackTrace().length > 0
+                    ? e.getStackTrace()[0].getClassName() + "." + e.getStackTrace()[0].getMethodName()
+                    : "unknown";
+            bugTracker.report(source, e);
+        });
+        LOG.info("Phase 12a wired — BugTracker active, self-healing exception handler");
 
         // ── Phase 8.6 — SelfReflector: kontinuierlicher innerer Monolog ──────
         // Konvergente Empfehlung aus 9 KI-Reviews (2026-05-31): kleiner, schneller
