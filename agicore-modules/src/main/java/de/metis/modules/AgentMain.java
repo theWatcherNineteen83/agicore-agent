@@ -1402,6 +1402,10 @@ public final class AgentMain {
         var riskGate = new de.metis.modules.evolution.RiskGate();
         fixAction.setRiskGate(riskGate);
         fixAction.setBranchManager(branchManager);
+        fixAction.setCompileRepair(new de.metis.modules.action.CompileRepairLoop(
+                "http://192.168.22.204:11434/api/generate", "gemma4:31b",
+                "/home/prometheus/metis/classpath.txt", 3));
+        LOG.info("Phase 12d: CompileRepairLoop connected to SelfFixAction (gemma4:31b)");
         LOG.info("Phase 12b: RiskGate + FeatureBranchManager connected to SelfFixAction");
         var featureGenAction = new de.metis.modules.action.FeatureGenAction(
                 "http://192.168.22.204:11434/api/generate", "nemotron:latest", ".");

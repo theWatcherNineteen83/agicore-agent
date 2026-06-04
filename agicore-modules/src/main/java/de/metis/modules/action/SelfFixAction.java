@@ -35,6 +35,9 @@ public class SelfFixAction implements Action {
 
     public void setRiskGate(RiskGate gate) { this.riskGate = gate; }
     public void setBranchManager(FeatureBranchManager mgr) { this.branchManager = mgr; }
+    private CompileRepairLoop compileRepair;
+
+    public void setCompileRepair(CompileRepairLoop cr) { this.compileRepair = cr; }
 
     @Override
     public String name() { return "self-fix"; }
@@ -98,20 +101,41 @@ public class SelfFixAction implements Action {
                 String branch = branchManager.createBranch(relPath, fixSuggestion, desc);
                 if (branch != null) {
                     summary = "SelfFix: PR created — branch=" + branch + " file=" + sourceFile;
-                    LOG.info(summary);
                     return ActionResult.ok(name(), summary, start);
                 }
             }
 
             // ── Compile check (module-level, non-kernel) ──────────
-            boolean compiled = runMvnCompile();
-            String status = compiled ? "COMPILE_OK" : "COMPILE_FAILED";
-            summary = String.format("SelfFix: %s -> %s (file=%s)", className, status, sourceFile);
-            LOG.info(summary);
-
-            return compiled
-                    ? ActionResult.ok(name(), summary, start)
-                    : ActionResult.fail(name(), "SelfFix: compile failed: " + summary, start);
+            // ── Compile Repair Loop (Phase 12d) ──────────────────
+            if (compileRepair != null) {
+                String targetClassName = className.contains(".")
+                        ? className.substring(className.lastIndexOf(".") + 1)
+                        : className;
+                var result = compileRepair.repair(fixSuggestion, targetClassName);
+                boolean ok = result.success();
+                summary = String.format("SelfFix: %s -> %s (file=%s, attempts=%d)",
+                        className, ok ? "COMPILE_OK" : "COMPILE_FAILED", sourceFile, result.attempts());
+                LOG.info(summary);
+                if (ok) {
+                    // Save the repaired version
+                    Files.writeString(fixDir.resolve(className + ".repaired.java"), result.compiledCode());
+                    return ActionResult.ok(name(), summary, start);
+                } else {
+                    String diag = result.diagnostics();
+                    if (diag.length() > 200) diag = diag.substring(0, 200);
+                    return ActionResult.fail(name(), "Compile failed after " + result.attempts()
+                            + " attempts: " + diag, start);
+                }
+            } else {
+                // Fallback: old Maven compile
+                boolean compiled = runMvnCompile();
+                summary = String.format("SelfFix: %s -> %s (file=%s)",
+                        className, compiled ? "COMPILE_OK" : "COMPILE_FAILED", sourceFile);
+                LOG.info(summary);
+                return compiled
+                        ? ActionResult.ok(name(), summary, start)
+                        : ActionResult.fail(name(), "SelfFix: compile failed: " + summary, start);
+            }
 
         } catch (Exception e) {
             LOG.warning("SelfFixAction failed: " + e.getMessage());
