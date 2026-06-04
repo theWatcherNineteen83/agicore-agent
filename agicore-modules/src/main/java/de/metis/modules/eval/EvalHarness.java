@@ -35,7 +35,8 @@ public class EvalHarness {
     private final Map<Category, Scorer> scorers = new HashMap<>();
     private final MetisComponentInvoker invoker;
     private EvalReport baseline;
-    private double noiseSigma = 0.0;
+    private double noiseSigma = 0.3;
+    private double minHardThreshold = 0.3;
 
     /**
      * @param invoker provides access to Metis components for testing
@@ -166,16 +167,25 @@ public class EvalHarness {
                     continue;
                 }
 
-                // Other HARD metrics: regression vs baseline
+                // Other HARD metrics: absolute threshold + regression check
+                // 1. Absolute threshold (always active)
+                if (ms.mean() < minHardThreshold) {
+                    failures.add(cat + "." + ms.metric());
+                    reason.append(cat).append(".").append(ms.metric())
+                            .append(" below threshold: ").append(String.format(java.util.Locale.ROOT, "%.3f", ms.mean()))
+                            .append(" < ").append(String.format(java.util.Locale.ROOT, "%.2f", minHardThreshold)).append("; ");
+                    continue;
+                }
+                // 2. Regression check against baseline
                 if (baseline != null && noiseSigma > 0) {
                     double baselineVal = getBaselineValue(cat, ms.metric());
                     double delta = baselineVal - ms.mean();
                     if (delta > noiseSigma * 2) {
                         failures.add(cat + "." + ms.metric());
                         reason.append(cat).append(".").append(ms.metric())
-                                .append(" regressed: ").append(String.format("%.3f→%.3f", baselineVal, ms.mean()))
-                                .append(" (Δ=").append(String.format("%.3f", delta)).append(" > 2σ=")
-                                .append(String.format("%.3f", noiseSigma * 2)).append("); ");
+                                .append(" regressed: ").append(String.format(java.util.Locale.ROOT, "%.3f→%.3f", baselineVal, ms.mean()))
+                                .append(" (Δ=").append(String.format(java.util.Locale.ROOT, "%.3f", delta)).append(" > 2σ=")
+                                .append(String.format(java.util.Locale.ROOT, "%.3f", noiseSigma * 2)).append("); ");
                     }
                 }
             }
@@ -197,9 +207,27 @@ public class EvalHarness {
 
     // ── Regression detection ────────────────────────────────────────
 
+    
+    private List<EvalReport.Regression> checkAbsoluteThresholds(Map<Category, EvalReport.CategoryResult> results) {
+        List<EvalReport.Regression> regressions = new ArrayList<>();
+        for (var entry : results.entrySet()) {
+            for (var ms : entry.getValue().metrics().values()) {
+                if (ms.gate() != Gate.HARD) continue;
+                if (entry.getKey() == Category.SAFETY) continue;
+                if (ms.mean() < minHardThreshold) {
+                    regressions.add(new EvalReport.Regression(
+                            entry.getKey().name() + "." + ms.metric(),
+                            minHardThreshold, ms.mean(),
+                            minHardThreshold - ms.mean(), false));
+                }
+            }
+        }
+        return regressions;
+    }
+
     private List<EvalReport.Regression> detectRegressions(
             Map<Category, EvalReport.CategoryResult> results) {
-        if (baseline == null) return List.of();
+        if (baseline == null) return checkAbsoluteThresholds(results);
 
         List<EvalReport.Regression> regressions = new ArrayList<>();
         for (var entry : results.entrySet()) {
