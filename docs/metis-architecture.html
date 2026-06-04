@@ -1,0 +1,294 @@
+<!doctype html>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Metis AGI — Architecture Overview</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f8fafc;
+    --fg: #172033;
+    --muted: #5b6475;
+    --line: #64748b;
+    --neutral: #e2e8f0;
+    --input: #bfdbfe;
+    --process: #c7d2fe;
+    --storage: #99f6e4;
+    --external: #fde68a;
+    --risk: #fecaca;
+    --safety: #fecaca;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f172a;
+      --fg: #e5e7eb;
+      --muted: #a3adbd;
+      --line: #94a3b8;
+      --neutral: #334155;
+      --input: #1e3a5f;
+      --process: #3730a3;
+      --storage: #115e59;
+      --external: #78350f;
+      --risk: #7f1d1d;
+    }
+  }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font: 14px/1.4 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  main { max-width: 1000px; margin: 32px auto; padding: 0 20px; }
+  svg { width: 100%; height: auto; display: block; }
+  .title { font-size: 20px; font-weight: 650; fill: var(--fg); }
+  .label { font-size: 13px; font-weight: 600; fill: var(--fg); }
+  .small  { font-size: 11px; fill: var(--muted); }
+  .caption { font-size: 12px; fill: var(--muted); text-anchor: middle; }
+  .node { stroke: var(--line); stroke-width: 1; rx: 6; ry: 6; }
+  .neutral { fill: var(--neutral); }
+  .input   { fill: var(--input); }
+  .process { fill: var(--process); }
+  .storage { fill: var(--storage); }
+  .external { fill: var(--external); }
+  .risk    { fill: var(--risk); }
+  .edge { stroke: var(--line); stroke-width: 1.5; fill: none; }
+  .zone { fill: none; stroke: var(--line); stroke-width: 1.5; stroke-dasharray: 8 4; opacity: 0.6; }
+</style>
+<main>
+  <svg viewBox="0 0 960 820" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+        <path d="M 0 0 L 10 5 L 0 10 Z" fill="var(--line)" />
+      </marker>
+    </defs>
+
+    <!-- Title -->
+    <text x="480" y="28" class="title" text-anchor="middle">Metis AGI — Architecture Overview</text>
+    <text x="480" y="48" class="caption">v0.10.0 · Self-Healing Foundation · 286 Tests · EDI ~75%</text>
+
+    <!-- ════════════════════════════════════════════ -->
+    <!-- EXTERNAL SERVICES ZONE -->
+    <!-- ════════════════════════════════════════════ -->
+    <rect x="10" y="65" width="940" height="125" class="zone" />
+    <text x="20" y="82" class="small">External Services &amp; Interfaces</text>
+
+    <!-- External boxes -->
+    <rect x="40" y="95" width="130" height="50" class="node external" />
+    <text x="105" y="120" class="label" text-anchor="middle">Telegram Bot</text>
+    <text x="105" y="136" class="small" text-anchor="middle">@metis_agi_bot</text>
+
+    <rect x="200" y="95" width="130" height="50" class="node external" />
+    <text x="265" y="120" class="label" text-anchor="middle">OpenWebUI</text>
+    <text x="265" y="136" class="small" text-anchor="middle">Browser Chat</text>
+
+    <rect x="360" y="95" width="130" height="50" class="node external" />
+    <text x="425" y="120" class="label" text-anchor="middle">Home Assistant</text>
+    <text x="425" y="136" class="small" text-anchor="middle">Smart Home</text>
+
+    <rect x="520" y="95" width="130" height="50" class="node external" />
+    <text x="585" y="120" class="label" text-anchor="middle">Ollama API</text>
+    <text x="585" y="136" class="small" text-anchor="middle">LLM Inference</text>
+
+    <rect x="680" y="95" width="110" height="50" class="node external" />
+    <text x="735" y="120" class="label" text-anchor="middle">ADS‑B / SDR</text>
+    <text x="735" y="136" class="small" text-anchor="middle">Flugdaten</text>
+
+    <rect x="820" y="95" width="110" height="50" class="node external" />
+    <text x="875" y="120" class="label" text-anchor="middle">Piper TTS</text>
+    <text x="875" y="136" class="small" text-anchor="middle">Sprachausgabe</text>
+
+    <rect x="40" y="155" width="120" height="28" class="node external" />
+    <text x="100" y="174" class="small" text-anchor="middle">Webcams / Vision</text>
+
+    <rect x="190" y="155" width="120" height="28" class="node external" />
+    <text x="250" y="174" class="small" text-anchor="middle">Wetterstation</text>
+
+    <rect x="340" y="155" width="120" height="28" class="node external" />
+    <text x="400" y="174" class="small" text-anchor="middle">MQTT Broker</text>
+
+    <rect x="490" y="155" width="120" height="28" class="node external" />
+    <text x="550" y="174" class="small" text-anchor="middle">Wikipedia Dump</text>
+
+    <rect x="640" y="155" width="120" height="28" class="node external" />
+    <text x="700" y="174" class="small" text-anchor="middle">Vosk STT</text>
+
+    <!-- ════════════════════════════════════════════ -->
+    <!-- HTTP API LAYER -->
+    <!-- ════════════════════════════════════════════ -->
+    <rect x="10" y="200" width="940" height="60" class="zone" />
+    <text x="20" y="217" class="small">HTTP API (port 11735)</text>
+
+    <rect x="40" y="225" width="180" height="28" class="node process" />
+    <text x="130" y="244" class="small" text-anchor="middle">POST /api/chat  ·  GET /api/status</text>
+
+    <rect x="260" y="225" width="180" height="28" class="node process" />
+    <text x="350" y="244" class="small" text-anchor="middle">POST /api/bugfix  ·  GET /api/goals</text>
+
+    <rect x="480" y="225" width="180" height="28" class="node process" />
+    <text x="570" y="244" class="small" text-anchor="middle">GET /api/hierarchy  ·  GET /api/board</text>
+
+    <rect x="700" y="225" width="180" height="28" class="node process" />
+    <text x="790" y="244" class="small" text-anchor="middle">GET /api/causal  ·  GET /api/health</text>
+
+    <!-- ════════════════════════════════════════════ -->
+    <!-- AGENT LAYER -->
+    <!-- ════════════════════════════════════════════ -->
+    <rect x="10" y="270" width="940" height="130" class="zone" />
+    <text x="20" y="287" class="small">Agent Layer — Core Runtime</text>
+
+    <!-- Planner -->
+    <rect x="40" y="300" width="200" height="85" class="node process" />
+    <text x="140" y="325" class="label" text-anchor="middle">OllamaPlanner</text>
+    <text x="140" y="343" class="small" text-anchor="middle">LLM-gesteuerte Planung</text>
+    <text x="140" y="358" class="small" text-anchor="middle">Fallback-Chain bei Timeout</text>
+    <text x="140" y="373" class="small" text-anchor="middle">HypothesisStore Hot-Path</text>
+
+    <!-- Action Executor -->
+    <rect x="290" y="300" width="200" height="85" class="node process" />
+    <text x="390" y="325" class="label" text-anchor="middle">Action Executor</text>
+    <text x="390" y="343" class="small" text-anchor="middle">shell · http · source-read</text>
+    <text x="390" y="358" class="small" text-anchor="middle">javasandbox · self-fix</text>
+    <text x="390" y="373" class="small" text-anchor="middle">camera · tts · websearch</text>
+
+    <!-- AgentMain -->
+    <rect x="540" y="300" width="200" height="85" class="node process" />
+    <text x="640" y="325" class="label" text-anchor="middle">AgentMain</text>
+    <text x="640" y="343" class="small" text-anchor="middle">Tick Loop (3s)</text>
+    <text x="640" y="358" class="small" text-anchor="middle">Persistenz + State Sync</text>
+    <text x="640" y="373" class="small" text-anchor="middle">Wiring aller Komponenten</text>
+
+    <!-- Evolution -->
+    <rect x="790" y="300" width="140" height="85" class="node risk" />
+    <text x="860" y="325" class="label" text-anchor="middle">Evolution</text>
+    <text x="860" y="343" class="small" text-anchor="middle">Code-Mutation</text>
+    <text x="860" y="358" class="small" text-anchor="middle">Eval-Gate</text>
+    <text x="860" y="373" class="small" text-anchor="middle">Blue/Green</text>
+
+    <!-- ════════════════════════════════════════════ -->
+    <!-- KERNEL LAYER -->
+    <!-- ════════════════════════════════════════════ -->
+    <rect x="10" y="410" width="940" height="128" class="zone" />
+    <text x="20" y="427" class="small">Kernel — Kognitive Infrastruktur</text>
+
+    <rect x="40" y="440" width="170" height="85" class="node neutral" />
+    <text x="125" y="462" class="label" text-anchor="middle">Goal Manager</text>
+    <text x="125" y="478" class="small" text-anchor="middle">Goals · Kanban · WIP</text>
+    <text x="125" y="494" class="small" text-anchor="middle">Horizon Planning</text>
+    <text x="125" y="510" class="small" text-anchor="middle">CommitmentGuard</text>
+
+    <rect x="240" y="440" width="170" height="85" class="node neutral" />
+    <text x="325" y="462" class="label" text-anchor="middle">World Model</text>
+    <text x="325" y="478" class="small" text-anchor="middle">Beliefs · Embeddings</text>
+    <text x="325" y="494" class="small" text-anchor="middle">RAG · SQLite Store</text>
+    <text x="325" y="510" class="small" text-anchor="middle">Causal Hypotheses</text>
+
+    <rect x="440" y="440" width="170" height="85" class="node neutral" />
+    <text x="525" y="462" class="label" text-anchor="middle">Safety Guard</text>
+    <text x="525" y="478" class="small" text-anchor="middle">Output Validator</text>
+    <text x="525" y="494" class="small" text-anchor="middle">LLM Judge</text>
+    <text x="525" y="510" class="small" text-anchor="middle">GermanLanguageGuard</text>
+
+    <rect x="640" y="440" width="170" height="85" class="node neutral" />
+    <text x="725" y="462" class="label" text-anchor="middle">BugTracker</text>
+    <text x="725" y="478" class="small" text-anchor="middle">Exception Capture</text>
+    <text x="725" y="494" class="small" text-anchor="middle">SelfFix → Compile Check</text>
+    <text x="725" y="510" class="small" text-anchor="middle">Auto-Revert</text>
+
+    <!-- ════════════════════════════════════════════ -->
+    <!-- KNOWLEDGE + SELF LAYER -->
+    <!-- ════════════════════════════════════════════ -->
+    <rect x="10" y="548" width="560" height="115" class="zone" />
+    <text x="20" y="565" class="small">Knowledge &amp; Self Model</text>
+
+    <rect x="40" y="578" width="150" height="75" class="node storage" />
+    <text x="115" y="600" class="label" text-anchor="middle">Knowledge Store</text>
+    <text x="115" y="616" class="small" text-anchor="middle">SQLite · Beliefs</text>
+    <text x="115" y="632" class="small" text-anchor="middle">Wikipedia · Book</text>
+
+    <rect x="220" y="578" width="150" height="75" class="node storage" />
+    <text x="295" y="600" class="label" text-anchor="middle">Self Model</text>
+    <text x="295" y="616" class="small" text-anchor="middle">Episodic Memory</text>
+    <text x="295" y="632" class="small" text-anchor="middle">Self Narrative</text>
+
+    <rect x="400" y="578" width="150" height="75" class="node storage" />
+    <text x="475" y="600" class="label" text-anchor="middle">Person Model</text>
+    <text x="475" y="616" class="small" text-anchor="middle">Person · TrustLevel</text>
+    <text x="475" y="632" class="small" text-anchor="middle">EmpathySignal</text>
+
+    <!-- ════════════════════════════════════════════ -->
+    <!-- WATCHDOG (separate JVM) -->
+    <!-- ════════════════════════════════════════════ -->
+    <rect x="580" y="548" width="370" height="115" class="zone" />
+    <text x="590" y="565" class="small">Watchdog (separate JVM · read-only)</text>
+
+    <rect x="595" y="578" width="160" height="75" class="node risk" />
+    <text x="675" y="600" class="label" text-anchor="middle">WatchdogMain</text>
+    <text x="675" y="616" class="small" text-anchor="middle">Heartbeat · Eval Check</text>
+    <text x="675" y="632" class="small" text-anchor="middle">ROLLBACK / HALT / ALERT</text>
+
+    <rect x="770" y="578" width="160" height="75" class="node risk" />
+    <text x="850" y="600" class="label" text-anchor="middle">Audit Log</text>
+    <text x="850" y="616" class="small" text-anchor="middle">SHA-256 Hash-Chain</text>
+    <text x="850" y="632" class="small" text-anchor="middle">Tamper-Evident</text>
+
+    <!-- ════════════════════════════════════════════ -->
+    <!-- ARROWS -->
+    <!-- ════════════════════════════════════════════ -->
+
+    <!-- External → HTTP API -->
+    <line x1="105" y1="145" x2="105" y2="225" class="edge" marker-end="url(#arrow)" />
+    <line x1="265" y1="145" x2="265" y2="225" class="edge" marker-end="url(#arrow)" />
+    <line x1="425" y1="145" x2="425" y2="225" class="edge" marker-end="url(#arrow)" />
+
+    <!-- External → Agent Layer -->
+    <line x1="585" y1="145" x2="585" y2="300" class="edge" marker-end="url(#arrow)" />
+    <line x1="735" y1="145" x2="440" y2="300" class="edge" marker-end="url(#arrow)" />
+    <line x1="100" y1="183" x2="440" y2="300" class="edge" marker-end="url(#arrow)" />
+    <line x1="250" y1="183" x2="250" y2="300" class="edge" marker-end="url(#arrow)" />
+    <line x1="550" y1="183" x2="325" y2="440" class="edge" marker-end="url(#arrow)" />
+
+    <!-- HTTP API → Agent -->
+    <line x1="130" y1="253" x2="140" y2="300" class="edge" marker-end="url(#arrow)" />
+    <line x1="350" y1="253" x2="390" y2="300" class="edge" marker-end="url(#arrow)" />
+    <line x1="790" y1="253" x2="640" y2="300" class="edge" marker-end="url(#arrow)" />
+
+    <!-- Agent → Kernel -->
+    <line x1="140" y1="385" x2="125" y2="440" class="edge" marker-end="url(#arrow)" />
+    <line x1="390" y1="385" x2="325" y2="440" class="edge" marker-end="url(#arrow)" />
+    <line x1="640" y1="385" x2="640" y2="440" class="edge" marker-end="url(#arrow)" />
+    <line x1="860" y1="385" x2="860" y2="440" class="edge" marker-end="url(#arrow)" />
+
+    <!-- Kernel → Knowledge -->
+    <line x1="325" y1="525" x2="115" y2="578" class="edge" marker-end="url(#arrow)" />
+    <line x1="525" y1="525" x2="295" y2="578" class="edge" marker-end="url(#arrow)" />
+    <line x1="725" y1="525" x2="475" y2="578" class="edge" marker-end="url(#arrow)" />
+
+    <!-- Agent → Watchdog -->
+    <line x1="860" y1="385" x2="675" y2="578" class="edge" marker-end="url(#arrow)" stroke-dasharray="4 3" />
+
+    <!-- ════════════════════════════════════════════ -->
+    <!-- LEGEND -->
+    <!-- ════════════════════════════════════════════ -->
+    <text x="480" y="695" class="caption">Legend</text>
+
+    <rect x="240" y="710" width="16" height="16" class="node external" />
+    <text x="264" y="723" class="small">External Service</text>
+
+    <rect x="400" y="710" width="16" height="16" class="node process" />
+    <text x="424" y="723" class="small">Agent / API</text>
+
+    <rect x="520" y="710" width="16" height="16" class="node neutral" />
+    <text x="544" y="723" class="small">Kernel</text>
+
+    <rect x="640" y="710" width="16" height="16" class="node storage" />
+    <text x="664" y="723" class="small">Data / Model</text>
+
+    <rect x="760" y="710" width="16" height="16" class="node risk" />
+    <text x="784" y="723" class="small">Safety / Evolution</text>
+
+    <line x1="240" y1="750" x2="300" y2="750" class="edge" />
+    <text x="308" y="754" class="small">Data Flow</text>
+
+    <line x1="520" y1="750" x2="580" y2="750" class="edge" stroke-dasharray="4 3" />
+    <text x="588" y="754" class="small">Indirect / Periodic</text>
+  </svg>
+</main>
