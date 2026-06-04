@@ -1,1 +1,1 @@
-e10d4715d6f70e2b202ed464c2e33358b31f81e9137f8cb57c9bfd2ee199843b|2026-05-31T10:13:54.755214938Z|HALT|HARD: Heartbeat lost: 6 missed (max 6)|4e7229c67580b43e85d449266ad9a53da4b4f4a0252d7486cb953e02efc71d21
+c26de4fcdd131adacc1f2978f265cef35555c131cf0cd1a18350f54f34a49efe|2026-06-04T16:41:57.338861027Z|PRUNE|SOFT: Eval-driven prune: model:PLANNING.goal_achieved below threshold: 0.000 < 0.30; CODEGEN.pass_at_1 below threshold: 0.000 < 0.30;  tier:SMOKE (report: 2026-06-04T164049-smoke-eval-report.json)|e8f9e18a2a7290f34724af4b848d2f1b0a1cb9e03578b1a48483eb206cecdfd1
