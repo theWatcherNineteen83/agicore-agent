@@ -16,10 +16,9 @@ class AutoRevertTest {
 
         // Report same bug 3+ times → triggers rollback
         RuntimeException ex = new RuntimeException("exhaust-test");
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < 4; i++) {
             boolean result = tracker.report("tick", ex);
-            // After 3rd attempt, it returns false and triggers rollback
-            if (!result) break;
+            // Keep going even after cooldown to exhaust MAX_FIX_ATTEMPTS
         }
         assertTrue(rolledBack[0], "Rollback should trigger after fix exhaustion");
     }
@@ -55,14 +54,13 @@ class AutoRevertTest {
         var tracker = new BugTracker();
         RuntimeException ex = new RuntimeException("exhaust");
 
-        // First 3 reports should be counted as open
+        // 4 reports needed to exhaust (1 new + 3 cooldown-increments)
         tracker.report("tick", ex);
-        tracker.report("tick", ex);
-        assertEquals(1, tracker.openCount(), "Bug still open before exhaustion");
+        assertEquals(1, tracker.openCount(), "Bug open before exhaustion");
 
-        // Third report exhausts → zero open
         tracker.report("tick", ex);
-        // openCount filters: fixAttempts < 3. After exhaustion, fixAttempts might be 3
+        tracker.report("tick", ex);
+        tracker.report("tick", ex);  // 4th = exhausted
         assertTrue(tracker.openCount() <= 0, "Exhausted bug should not count as open");
     }
 }

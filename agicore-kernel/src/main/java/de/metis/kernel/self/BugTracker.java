@@ -78,7 +78,19 @@ public class BugTracker {
             }
             if (System.currentTimeMillis() - existing.timestamp().toEpochMilli() < FIX_COOLDOWN_MS) {
                 LOG.fine("BugTracker: Bug still in cooldown: " + existing.summary());
+                // Even in cooldown, count the fix attempt
+                existing = existing.incrementFixAttempts();
                 bySignature.put(signature, existing);
+                if (existing.fixAttempts() >= MAX_FIX_ATTEMPTS) {
+                    LOG.warning("BugTracker: Bug exhausted " + MAX_FIX_ATTEMPTS
+                            + " fix attempts (cooldown) -- triggering rollback: "
+                            + existing.summary());
+                    if (rollbackTrigger != null) {
+                        try { rollbackTrigger.run(); } catch (Exception ex) {
+                            LOG.warning("Rollback trigger failed: " + ex.getMessage());
+                        }
+                    }
+                }
                 return false;
             }
             bySignature.put(signature, existing);
@@ -136,7 +148,7 @@ public class BugTracker {
      * Anzahl der Bugs, die noch Fix-Versuche übrig haben.
      */
     public int openCount() {
-        return (int) bugs.stream()
+        return (int) bySignature.values().stream()
                 .filter(b -> b.fixAttempts < MAX_FIX_ATTEMPTS)
                 .count();
     }
@@ -201,6 +213,10 @@ public class BugTracker {
                     exceptionType, java.time.Instant.now(), occurrenceCount + 1, fixAttempts);
         }
         public BugReport withFixAttempt() {
+            return new BugReport(id, source, stacktrace, signature, message,
+                    exceptionType, timestamp, occurrenceCount, fixAttempts + 1);
+        }
+        public BugReport incrementFixAttempts() {
             return new BugReport(id, source, stacktrace, signature, message,
                     exceptionType, timestamp, occurrenceCount, fixAttempts + 1);
         }
