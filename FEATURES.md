@@ -1,6 +1,6 @@
 # Metis AGI — Feature-Katalog
 
-**Stand: 04.06.2026 17:30 · Repo-Tag v0.11.11-governance · 330 Tests (grün) Repo-Tag v0.9.5-day-finish · 330 Tests + 165 Modules-Tests = 286 grün (lokal mvn test) · CI: Kernel+Watchdog (GitHub Actions)**
+**Stand: 04.06.2026 17:30 · Repo-Tag v0.11.11-governance · 330 Tests (gruen) · CI: Kernel+Watchdog (GitHub Actions)**
 
 ---
 

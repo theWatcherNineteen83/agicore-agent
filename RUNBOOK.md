@@ -1,6 +1,6 @@
 # Metis AGI — Runbook
 
-**Stand: 04.06.2026 | Host: miniedi (192.168.22.204) | User: prometheus | Host: miniedi (192.168.22.204) | User: prometheus**
+**Stand: 04.06.2026 | Host: miniedi (192.168.22.204) | User: prometheus**
 
 ---
 
