@@ -8,6 +8,8 @@ import de.metis.kernel.planner.Planner;
 import de.metis.kernel.workspace.ContentItem;
 import de.metis.kernel.world.Belief;
 import de.metis.kernel.world.WorldModel;
+import de.metis.kernel.world.HypothesisStore;
+import de.metis.kernel.world.CausalHypothesis;
 
 import de.metis.modules.evolution.ModelRegistry;
 import de.metis.kernel.goal.Goal;
@@ -70,6 +72,9 @@ public class OllamaPlanner implements Planner {
 
     // ── World model reference (for context building) ──────────
     private WorldModel worldModel;
+
+    // ── Causal hypothesis store (Phase 10 Hot-Path) ──────────
+    private HypothesisStore hypothesisStore;
 
     // ── Available action names (cached for prompt context) ────
     private Set<String> availableActions = Set.of("shell", "http");
@@ -198,6 +203,11 @@ public class OllamaPlanner implements Planner {
 
     public OllamaPlanner withWorldModel(WorldModel wm) {
         this.worldModel = wm;
+        return this;
+    }
+
+    public OllamaPlanner withHypothesisStore(HypothesisStore hs) {
+        this.hypothesisStore = hs;
         return this;
     }
 
@@ -738,6 +748,24 @@ public class OllamaPlanner implements Planner {
                 for (Belief b : relevant) {
                     sb.append("- ").append(b.statement())
                             .append(" (confidence: ").append(String.format("%.2f", b.confidence())).append(")\n");
+                }
+                sb.append("\n");
+            }
+        }
+
+        // ── Causal hypotheses (Phase 10 Hot-Path) ────────────
+        if (hypothesisStore != null) {
+            var open = hypothesisStore.open();
+            if (!open.isEmpty()) {
+                sb.append("ACTIVE CAUSAL HYPOTHESES (what-if the agent is testing):\n");
+                int n = 0;
+                for (var h : open) {
+                    if (n >= 3) break;
+                    sb.append("- IF \"").append(h.cause())
+                      .append("\" -> \"").append(h.effect())
+                      .append("\" (pred: ").append(h.predictedDirection())
+                      .append(", rationale: ").append(h.rationale()).append(")\n");
+                    n++;
                 }
                 sb.append("\n");
             }

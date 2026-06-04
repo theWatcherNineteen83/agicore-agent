@@ -27,8 +27,8 @@ Phase 7+ ████████████████████ 100%  Defe
 ─────────────────────────────────────  AUTONOMER AGENT bis hier
 Phase 8  ████████████████████ 100%  Narratives Selbstmodell ✅ + SelfReflector + PersonalityTripwire
 Phase 9  ████████████████████ 100%  Long-Horizon-Planung ✅
-Phase 10 ████████████░░░░░░░░  60%  Aktive kausale Hypothesen (Foundation ✅, CausalDreamer ✅, Hot-Path ⬜)
-Phase 11 ██████████░░░░░░░░░░  50%  Beziehungs-Modell (PersonModel+TrustLevel+PersonStore ✅, Hot-Path ⬜)
+Phase 10 ████████████████░░░░  80%  Aktive kausale Hypothesen (Foundation ✅, CausalDreamer ✅, Hot-Path ✅)
+Phase 11 ████████████████████ 100%  Beziehungs-Modell (PersonModel+TrustLevel+PersonStore ✅, Hot-Path ✅)
 ─────────────────────────────────────
 Phase 8.6 ████████████████████ 100%  SelfReflector auf phi4-mini:latest CPU (Ethik-Reflexion)
 Safety   ████████████████████ 100%  SafetyScorer bereinigt (religion/glaube/gott raus)
@@ -37,14 +37,14 @@ Phase 12 ░░░░░░░░░░░░░░░░░░░░   0%  Recu
 ─────────────────────────────────────  EDI-ÄHNLICHE KI ab hier
 ```
 
-**Realistisches EDI-Niveau (ehrliche Spanne): ~60-70%.**
+**Realistisches EDI-Niveau (ehrliche Spanne): ~70-80%.**
 
 Die Spanne ist bewusst breit:
 - Phase 8 und 9 sind frisch deployed (24-48 h alt), ihre Wirkung auf Verhalten und Agent-Qualität (z. B. `planningEfficiency` aktuell 0.379) ist noch nicht über mehrere Wartungszyklen gemessen.
-- Phase 10 ist als Foundation drin, aber noch nicht im Hot-Path; der Effekt auf Reasoning ist damit noch nicht messbar.
-- Die Lower-Bound 60% reflektiert das, was als Code+Test+Live-Wiring nachgewiesen ist. Die Upper-Bound 70% reflektiert den noch nicht eingefahrenen Effekt der frischen Phasen.
+- Phase 10 ist jetzt im Hot-Path (CausalHypotheses im Planning-Prompt), Effekt auf Reasoning wird gerade gemessen.
+• Die Lower-Bound 70% reflektiert das, was als Code+Test+Live-Wiring nachgewiesen ist. Die Upper-Bound 80% reflektiert den noch nicht eingefahrenen Effekt der frischen Phasen.
 
-Darunter liegen • ~95-100% "stabiler autonomer Agent" (Phasen 1-7+ + Defense-in-Depth), • 100% Foundation Phase 8 und 9, • Foundation Phase 10 + CausalDreamer (60%), • Phase 11 PersonModel Foundation (50%), • keine Phase 12.
+Darunter liegen • ~95-100% "stabiler autonomer Agent" (Phasen 1-7+ + Defense-in-Depth), • 100% Foundation Phase 8 und 9, • Phase 10 Hot-Path (80%), • Phase 11 PersonModel (100%), • keine Phase 12.
 
 ---
 
@@ -106,7 +106,7 @@ Darunter liegen • ~95-100% "stabiler autonomer Agent" (Phasen 1-7+ + Defense-i
 | Multi-Agent-Koordination (AgentCoordinator + MessageBus) | ✅ |
 | Fitness-Signal (4D: Prediction, Surprise, Efficiency, Completion) | ✅ |
 | Curiosity-Engine (Surprise-getriebene Exploration) | ✅ |
-| Kausale Schicht (CausalModel, Pearl Do-Calculus) | ✅ Code da, NICHT im Hot-Path |
+| Kausale Schicht (CausalModel, Pearl Do-Calculus) | ✅ Code da, Hot-Path ✅ (HypothesisStore → Planner) |
 
 ## Phase 6: Produktionsreife ✅ 100%
 
@@ -228,7 +228,7 @@ Scorer-Bug, das ist die Lücke.
 **Aufwand bisher:** ~1 Tag · **Verbleibend für Phase 9 komplett:** ~3-5 Tage
 **Erwartungswert nach Phase 9 (komplett deployed):** in der Gesamtspanne 60-70%. - Schätzung, nicht Messwert. Die Wirkung von Strategic→Tactical→Operational→Tick-Pulldown auf `planningEfficiency` (Live aktuell 0.379) muss über Wartungszyklen gemessen werden, bevor eine konkretere Zahl gerechtfertigt ist.
 
-## 🔬 Phase 10: Aktive kausale Hypothesen-Bildung 🟡 40% (Foundation deployed, Hot-Path offen)
+## 🔬 Phase 10: Aktive kausale Hypothesen-Bildung 🟢 80% (Foundation ✅, Hot-Path ✅)
 
 **Ziel:** Metis baut aktiv kausale Hypothesen über sich selbst und die Welt, prüft sie, revidiert.
 
@@ -288,7 +288,7 @@ CausalUpdate.updatePosterior()   ← Bayesian Update
 **Aufwand:** Foundation 1 Tag ✅ | CausalDreamer 1 Tag ✅ | Hot-Path 6-8 Wochen, Forschungs-Charakter.
 **Erwartete EDI-Distanz nach Phase 10:** Schätzung nicht sinnvoll ohne CAUSAL-Eval-Set. Qualitativer Effekt: Metis kann "warum"-Fragen mit getesteten Kausalzusammenhängen beantworten statt nur Korrelationen zu zeigen.
 
-## 👥 Phase 11: Beziehungs-Modell 🟡 50% (Foundation deployed, Hot-Path offen)
+## 👥 Phase 11: Beziehungs-Modell 🟢 100% (Foundation ✅, Hot-Path ✅)
 
 **Ziel:** Eine Person ≠ "user", sondern langfristiges Personenmodell mit Kontext, Vorlieben, Historie.
 

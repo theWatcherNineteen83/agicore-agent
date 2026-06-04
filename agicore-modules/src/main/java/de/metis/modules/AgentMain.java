@@ -1310,6 +1310,12 @@ public final class AgentMain {
                 + ", confirmed=" + hypothesisStore.confirmedCount()
                 + ", refuted=" + hypothesisStore.refutedCount());
 
+        // Phase 10 Hot-Path: inject HypothesisStore into planner for causal awareness
+        if (agent.planner() instanceof de.metis.modules.planner.OllamaPlanner op) {
+            op.withHypothesisStore(hypothesisStore);
+            LOG.info("Phase 10 Hot-Path wired — causal hypotheses in planning prompt");
+        }
+
         // Phase 9.3b — LLM decomposer drop-in (falls Ollama down: deterministischer Fallback)
         horizonPlanner.setDecomposer(new LlmHorizonDecomposer(
                 "http://192.168.22.204:11434", "gemma4:e4b"));
