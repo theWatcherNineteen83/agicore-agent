@@ -96,6 +96,7 @@ public class MetisHttpServer {
         server.createContext("/api/chat", this::handleChat);
         server.createContext("/api/show", this::handleShow);
         server.createContext("/api/status", this::handleStatus);
+        server.createContext("/api/bugfix", this::handleBugfix);
         server.createContext("/api/evolution/pause", this::handleEvolutionPause);
         server.createContext("/api/evolution/resume", this::handleEvolutionResume);
         server.createContext("/api/evolution/status", this::handleEvolutionStatus);
@@ -841,6 +842,45 @@ public class MetisHttpServer {
     }
 
 
+
+    // ── /api/bugfix (Phase 12a: Watchdog-RemoteBugfix) ──────────
+
+    private void handleBugfix(HttpExchange exchange) throws IOException {
+        if (!"POST".equals(exchange.getRequestMethod())) {
+            sendJson(exchange, 405, "{\"error\":\"POST required\"}");
+            return;
+        }
+        String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+        LOG.info("POST /api/bugfix body=" + truncate(body, 300));
+
+        // Extract error info from JSON body
+        String errorInfo = extractJsonString(body, "error");
+        String source = extractJsonString(body, "source");
+        String stacktrace = extractJsonString(body, "stacktrace");
+
+        if (errorInfo == null) {
+            sendJson(exchange, 400, "{\"error\":\"Missing 'error' field\"}");
+            return;
+        }
+
+        // Create BugFix goal
+        String goalDesc = "fix: " + (source != null ? source + " " : "")
+                + errorInfo;
+        agent.addGoal(goalDesc, "fix", 90, 0.9, 1);
+
+        // Feed error into BugTracker if available
+        if (bugTracker != null) {
+            try {
+                Throwable synthetic = new RuntimeException(errorInfo);
+                bugTracker.report(source != null ? source : "watchdog", synthetic);
+            } catch (Exception e) {
+                LOG.warning("BugTracker report failed: " + e.getMessage());
+            }
+        }
+
+        String response = "{\"status\":\"ok\",\"goal\":\"" + escapeJsonValue(goalDesc) + "\"}";
+        sendJson(exchange, 200, response);
+    }
 
     // ── /api/causal (Phase 10) ───────────────────────────────────
 

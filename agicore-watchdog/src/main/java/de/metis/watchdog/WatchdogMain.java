@@ -436,6 +436,10 @@ public class WatchdogMain {
                     + ", file=" + file.getFileName());
 
             if (ok != null && !ok) {
+                // Phase 12a: Try auto-fix before ROLLBACK
+                triggerBugfix(reason != null ? reason : "eval-gate-fail",
+                        tier != null ? "eval." + tier : "eval.unknown");
+
                 trigger(WatchdogAction.ROLLBACK, TripwireSeverity.HARD,
                         "Eval gate FAIL [" + tier + "]: " + reason
                                 + " (report: " + file.getFileName() + ")");
@@ -453,6 +457,48 @@ public class WatchdogMain {
         } catch (IOException e) {
             LOG.warning("Failed to read eval report " + file + ": " + e.getMessage());
         }
+    }
+
+    /**
+     * POST a bugfix request to Metis HTTP API.
+     * Called after Eval gate FAIL — gives Metis a chance to auto-fix
+     * before ROLLBACK.
+     */
+    private void triggerBugfix(String errorInfo, String source) {
+        if (config.metisHealthUrl() == null) return;
+
+        // Derive bugfix URL from health URL: /api/status → /api/bugfix
+        String bugfixUrl = config.metisHealthUrl()
+                .replace("/api/status", "/api/bugfix");
+
+        try {
+            String body = "{"
+                    + "\"error\":\"" + escapeJson(errorInfo) + "\","
+                    + "\"source\":\"" + escapeJson(source) + "\""
+                    + "}";
+
+            var req = HttpRequest.newBuilder()
+                    .uri(URI.create(bugfixUrl))
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(body))
+                    .timeout(Duration.ofSeconds(10))
+                    .build();
+
+            var resp = http.send(req, HttpResponse.BodyHandlers.ofString());
+            LOG.info("Bugfix request sent to " + bugfixUrl
+                    + " — status=" + resp.statusCode()
+                    + ", body=" + resp.body().substring(0,
+                            Math.min(resp.body().length(), 100)));
+        } catch (Exception e) {
+            LOG.warning("Bugfix request failed: " + e.getMessage());
+        }
+    }
+
+    private static String escapeJson(String s) {
+        return s.replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+                .replace("\n", "\\n")
+                .replace("\r", "\\r");
     }
 
     // ── Minimal JSON parsing (no Jackson dep in watchdog) ───────────
