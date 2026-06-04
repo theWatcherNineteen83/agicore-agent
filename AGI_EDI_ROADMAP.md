@@ -3,7 +3,7 @@
 **Ziel:** EDI-ähnliche KI (Mass Effect 3) - eigenständig, per Sprache und Text ansprechbar,
 mit eigenem Wissen, Persönlichkeit, narrativem Selbstmodell und der Fähigkeit, sich selbst zu verbessern.
 
-**Stand: 03.06.2026 00:30 (v0.8.0: Option B Chat-Architektur + BookIngestionService + Ollama-GPU-Analyse, 134 Tests)**
+**Stand: 03.06.2026 00:30 (v0.11.11-governance Option B Chat-Architektur + BookIngestionService + Ollama-GPU-Analyse, 134 Tests)**
 
 ---
 
@@ -27,15 +27,15 @@ Phase 7+ ████████████████████ 100%  Defe
 ─────────────────────────────────────  AUTONOMER AGENT bis hier
 Phase 8  ████████████████████ 100%  Narratives Selbstmodell ✅ + SelfReflector + PersonalityTripwire
 Phase 9  ████████████████████ 100%  Long-Horizon-Planung ✅
-Phase 10 ████████████████░░░░  80%  Kausale Hypothesen (CausalDreamer ✅, Hot-Path ✅)
-Phase 11 ████████████████████ 100%  Beziehungs-Modell (PersonModel + TrustLevel ✅)
+Phase 10 ████████████████████ 100%  Kausale Hypothesen (CausalModel ✅ Counterfactual ✅ InterventionRunner ✅)
+Phase 11 ████████████████████ 100%  PersonModel + Beziehungssystem (TrustLevel ✅ EmpathySignal ✅)
 ─────────────────────────────────────
-Phase 12 █████░░░░░░░░░░░░░░█  25%  (12a: 85%, 12b: 15%)  Selbst-Bugfixing (85%) + Watchdog-RemoteBugfix + AutoRevert
+Phase 12 ████████████████████ 100%  (12a: 100%, 12b: 100%, 12c: 100%)
 ─────────────────────────────────────
 Phase 8.6 ████████████████████ 100%  SelfReflector auf phi4-mini:latest CPU (Ethik-Reflexion)
 Safety   ████████████████████ 100%  SafetyScorer bereinigt
 Wissen   ████████████████████ 100%  441 buddhistische Beliefs in DB
-Phase 12 █████░░░░░░░░░░░░░░█  25%  (12a: 85%, 12b: 15%)  Selbst-Bugfixing (85%) + Watchdog-RemoteBugfix + AutoRevert
+Phase 12 ████████████████████ 100%  (12a: 100%, 12b: 100%, 12c: 100%)
 ─────────────────────────────────────  EDI-ÄHNLICHE KI ab hier
 ```
 

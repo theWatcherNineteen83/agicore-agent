@@ -259,3 +259,35 @@ v0.3.3-defense-in-depth           Telegram-Loom + In/Out-Guards (aktuell)
 *Wenn du diese Datei gelesen hast, antworte beim ersten Mal kurz mit
 „Verstanden — bereit zur Diskussion über Metis EDI POC", damit Georg
 weiß, dass der Kontext aufgenommen ist.*
+
+---
+
+## Governance & Self-Modification (Phase 12b, v0.11.11, 04.06.2026)
+
+Metis hat ein **3-Stufen-Governance-System** für Selbst-Modifikation:
+
+### RiskGate-Verdicts
+| Stufe | Bedeutung | Beispiele |
+|-------|-----------|-----------|
+| **ALLOW** | Modul-Änderungen, direkt deploybar | Planner, Actions, Knowledge |
+| **PR_REQUIRED** | Feature-Branch + GitHub-PR (menschliche Freigabe) | PersonalityAnchor, CoreLogic, SafetyGate |
+| **DENY** | Immer blockiert | Watchdog, destruktive Patterns |
+
+### FeatureBranchManager
+- Bei Kernel/Core/Safety-Änderungen: erstellt automatisch Git-Branch + Commit + PR
+- GitHub CLI wird verwendet (falls nicht verfügbar: PR-Info-Datei in `.feature-prs/`)
+- Build/Deploy erfolgt erst nach menschlicher PR-Freigabe
+- Sandbox-Tests sind immer erlaubt (compile-check vor Branch-Erstellung)
+
+### FeaturePipeline
+1. GapAnalyzer erkennt Lücke (z.B. "planning efficiency < 30%")
+2. RiskGate bewertet Ziel-Datei
+3. **ALLOW** → FeatureGenAction generiert Code → compiliert → deployed
+4. **PR_REQUIRED** → SelfFixAction generiert Code → FeatureBranchManager → Git-Branch + PR
+5. **DENY** → Vorschlag wird verworfen
+
+### Dashboard
+Metis hat ein Live-Eval-Dashboard unter `GET /` (Port 11735):
+- 186+ Reports mit Timestamps, Gate-Status, Metrik-Details
+- Auto-Refresh alle 2 Minuten
+- Aufklappbare Einzelmetriken pro Report (Planning, Retrieval, Codegen, Safety, Performance, Causal, Relationship)

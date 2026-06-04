@@ -6,7 +6,7 @@ Sie denkt in kognitiven Zyklen (Perceive → Plan → Execute → Observe → Le
 
 ## Status
 
-**Stand:** 04.06.2026 13:30 · **Tests:** 112 grün im Kernel + 22 in Modules = **134 total** · **CI:** Kernel + Watchdog (GitHub Actions, Zulu 25)
+**Stand: 04.06.2026 17:30 · **Tests: 330 grün (54 Kernel + 276 Modules)** · **CI:** Kernel + Watchdog (GitHub Actions, Zulu 25)
 **JVM:** Zing 26.04 C4 GenPauseless (27% schneller als Zulu ZGC) · **Benchmark:** `bench-zing-vs-zulu-20260603` · **Empfehlung:** Zing für Produktion
 
 **Safety:** SafetyScorer bereinigt (religion/glaube/gott raus) · **Wissen:** 441 buddhistische Beliefs (Dhammapada, Metta Sutta, Sigalovada) in SQLite-DB · **Ethik:** SelfReflector auf phi4-mini:latest CPU (0 VRAM, Temp 0.7, keep_alive=5m) + ethisches Goal in AgentMain
@@ -18,12 +18,14 @@ Sie denkt in kognitiven Zyklen (Perceive → Plan → Execute → Observe → Le
 | Phase | Status | Key Facts |
 |-------|--------|-----------|
 | 1-7+ | ✅ 100% | Stabiler autonomer Agent |
-| 8 | ✅ 100% | SelfReflector (phi4-mini CPU) + PersonalityTripwire |
+| 8 | ✅ 100% | SelfReflector + PersonalityTripwire |
 | 9 | ✅ 100% | Long-Horizon-Planung + CommitmentGuard |
-| 10 | 🟢 80% | Causal Foundation + CausalDreamer ✅, Hot-Path ✅ |
-| 12 | 🟡 15% | Selbst-Bugfixing: BugTracker ✅, SelfFixAction ✅, Watchdog-RemoteBugfix ✅ |
-| 11 | 🟢 100% | PersonModel + TrustLevel + PersonStore ✅, Hot-Path ✅ |
-
+| 10 | ✅ 100% | CausalModel + Counterfactual + InterventionRunner |
+| 11 | ✅ 100% | PersonModel + TrustLevel + EmpathySignal |
+| 12a | ✅ 100% | BugTracker + SelfFixAction + Watchdog + AutoRevert + EvalReportGenerator |
+| 12b | ✅ 100% | GapAnalyzer + RiskGate + FeatureGenAction + FeatureFlag |
+| 12c | ✅ 100% | MetricTimeSeries + PatternDetector + AutoABTest |
+| Gov | ✅ 100% | FeatureBranchManager + 3-Stufen-RiskGate (ALLOW/PR_REQUIRED/DENY) |
 → Details: **[FEATURES.md](FEATURES.md)** · **[AGI_EDI_ROADMAP.md](AGI_EDI_ROADMAP.md)** · **[RUNBOOK.md](RUNBOOK.md)**
 
 ### 🔬 Zing vs Zulu Benchmark (03.06.2026)
@@ -47,7 +49,7 @@ Zing 27% schneller, C4 pauslos. Monitoring via `-XX:+PrintCPUUtilization -XX:+Us
 ### Tag-Linie (30./31.05.2026, chronologisch)
 | Tag | Inhalt | Tests bei Tag |
 |---|---|---|
-| `v0.2.0` | Phasen 1–7 abgeschlossen | 1 |
+| `v0.11.11-governance` | Phasen 1–7 abgeschlossen | 1 |
 | `v0.2.1-hardened` | CI + Embedding-LRU + Java 25 + Input-Guard | 21 |
 | `v0.3.0-agi-push` | Multi-Modal-Memory + Loom-Vision + Subprocess-Isolation + Audit-Anchor | 23 |
 | `v0.3.1-observability` | Locale-Fix + Wiki-Persistence + git-cwd-Fix + Wiki-Loom | 25 |
@@ -237,20 +239,4 @@ bash /home/prometheus/metis/backup-config.sh
 - **Runbook:** [RUNBOOK.md](RUNBOOK.md) — 6 Failure-Modi + Deployment + Health-Check
 
 ## EDI-Distanz
-Phasen 1-7+ sind 100% autonomer Agent. Phase 8 (narratives Selbstmodell, SelfReflector + PersonalityTripwire) und Phase 9 (Long-Horizon-Planung) sind 100% deployed. Phase 10 (kausale Hypothesen) ist mit Foundation + CausalDreamer + Hot-Path zu 80% deployed. Phase 11 PersonModel ist 100% vollstaendig verdrahtet (Telegram + HTTP + Approval-Gate). Phase 12a (Selbst-Bugfixing) bei 15%.
-
-Offen für weitere EDI-Annäherung:
-- **Phase 10 Hot-Path** — HypothesisStore -> Planner-Prompt (ACTIVE CAUSAL HYPOTHESES). 44 Hypothesen live (04.06.).
-- **Phase 11** — PersonModel vollstaendig: Telegram/HTTP/Approval-Gate (04.06.)
-- **Phase 12a** — BugTracker + SelfFixAction + Watchdog-RemoteBugfix (04.06. 15:00).
-- **Phase 12** — Recursive Self-Improvement (sinnvoll erst nach 8–11)
-**Spanne:** ~72-80%. Phase 11 komplett, Phase 10 Hot-Path aktiv, Phase 12a gestartet.
-
-**Was Metis ausdrücklich nicht ist:**
-- nicht bewusst, nicht selbstreflexiv im phänomenologischen Sinn
-- nicht durchgängig kausal denkend — HypothesisStore→Planner Hot-Path aktiv (Phase 10, 80%), Pearl-Do-Calculus CausalModel implementiert aber noch nicht als Intervention-Observe-Update-Loop im CoreLoop
-- (veraltet seit Phase 11/v0.10.0, 04.06.): PersonModel vollständig implementiert — Person/TrustLevel/PersonStore/EmpathySignal aktiv in Telegram + HTTP + Approval-Gate
-- Watchdog ist tamper-evident (SHA-256 Hash-Kette bricht bei Manipulation), aber **nicht** tamper-proof — Hardware-Sicherheit (TPM/HSM) nicht im Scope
-
-
-*"Streben nach Perfektion"* — Metis lernt, sieht, mutiert (mit Eval-Gate + Watchdog-Approval), evaluiert sich selbst, verbessert sich inkrementell. Was läuft, läuft im Repo nachweisbar. Was nicht läuft, steht offen in der [AGI_EDI_ROADMAP.md](AGI_EDI_ROADMAP.md).
+Phasen 1-7+ sind 100% autonomer Agent. Phase 8 (narratives Selbstmodell, SelfReflector + PersonalityTripwire) und Phase 9 (Long-Horizon-Planung) sind 100% deployed. Phase 10 | 🟢 100% | CausalModel ✅ Counterfactual ✅ InterventionRunner ✅
