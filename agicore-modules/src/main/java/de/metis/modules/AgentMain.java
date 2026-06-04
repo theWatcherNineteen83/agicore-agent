@@ -1396,6 +1396,13 @@ public final class AgentMain {
                 "http://192.168.22.204:11434/api/generate", "nemotron:latest", ".");
         agent.core().executor().register(fixAction);
         LOG.info("Phase 12a: SelfFixAction registered — self-fix action available");
+        var branchManager = new de.metis.modules.evolution.FeatureBranchManager(
+                java.nio.file.Paths.get("."),
+                java.nio.file.Paths.get("..", "..", ".."));
+        var riskGate = new de.metis.modules.evolution.RiskGate();
+        fixAction.setRiskGate(riskGate);
+        fixAction.setBranchManager(branchManager);
+        LOG.info("Phase 12b: RiskGate + FeatureBranchManager connected to SelfFixAction");
         var featureGenAction = new de.metis.modules.action.FeatureGenAction(
                 "http://192.168.22.204:11434/api/generate", "nemotron:latest", ".");
         agent.core().executor().register(featureGenAction);
@@ -1403,7 +1410,6 @@ public final class AgentMain {
 
         // Phase 12b: GapAnalyzer
         var gapAnalyzer = new de.metis.modules.evolution.GapAnalyzer();
-        var riskGate = new de.metis.modules.evolution.RiskGate();
         var metricSeries = new de.metis.modules.evolution.MetricTimeSeries();
         var featureFlag = new de.metis.modules.evolution.FeatureFlag();
         var runtimeHandler = new de.metis.modules.self.RuntimeExceptionHandler();
