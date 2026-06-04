@@ -1364,11 +1364,11 @@ public final class AgentMain {
         var compileReporter = new de.metis.modules.self.CompileErrorReporter(".");
         LOG.info("Phase 12a: CompileErrorReporter ready — build dir: .");
         bugTracker.withFixGoalTrigger(goalDesc -> {
-            agent.core().goals().add(new de.metis.kernel.goal.Goal(
+            var bugGoal = new de.metis.kernel.goal.Goal(
                     goalDesc, "fix", 90, 0.9, 1,
                     de.metis.kernel.goal.Goal.ServiceClass.EXPEDITE,
                     de.metis.kernel.goal.Goal.ResourceType.CPU_HEAVY,
-                    null));
+                    null);
             LOG.info("Phase 12a: BugFix goal created: " + goalDesc);
         });
         agent.core().withExceptionHandler(e -> {
@@ -1376,8 +1376,15 @@ public final class AgentMain {
                     ? e.getStackTrace()[0].getClassName() + "." + e.getStackTrace()[0].getMethodName()
                     : "unknown";
             bugTracker.report(source, e);
+            String errorDesc = source + " threw " + e.getClass().getSimpleName()
+                    + ": " + (e.getMessage() != null ? e.getMessage() : "no message");
+            agent.worldModel().update("Last error: " + errorDesc, 0.9, "bugtracker", false);
         });
         LOG.info("Phase 12a wired — BugTracker active, self-healing exception handler");
+        var fixAction = new de.metis.modules.action.SelfFixAction(
+                "http://192.168.22.204:11434/api/generate", "nemotron:latest", ".");
+        agent.core().executor().register(fixAction);
+        LOG.info("Phase 12a: SelfFixAction registered — self-fix action available");
 
         // ── Phase 8.6 — SelfReflector: kontinuierlicher innerer Monolog ──────
         // Konvergente Empfehlung aus 9 KI-Reviews (2026-05-31): kleiner, schneller
