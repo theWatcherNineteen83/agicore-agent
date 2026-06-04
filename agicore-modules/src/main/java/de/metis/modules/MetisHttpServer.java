@@ -887,6 +887,10 @@ public class MetisHttpServer {
 
     // ── / (Eval Dashboard) ────────────────────────────────────────────
 
+
+
+    // -- / (Eval Dashboard) ------------------------------------------------
+
     private void handleDashboard(HttpExchange exchange) throws IOException {
         if (!"GET".equals(exchange.getRequestMethod())) {
             sendJson(exchange, 405, "{\"error\":\"Method not allowed\"}");
@@ -897,35 +901,24 @@ public class MetisHttpServer {
             handleStatus(exchange);
             return;
         }
-        // Serve the eval dashboard
-        var dashboardFile = java.nio.file.Paths.get("eval-dashboard.html");
-        if (java.nio.file.Files.exists(dashboardFile)) {
-            String html = java.nio.file.Files.readString(dashboardFile);
+        try {
+            var gen = new de.metis.modules.eval.EvalReportGenerator(
+                    java.nio.file.Paths.get("eval-reports"),
+                    java.nio.file.Paths.get("."));
+            var f = gen.generate();
+            String html = java.nio.file.Files.readString(f);
             exchange.getResponseHeaders().set("Content-Type", "text/html; charset=utf-8");
             exchange.sendResponseHeaders(200, html.getBytes(java.nio.charset.StandardCharsets.UTF_8).length);
             try (var os = exchange.getResponseBody()) {
                 os.write(html.getBytes(java.nio.charset.StandardCharsets.UTF_8));
             }
-        } else {
-            // Generate on the fly
-            try {
-                var gen = new de.metis.modules.eval.EvalReportGenerator(
-                        java.nio.file.Paths.get("eval-reports"),
-                        java.nio.file.Paths.get("."));
-                var f = gen.generate();
-                String html = java.nio.file.Files.readString(f);
-                exchange.getResponseHeaders().set("Content-Type", "text/html; charset=utf-8");
-                exchange.sendResponseHeaders(200, html.getBytes(java.nio.charset.StandardCharsets.UTF_8).length);
-                try (var os = exchange.getResponseBody()) {
-                    os.write(html.getBytes(java.nio.charset.StandardCharsets.UTF_8));
-                }
-            } catch (Exception e) {
-                String html = "<html><body><h1>Dashboard not available</h1><p>" + e.getMessage() + "</p></body></html>";
-                exchange.getResponseHeaders().set("Content-Type", "text/html; charset=utf-8");
-                exchange.sendResponseHeaders(200, html.length());
-                try (var os = exchange.getResponseBody()) {
-                    os.write(html.getBytes());
-                }
+        } catch (Exception e) {
+            String errHtml = "<html><body><h1>Dashboard not available</h1><p>"
+                    + e.getMessage() + "</p></body></html>";
+            exchange.getResponseHeaders().set("Content-Type", "text/html; charset=utf-8");
+            exchange.sendResponseHeaders(200, errHtml.length());
+            try (var os = exchange.getResponseBody()) {
+                os.write(errHtml.getBytes());
             }
         }
     }
