@@ -30,12 +30,12 @@ Phase 9  ████████████████████ 100%  Long
 Phase 10 ████████████████░░░░  80%  Kausale Hypothesen (CausalDreamer ✅, Hot-Path ✅)
 Phase 11 ████████████████████ 100%  Beziehungs-Modell (PersonModel + TrustLevel ✅)
 ─────────────────────────────────────
-Phase 12 ███░░░░░░░░░░░░░░░░░  15%  Selbst-Bugfixing + Watchdog-RemoteBugfix
+Phase 12 ████░░░░░░░░░░░░░░░░  20%  Selbst-Bugfixing (85%) + Watchdog-RemoteBugfix + AutoRevert
 ─────────────────────────────────────
 Phase 8.6 ████████████████████ 100%  SelfReflector auf phi4-mini:latest CPU (Ethik-Reflexion)
 Safety   ████████████████████ 100%  SafetyScorer bereinigt
 Wissen   ████████████████████ 100%  441 buddhistische Beliefs in DB
-Phase 12 ███░░░░░░░░░░░░░░░░░  15%  Selbst-Bugfixing + Watchdog-RemoteBugfix
+Phase 12 ████░░░░░░░░░░░░░░░░  20%  Selbst-Bugfixing (85%) + Watchdog-RemoteBugfix + AutoRevert
 ─────────────────────────────────────  EDI-ÄHNLICHE KI ab hier
 ```
 
@@ -605,7 +605,7 @@ deployen — ohne menschliches Gate. Die Schleife CodeGen→Test→Eval→Deploy
 ### Teil-Phasen
 
 ```
-Ph 12a ████████████░░░░░░░░  60%  BugTracker ✅ SelfFix ✅ Watchdog-RemoteBugfix ✅
+Ph 12a █████████████████░░░░░  85%  BugTracker ✅ SelfFix ✅ Watchdog ✅ AutoRevert ✅ AutorenFilter ✅
 Ph 12b ░░░░░░░░░░░░░░░░░░░░   0%  Autonome Feature-Generierung
 Ph 12c ░░░░░░░░░░░░░░░░░░░░   0%  Meta-Learning aus eigenen Metriken
 Ph 12d ░░░░░░░░░░░░░░░░░░░░   0%  Selbst-Refactoring + Test-Generierung

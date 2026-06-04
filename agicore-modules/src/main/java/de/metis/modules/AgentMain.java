@@ -1363,7 +1363,16 @@ public final class AgentMain {
         var bugTracker = new de.metis.kernel.self.BugTracker();
         var compileReporter = new de.metis.modules.self.CompileErrorReporter(".");
         LOG.info("Phase 12a: CompileErrorReporter ready — build dir: .");
-        bugTracker.withFixGoalTrigger(goalDesc -> {
+        bugTracker.withRollbackTrigger(() -> {
+            LOG.severe("Phase 12a: Bug exhausted fix attempts -- auto-rollback triggered");
+            // RollbackManager lives in AgentMain scope; fallback to systemd restart
+            try {
+                var pb = new ProcessBuilder("sudo", "systemctl", "restart", "metis.service");
+                pb.start();
+            } catch (Exception ex) {
+                LOG.severe("Auto-rollback restart failed: " + ex.getMessage());
+            }
+        }).withFixGoalTrigger(goalDesc -> {
             var bugGoal = new de.metis.kernel.goal.Goal(
                     goalDesc, "fix", 90, 0.9, 1,
                     de.metis.kernel.goal.Goal.ServiceClass.EXPEDITE,

@@ -59,6 +59,16 @@ public class SelfFixAction implements Action {
                 return ActionResult.fail(name(),
                         "Source file not found for: " + className, start);
             }
+            // Phase 12a Autoren-Filter: Kernel-Dateien sind tabu
+            if (sourceFile.contains("agicore-kernel")) {
+                return ActionResult.fail(name(),
+                        "Autoren-Filter: Kernel files are protected — skipping " + sourceFile, start);
+            }
+            // Nur .java-Dateien
+            if (!sourceFile.endsWith(".java")) {
+                return ActionResult.fail(name(),
+                        "Autoren-Filter: Not a Java source file: " + sourceFile, start);
+            }
 
             String sourceCode = Files.readString(Path.of(sourceFile));
             if (sourceCode.length() > 8000) {

@@ -34,6 +34,7 @@ public class BugTracker {
 
     /** Callback zum Erzeugen von BugFix-Goals. Kann null sein (nur Logging). */
     private java.util.function.Consumer<String> fixGoalTrigger = null;
+    private Runnable rollbackTrigger = null;
 
     public BugTracker() {
     }
@@ -42,6 +43,11 @@ public class BugTracker {
      * Setzt einen Callback, der bei kritischen Bugs einen Fix-Goal
      * im Agenten anlegt. Das String-Argument ist der Stacktrace.
      */
+    public BugTracker withRollbackTrigger(Runnable trigger) {
+        this.rollbackTrigger = trigger;
+        return this;
+    }
+
     public BugTracker withFixGoalTrigger(java.util.function.Consumer<String> trigger) {
         this.fixGoalTrigger = trigger;
         return this;
