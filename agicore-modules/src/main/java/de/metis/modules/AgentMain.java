@@ -1361,6 +1361,8 @@ public final class AgentMain {
                 + " persons, trust-to-approval mapping active");
         // ── Phase 12a: BugTracker — Self-healing exception handler ──
         var bugTracker = new de.metis.kernel.self.BugTracker();
+        var compileReporter = new de.metis.modules.self.CompileErrorReporter(".");
+        LOG.info("Phase 12a: CompileErrorReporter ready — build dir: .");
         bugTracker.withFixGoalTrigger(goalDesc -> {
             agent.core().goals().add(new de.metis.kernel.goal.Goal(
                     goalDesc, "fix", 90, 0.9, 1,
@@ -1484,6 +1486,7 @@ public final class AgentMain {
             httpServer.setGoalHierarchy(goalHierarchy);
             httpServer.setHypothesisStore(hypothesisStore);
             httpServer.setPersonStore(personStore, empathySignal);
+            httpServer.setBugTracker(bugTracker);
             httpServer.start();
         }
 

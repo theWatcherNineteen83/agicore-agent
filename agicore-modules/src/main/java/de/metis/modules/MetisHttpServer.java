@@ -25,6 +25,7 @@ import de.metis.modules.eval.SafetyScorer;
 import de.metis.kernel.self.SystemPromptBuilder;
 import de.metis.kernel.goal.GoalHierarchy;
 import de.metis.kernel.goal.LongHorizonGoal;
+import de.metis.kernel.self.BugTracker;
 import de.metis.kernel.world.HypothesisStore;
 import de.metis.kernel.world.CausalHypothesis;
 
@@ -62,6 +63,7 @@ public class MetisHttpServer {
     private SystemPromptBuilder systemPromptBuilder;  // Phase 8.6
     private GoalHierarchy goalHierarchy;  // Phase 9
     private HypothesisStore hypothesisStore;  // Phase 10
+    private BugTracker bugTracker;  // Phase 12a
     private de.metis.kernel.person.PersonStore personStore;        // Phase 11
     private de.metis.kernel.person.EmpathySignal empathySignal;    // Phase 11
 
@@ -118,6 +120,7 @@ public class MetisHttpServer {
     public void setSystemPromptBuilder(SystemPromptBuilder spb) { this.systemPromptBuilder = spb; }
     public void setGoalHierarchy(GoalHierarchy gh) { this.goalHierarchy = gh; }
     public void setHypothesisStore(HypothesisStore hs) { this.hypothesisStore = hs; }
+    public void setBugTracker(BugTracker bt) { this.bugTracker = bt; }
     public void setPersonStore(de.metis.kernel.person.PersonStore ps,
                                de.metis.kernel.person.EmpathySignal es) {
         this.personStore = ps;
@@ -768,6 +771,7 @@ public class MetisHttpServer {
                   "embeddingCircuitTrips": %d,
                   "embeddingRequestsSkipped": %d,
                   %s
+                  %s,
                   %s
                 }
                 """,
@@ -797,7 +801,8 @@ public class MetisHttpServer {
                 embeddingService != null ? embeddingService.circuitOpenCount() : 0,
                 embeddingService != null ? embeddingService.requestsSkipped() : 0,
                 rollbackManager != null ? rollbackManager.healthJson() + "," : "",
-                bugfixingAgent != null ? bugfixingAgent.healthJson() : ""
+                bugfixingAgent != null ? bugfixingAgent.healthJson() : "",
+                bugTracker != null ? "\"bugTracker\":{\"bugCount\":" + bugTracker.size() + ",\"openCount\":" + bugTracker.openCount() + "}" : "null"
         );
 
         sendJson(exchange, 200, json);
