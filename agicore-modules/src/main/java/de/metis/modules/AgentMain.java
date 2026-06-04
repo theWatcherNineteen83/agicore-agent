@@ -1399,7 +1399,8 @@ public final class AgentMain {
 
         // Phase 12b: GapAnalyzer
         var gapAnalyzer = new de.metis.modules.evolution.GapAnalyzer();
-        LOG.info("Phase 12b: GapAnalyzer ready");
+        var riskGate = new de.metis.modules.evolution.RiskGate();
+        LOG.info("Phase 12b: GapAnalyzer + RiskGate ready");
 
         // ── Phase 8.6 — SelfReflector: kontinuierlicher innerer Monolog ──────
         // Konvergente Empfehlung aus 9 KI-Reviews (2026-05-31): kleiner, schneller
@@ -1459,6 +1460,31 @@ public final class AgentMain {
             }
         }, 180, 120, TimeUnit.SECONDS);
         LOG.info("Phase 10.5 wired — CausalDreamer every 2 min (WIP<2 trigger)");
+
+        // Phase 12b: GapAnalyzer periodic check (every 60s)
+        var gapScheduler = java.util.concurrent.Executors.newSingleThreadScheduledExecutor(r -> { var t = new Thread(r, "gap-analyzer"); t.setDaemon(true); return t; });
+        gapScheduler.scheduleAtFixedRate(() -> {
+            try {
+                var metrics = new java.util.HashMap<String, Object>();
+                metrics.put("planningEfficiency", agent.metrics().planningEfficiency());
+                metrics.put("successRate", agent.metrics().goalSuccessRate());
+                metrics.put("confidence", agent.meta().confidence());
+                metrics.put("beliefCount", agent.worldModel().beliefCount());
+                var proposals = gapAnalyzer.analyze(metrics);
+                for (var p : proposals) {
+                    if (riskGate.allow(p)) {
+                        agent.addGoal(
+                                "feature: " + p.shortDescription(),
+                                "feature-gen", p.priority(), 0.5, 2);
+                        LOG.info("Phase 12b: Feature goal created: "
+                                + p.id() + " prio=" + p.priority());
+                    }
+                }
+            } catch (Exception e) {
+                LOG.fine("GapAnalyzer tick failed (non-fatal): " + e.getMessage());
+            }
+        }, 60, 60, java.util.concurrent.TimeUnit.SECONDS);
+        LOG.info("Phase 12b: GapAnalyzer scheduled every 60s");
 
         // ── Phase 9.5 — CommitmentGuard: Schutz gegen leichtfertigen Bruch ──
         // Deterministischer Wächter; vom Revision-/Planner-Pfad nutzbar, um
