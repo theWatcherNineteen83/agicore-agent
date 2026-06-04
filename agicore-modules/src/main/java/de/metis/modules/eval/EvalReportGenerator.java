@@ -43,36 +43,30 @@ public class EvalReportGenerator {
 
                          String tier = root.path("tier").asText("SMOKE");
                          boolean gateOk = root.path("gate").path("ok").asBoolean(false);
+
                          int totalRuns = 0;
+                         var metricsList = new ArrayList<MetricDetail>();
                          var results = root.path("results");
                          var it = results.fieldNames();
                          while (it.hasNext()) {
-                             var metric = results.path(it.next());
+                             String category = it.next();
+                             var metric = results.path(category);
                              var fields = metric.fieldNames();
                              while (fields.hasNext()) {
-                                 var value = metric.path(fields.next());
-                                 totalRuns += value.path("runs").asInt(0);
+                                 String metricName = fields.next();
+                                 var value = metric.path(metricName);
+                                 int runs = value.path("runs").asInt(0);
+                                 double mean = value.path("mean").asDouble(0.0);
+                                 String gate = value.path("gate").asText("SOFT");
+                                 totalRuns += runs;
+                                 metricsList.add(new MetricDetail(category, metricName, mean, runs, gate));
                              }
                          }
 
-                         // Count passing/failing metrics
-                         int passingMetrics = 0;
                          int failingMetrics = 0;
                          var gateArr = root.path("gate").path("failingMetrics");
                          if (gateArr.isArray()) failingMetrics = gateArr.size();
-
-                         // Count total metrics
-                         int totalMetrics = 0;
-                         var resIt = results.fieldNames();
-                         while (resIt.hasNext()) {
-                             var metric = results.path(resIt.next());
-                             var mIt = metric.fieldNames();
-                             while (mIt.hasNext()) {
-                                 mIt.next();
-                                 totalMetrics++;
-                             }
-                         }
-                         passingMetrics = totalMetrics - failingMetrics;
+                         int passingMetrics = metricsList.size() - failingMetrics;
 
                          result.add(new ReportEntry(
                                  f.getFileName().toString(),
@@ -81,7 +75,8 @@ public class EvalReportGenerator {
                                  failingMetrics,
                                  totalRuns,
                                  gateOk ? "PASS" : "FAIL",
-                                 tier));
+                                 tier,
+                                 metricsList));
                      } catch (Exception e) {
                          LOG.fine("EvalReportGenerator: skip " + f + ": " + e.getMessage());
                      }
@@ -95,36 +90,44 @@ public class EvalReportGenerator {
         sb.append("<!DOCTYPE html><html lang='en'><head><meta charset='UTF-8'>")
           .append("<title>Metis AGI — Eval Dashboard</title>")
           .append("<meta name='viewport' content='width=device-width, initial-scale=1'>")
+          .append("<meta http-equiv='refresh' content='120'>")
           .append("<style>")
           .append("body{font-family:system-ui,sans-serif;background:#1a1a2e;color:#e0e0e0;padding:20px;margin:0;}")
           .append("h1{color:#00d4ff;}.pass{color:#00ff88;}.fail{color:#ff4466;}")
-          .append("table{border-collapse:collapse;width:100%;margin-top:20px;font-size:14px;}")
-          .append("th,td{padding:6px 10px;text-align:left;border-bottom:1px solid #333;}")
-          .append("th{background:#16213e;color:#00d4ff;position:sticky;top:0;}")
+          .append("table{border-collapse:collapse;width:100%;margin-top:20px;font-size:13px;}")
+          .append("th,td{padding:5px 8px;text-align:left;border-bottom:1px solid #333;}")
+          .append("th{background:#16213e;color:#00d4ff;position:sticky;top:0;white-space:nowrap;}")
           .append("tr:hover{background:#0f3460;}")
           .append(".gate-PASS{color:#00ff88;font-weight:bold;}")
           .append(".gate-FAIL{color:#ff4466;font-weight:bold;}")
-          .append(".stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:20px;}")
-          .append(".stat-card{background:#16213e;padding:15px;border-radius:8px;text-align:center;}")
-          .append(".stat-card h3{color:#00d4ff;margin:0 0 8px 0;font-size:14px;}")
-          .append(".stat-card .value{font-size:2em;font-weight:bold;}")
-          .append(".badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:12px;font-weight:bold;}")
+          .append(".stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:20px;}")
+          .append(".stat-card{background:#16213e;padding:12px;border-radius:8px;text-align:center;}")
+          .append(".stat-card h3{color:#00d4ff;margin:0 0 6px 0;font-size:13px;}")
+          .append(".stat-card .value{font-size:1.8em;font-weight:bold;}")
+          .append(".badge{display:inline-block;padding:2px 6px;border-radius:10px;font-size:11px;font-weight:bold;}")
           .append(".badge-pass{background:#00ff8822;color:#00ff88;border:1px solid #00ff88;}")
           .append(".badge-fail{background:#ff446622;color:#ff4466;border:1px solid #ff4466;}")
-          .append("a{color:#00d4ff;text-decoration:none;}")
-          .append("a:hover{text-decoration:underline;}")
+          .append(".metric-grid{display:flex;flex-wrap:wrap;gap:2px;max-width:300px;}")
+          .append(".metric-dot{width:6px;height:6px;border-radius:50%;display:inline-block;}")
+          .append(".dot-pass{background:#00ff88;}.dot-fail{background:#ff4466;}.dot-soft{background:#ffaa00;}")
+          .append(".metric-row{cursor:pointer;}")
+          .append(".metric-detail{display:none;font-size:11px;color:#ccc;padding:2px 8px;}")
+          .append(".metric-detail.open{display:block;}")
+          .append(".refresh-bar{font-size:12px;color:#666;margin-bottom:10px;text-align:right;}")
+          .append("a{color:#00d4ff;text-decoration:none;}a:hover{text-decoration:underline;}")
+          .append("details{margin:0;padding:0;font-size:12px;}")
+          .append("summary{cursor:pointer;color:#888;font-size:11px;}")
           .append("@media(prefers-color-scheme:light){body{background:#fff;color:#333;}")
-          .append("th{background:#f0f4ff;color:#0066cc;} .stat-card{background:#f0f4ff;}")
+          .append("th{background:#f0f4ff;color:#0066cc;}.stat-card{background:#f0f4ff;}")
           .append("h1{color:#0066cc;}}")
           .append("</style></head><body>");
 
-        // Header with navigation
         sb.append("<div style='display:flex;justify-content:space-between;align-items:center;'>")
           .append("<h1>📊 Metis AGI — Eval Dashboard</h1>")
-          .append("<div>")
-          .append("<a href='/api/status'>API Status</a> | ")
-          .append("<a href='/api/metrics'>Metrics</a>")
-          .append("</div></div>");
+          .append("<div><a href='/api/status'>API Status</a> | <a href='/api/metrics'>Metrics</a></div>")
+          .append("</div>");
+        sb.append("<div class='refresh-bar'>Auto-refresh every 2 min &middot; ")
+          .append(String.valueOf(reports.size())).append(" reports</div>");
 
         // Summary stats
         int totalReports = reports.size();
@@ -142,12 +145,12 @@ public class EvalReportGenerator {
         if (failedMetrics > 0) {
             sb.append("<div class='stat-card'><h3>Failing</h3><div class='value fail'>").append(String.valueOf(failedMetrics)).append("</div></div>");
         }
-        sb.append("<div class='stat-card'><h3>Total Runs</h3><div class='value'>").append(String.valueOf(totalRuns)).append("</div></div>")
+        sb.append("<div class='stat-card'><h3>Runs</h3><div class='value'>").append(String.valueOf(totalRuns)).append("</div></div>")
           .append("</div>");
 
         // Table
         sb.append("<table><thead><tr><th>#</th><th>Report</th><th>Time</th><th>Tier</th>")
-          .append("<th>Gate</th></tr></thead><tbody>");
+          .append("<th>Gate</th><th>Metrics</th></tr></thead><tbody>");
         int idx = totalReports;
         for (var r : reports.reversed()) {
             String gateClass = "gate-" + r.gate();
@@ -158,15 +161,39 @@ public class EvalReportGenerator {
               .append("<td><span class='badge badge-").append("PASS".equals(r.gate()) ? "pass" : "fail").append("'>")
               .append(r.taskType()).append("</span></td>")
               .append("<td class='").append(gateClass).append("'>").append(r.gate()).append("</td>")
-              .append("</tr>");
+              .append("<td>");
+
+            // Metric dots + detail
+            sb.append("<details><summary>").append(String.valueOf(r.metrics().size())).append(" metrics</summary>");
+            for (var m : r.metrics()) {
+                String dotClass = "HARD".equals(m.gate()) && !"PASS".equals(r.gate()) ? "dot-fail"
+                    : "HARD".equals(m.gate()) ? "dot-pass"
+                    : "dot-soft";
+                String valueStr = String.format("%.2f", m.mean());
+                sb.append("<div style='margin:2px 0;font-size:12px;'>")
+                  .append("<span class='metric-dot ").append(dotClass).append("'></span> ")
+                  .append(htmlEscape(m.category())).append(".").append(htmlEscape(m.metricName()))
+                  .append(" = ").append(valueStr)
+                  .append(" (runs=").append(String.valueOf(m.runs())).append(")")
+                  .append("</div>");
+            }
+            sb.append("</details>");
+
+            sb.append("</td></tr>");
         }
         sb.append("</tbody></table>")
           .append("<p style='color:#888;font-size:12px;margin-top:10px;'>")
-          .append("Metis AGI — Auto-generated from eval-reports/")
+          .append("Metis AGI — Auto-generated from eval-reports/ (v0.11.9)")
           .append("</p></body></html>");
         return sb.toString();
     }
 
+    private static String htmlEscape(String s) {
+        return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+    }
+
+    public record MetricDetail(String category, String metricName, double mean, int runs, String gate) {}
     public record ReportEntry(String fileName, String timestamp,
-                              int passed, int failed, int total, String gate, String taskType) {}
+                              int passed, int failed, int total, String gate,
+                              String taskType, List<MetricDetail> metrics) {}
 }
