@@ -1396,6 +1396,10 @@ public final class AgentMain {
                 "http://192.168.22.204:11434/api/generate", "nemotron:latest", ".");
         agent.core().executor().register(fixAction);
         LOG.info("Phase 12a: SelfFixAction registered — self-fix action available");
+        var featureGenAction = new de.metis.modules.action.FeatureGenAction(
+                "http://192.168.22.204:11434/api/generate", "nemotron:latest", ".");
+        agent.core().executor().register(featureGenAction);
+        LOG.info("Phase 12b: FeatureGenAction registered");
 
         // Phase 12b: GapAnalyzer
         var gapAnalyzer = new de.metis.modules.evolution.GapAnalyzer();
