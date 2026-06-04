@@ -1439,8 +1439,8 @@ public final class AgentMain {
         // ── Phase 10.5 — CausalDreamer: Kausalhypothesen im Leerlauf ──
         var casualDreamer = new de.metis.modules.self.CausalDreamer(
                 agent.memory(), agent.core().goals().kanbanBoard(),
-                hypothesisGenerator, hypothesisStore, selfNarrative);
-        var dreamerScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+                hypothesisGenerator, hypothesisStore, selfNarrative,
+                interventionRunner);        var dreamerScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
             var t = new Thread(r, "causal-dreamer");
             t.setDaemon(true);
             return t;
