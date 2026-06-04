@@ -605,7 +605,7 @@ deployen — ohne menschliches Gate. Die Schleife CodeGen→Test→Eval→Deploy
 ### Teil-Phasen
 
 ```
-Ph 12a █████████████████░░░░░  85%  BugTracker ✅ SelfFix ✅ Watchdog ✅ AutoRevert ✅ AutorenFilter ✅
+Ph 12a ████████████████████ 100%  BugTracker ✅ SelfFix ✅ Watchdog ✅ AutoRevert ✅ AuthorenFilter ✅ RuntimeEH ✅ EvalDashboard ✅
 Ph 12b ████████████████████ 100%  GapAnalyzer ✅ RiskGate ✅ FeatureGenAction ✅ FeatureFlag ✅ AutoEnable ✅
 Ph 12c ████████████████████ 100%  MetricTimeSeries ✅ PatternDetector ✅ AutoABTest ✅ Tests ✅
 Ph 12d ░░░░░░░░░░░░░░░░░░░░   0%  Selbst-Refactoring + Test-Generierung

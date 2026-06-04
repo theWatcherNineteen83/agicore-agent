@@ -1406,6 +1406,12 @@ public final class AgentMain {
         var riskGate = new de.metis.modules.evolution.RiskGate();
         var metricSeries = new de.metis.modules.evolution.MetricTimeSeries();
         var featureFlag = new de.metis.modules.evolution.FeatureFlag();
+        var runtimeHandler = new de.metis.modules.self.RuntimeExceptionHandler();
+        LOG.info("Phase 12a: RuntimeExceptionHandler ready");
+        var reportGen = new de.metis.modules.eval.EvalReportGenerator(
+                java.nio.file.Paths.get("eval-reports"),
+                java.nio.file.Paths.get("."));
+        LOG.info("Phase 12a: EvalReportGenerator ready");
         var autoABTest = new de.metis.modules.evolution.AutoABTest(
                 hypothesisGenerator, hypothesisStore, interventionRunner);
         LOG.info("Phase 12b: GapAnalyzer + RiskGate + MetricTimeSeries ready");
