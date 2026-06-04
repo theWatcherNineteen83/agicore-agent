@@ -23,8 +23,8 @@ public class PatternDetector {
 
         // 1. Success rate cycles
         double[] rates = snapshots.stream().mapToDouble(MetricTimeSeries.Snapshot::successRate).toArray();
-        int cycles = countCycles(rates);
-        if (cycles > 2) {
+        int cycles = countDirectionChanges(rates);
+        if (cycles > 3) {
             var p = new Pattern("success_rate_oscillation",
                     "Success rate oscillates " + cycles + " times in " + rates.length + " samples. "
                     + "Possible cause: model contention or scheduling issue.",
@@ -48,12 +48,12 @@ public class PatternDetector {
 
         // 3. Performance degradation over time
         if (rates.length >= 10) {
-            double first10 = avg(rates, 0, 5);
-            double last10 = avg(rates, rates.length - 5, rates.length);
-            if (first10 > last10 + 0.1) {
+            double first = avg(rates, 0, 5);
+            double last = avg(rates, rates.length - 5, rates.length);
+            if (first > last + 0.1 && first > 0.1) {
                 var p = new Pattern("gradual_performance_degradation",
-                        "Success rate dropped from " + String.format("%.0f", first10 * 100)
-                        + "% to " + String.format("%.0f", last10 * 100)
+                        "Success rate dropped from " + String.format("%.0f", first * 100)
+                        + "% to " + String.format("%.0f", last * 100)
                         + "% over last " + rates.length + " samples.",
                         "kernel/self/BugTracker.java", 60);
                 patterns.add(p);
@@ -71,15 +71,19 @@ public class PatternDetector {
 
     // ── Signal processing ────────────────────────────
 
-    private int countCycles(double[] data) {
-        int cycles = 0;
-        for (int i = 2; i < data.length; i++) {
-            if ((data[i-2] < data[i-1] && data[i-1] > data[i]) ||
-                (data[i-2] > data[i-1] && data[i-1] < data[i])) {
-                cycles++;
+    /** Counts direction changes (up/down alternations) in a data series. */
+    private int countDirectionChanges(double[] data) {
+        if (data.length < 4) return 0;
+        int changes = 0;
+        int dir = 0; // 1=up, -1=down
+        for (int i = 1; i < data.length; i++) {
+            int newDir = Double.compare(data[i], data[i-1]);
+            if (newDir != 0) {
+                if (newDir != dir && dir != 0) changes++;
+                dir = newDir;
             }
         }
-        return cycles / 2;
+        return changes;
     }
 
     private double correlation(double[] a, double[] b) {
@@ -95,15 +99,18 @@ public class PatternDetector {
             stdA += da * da;
             stdB += db * db;
         }
-        return cov / (Math.sqrt(stdA) * Math.sqrt(stdB) + 1e-10);
+        double denom = Math.sqrt(stdA) * Math.sqrt(stdB);
+        return (denom > 1e-10) ? cov / denom : 0;
     }
 
     private double avg(double[] d, int from, int to) {
         double sum = 0;
-        int n = Math.min(to, d.length) - from;
-        if (n <= 0) return 0;
-        for (int i = from; i < Math.min(to, d.length); i++) sum += d[i];
-        return sum / n;
+        int count = 0;
+        for (int i = from; i < Math.min(to, d.length); i++) {
+            sum += d[i];
+            count++;
+        }
+        return count > 0 ? sum / count : 0;
     }
 
     public record Pattern(String id, String description, String targetFile, int priority) {}
