@@ -1400,7 +1400,8 @@ public final class AgentMain {
         // Phase 12b: GapAnalyzer
         var gapAnalyzer = new de.metis.modules.evolution.GapAnalyzer();
         var riskGate = new de.metis.modules.evolution.RiskGate();
-        LOG.info("Phase 12b: GapAnalyzer + RiskGate ready");
+        var metricSeries = new de.metis.modules.evolution.MetricTimeSeries();
+        LOG.info("Phase 12b: GapAnalyzer + RiskGate + MetricTimeSeries ready");
 
         // ── Phase 8.6 — SelfReflector: kontinuierlicher innerer Monolog ──────
         // Konvergente Empfehlung aus 9 KI-Reviews (2026-05-31): kleiner, schneller
@@ -1470,7 +1471,15 @@ public final class AgentMain {
                 metrics.put("successRate", agent.metrics().goalSuccessRate());
                 metrics.put("confidence", agent.meta().confidence());
                 metrics.put("beliefCount", agent.worldModel().beliefCount());
-                var proposals = gapAnalyzer.analyze(metrics);
+                // Phase 12c: record metric snapshot
+                metricSeries.record(
+                        agent.metrics().planningEfficiency(),
+                        agent.metrics().goalSuccessRate(),
+                        agent.meta().confidence(),
+                        agent.worldModel().beliefCount(),
+                        agent.goals().activeCount(),
+                        0.0
+                );                var proposals = gapAnalyzer.analyze(metrics);
                 for (var p : proposals) {
                     if (riskGate.allow(p)) {
                         agent.addGoal(
