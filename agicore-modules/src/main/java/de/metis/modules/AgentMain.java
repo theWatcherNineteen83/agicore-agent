@@ -1414,6 +1414,8 @@ public final class AgentMain {
         var featureFlag = new de.metis.modules.evolution.FeatureFlag();
         var runtimeHandler = new de.metis.modules.self.RuntimeExceptionHandler();
         LOG.info("Phase 12a: RuntimeExceptionHandler ready");
+        var capBoard = new de.metis.modules.eval.CapabilityBoard();
+        LOG.info("Phase 12d: CapabilityBoard ready — " + capBoard.passedCount() + "/" + capBoard.all().size() + " passed");
         var reportGen = new de.metis.modules.eval.EvalReportGenerator(
                 java.nio.file.Paths.get("eval-reports"),
                 java.nio.file.Paths.get("."));

@@ -897,6 +897,14 @@ public class MetisHttpServer {
             return;
         }
         var path = exchange.getRequestURI().getPath();
+        if (path.equals("/api/capabilities")) {
+            // Forward to AgentMain"s capBoard
+            exchange.getResponseHeaders().set("Content-Type", "application/json; charset=utf-8");
+            String json = "{\"message\":\"CapabilityBoard endpoint not wired directly\"}";
+            exchange.sendResponseHeaders(200, json.length());
+            try (var os = exchange.getResponseBody()) { os.write(json.getBytes()); }
+            return;
+        }
         if (path.equals("/api/status")) {
             handleStatus(exchange);
             return;
