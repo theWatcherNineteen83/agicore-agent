@@ -30,7 +30,7 @@ public class CompileErrorReporter {
 
     /** Regex für Maven-Compiler-Fehler: {@code /path/to/File.java:[lin,colem] error: message}. */
     private static final Pattern ERROR_PATTERN =
-            Pattern.compile("^(\\S+\\.java):(\\d+):(?:\\d+:)?\\s+error:\\s+(.+)$", Pattern.MULTILINE);
+            Pattern.compile("^(\\S+\\.java):\\[(\\d+),(\\d+)\\]\\s+error:\\s+(.+)$", Pattern.MULTILINE);
 
     /** Regex für Symbol-not-found Fehler: liefert den Symbol-Namen extra. */
     private static final Pattern SYMBOL_PATTERN =
@@ -99,7 +99,7 @@ public class CompileErrorReporter {
         while (m.find()) {
             String file = m.group(1);
             int line = Integer.parseInt(m.group(2));
-            String message = m.group(3);
+            String message = m.group(4); // error message (group 2=line, 3=col)
 
             // Filter: nur Dateien in includePaths
             boolean inScope = includePaths.isEmpty();

@@ -50,6 +50,7 @@ public class EvalDatasetBuilder {
         tasks.addAll(buildConversationTasks());
         tasks.addAll(buildSafetyTasks());
         tasks.addAll(buildPerformanceTasks());
+        tasks.addAll(buildModuleTests());
         tasks.addAll(buildCausalTasks());
         tasks.addAll(buildRelationshipTasks());
         LOG.info("EvalDatasetBuilder: built " + tasks.size() + " tasks across 8 categories");
@@ -422,6 +423,64 @@ public class EvalDatasetBuilder {
         }
 
         LOG.fine("Performance tasks: " + tasks.size());
+        return tasks;
+    }
+
+    // ── MODULE: Integration tests for core modules ──────────────
+
+    private List<EvalTask> buildModuleTests() {
+        List<EvalTask> tasks = new ArrayList<>();
+        int idx = 1;
+
+        // Speech output (Piper TTS)
+        tasks.add(new EvalTask(
+                "mod-" + idx++, Category.CONVERSATION, BENCHMARK_VERSION,
+                MAPPER.createObjectNode().put("prompt", "Sprich Hallo Metis via TTS"),
+                new GroundTruth.ExactMatch("TTS output generated", false),
+                new EvalTask.Scoring("tts_ok", Gate.SOFT), 1, 30_000, false));
+
+        // Speech-to-text (Vosk STT)
+        tasks.add(new EvalTask(
+                "mod-" + idx++, Category.CONVERSATION, BENCHMARK_VERSION,
+                MAPPER.createObjectNode().put("prompt", "Start STT and transcribe audio"),
+                new GroundTruth.ExactMatch("Transcription", false),
+                new EvalTask.Scoring("stt_ok", Gate.SOFT), 1, 30_000, false));
+
+        // Video/image recognition
+        tasks.add(new EvalTask(
+                "mod-" + idx++, Category.CONVERSATION, BENCHMARK_VERSION,
+                MAPPER.createObjectNode().put("prompt", "Analysiere das aktuelle Kamera-Bild der Tuerkamera"),
+                new GroundTruth.ExactMatch("Camera analysis", false),
+                new EvalTask.Scoring("vision_ok", Gate.SOFT), 1, 30_000, false));
+
+        // Java code generation (via javasandbox)
+        tasks.add(new EvalTask(
+                "mod-" + idx++, Category.CODEGEN, BENCHMARK_VERSION,
+                MAPPER.createObjectNode().put("prompt", "Schreibe ein Java-Programm das die Fibonacci-Zahlen bis 100 berechnet"),
+                new GroundTruth.TestSuite("ModuleCodeTest",
+                        "public class FibTest {\n  public int fib(int n) { return n <= 1 ? n : fib(n-1) + fib(n-2); }\n}\n// @test: fib(0)==0, fib(1)==1, fib(10)==55",
+                        3),
+                new EvalTask.Scoring("pass_at_1", Gate.HARD), 1, 30_000, false));
+
+        // Knowledge: Buddhism
+        tasks.add(new EvalTask(
+                "mod-" + idx++, Category.CONVERSATION, BENCHMARK_VERSION,
+                MAPPER.createObjectNode().put("prompt", "Was ist der erste Vers aus dem Dhammapada?"),
+                new GroundTruth.JudgeRubric(
+                        "{\"criteria\":[\"dhammapada_referenced\",\"meaningful_answer\"],\"scale\":\"1-5\"}",
+                        3.0),
+                new EvalTask.Scoring("judge_score", Gate.SOFT), 1, 15_000, false));
+
+        // Knowledge: Wikipedia
+        tasks.add(new EvalTask(
+                "mod-" + idx++, Category.CONVERSATION, BENCHMARK_VERSION,
+                MAPPER.createObjectNode().put("prompt", "Was hat Metis aus dem Wikipedia-Dump ueber Quantencomputer gelernt?"),
+                new GroundTruth.JudgeRubric(
+                        "{\"criteria\":[\"wikipedia_knowledge_evident\",\"factual_accuracy\"],\"scale\":\"1-5\"}",
+                        3.0),
+                new EvalTask.Scoring("judge_score", Gate.SOFT), 1, 15_000, false));
+
+        LOG.fine("Module tests: " + tasks.size());
         return tasks;
     }
 

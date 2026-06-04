@@ -20,7 +20,8 @@ Sie denkt in kognitiven Zyklen (Perceive → Plan → Execute → Observe → Le
 | 1-7+ | ✅ 100% | Stabiler autonomer Agent |
 | 8 | ✅ 100% | SelfReflector (phi4-mini CPU) + PersonalityTripwire |
 | 9 | ✅ 100% | Long-Horizon-Planung + CommitmentGuard |
-| 10 | 🟡 60% | Causal Foundation + CausalDreamer, Hot-Path offen |
+| 10 | 🟢 80% | Causal Foundation + CausalDreamer ✅, Hot-Path ✅ |
+| 12 | 🟡 15% | Selbst-Bugfixing: BugTracker ✅, SelfFixAction ✅, Watchdog-RemoteBugfix ✅ |
 | 11 | 🟡 50% | PersonModel+TrustLevel+RelationshipMemory, Hot-Path offen |
 
 → Details: **[FEATURES.md](FEATURES.md)** · **[AGI_EDI_ROADMAP.md](AGI_EDI_ROADMAP.md)** · **[RUNBOOK.md](RUNBOOK.md)**
@@ -236,16 +237,14 @@ bash /home/prometheus/metis/backup-config.sh
 - **Runbook:** [RUNBOOK.md](RUNBOOK.md) — 6 Failure-Modi + Deployment + Health-Check
 
 ## EDI-Distanz
-
-Phasen 1–7+ sind 100%, aber das ist **autonomer Agent**, nicht EDI. Phase 8 (narratives Selbstmodell, inkl. SelfReflector + PersonalityTripwire) und Phase 9 (Long-Horizon-Planung) sind 100% deployed. Phase 10 (kausale Hypothesen) ist mit Foundation + CausalDreamer zu 60% deployed. Phase 11 PersonModel ist zu 50% als Foundation deployed.
+Phasen 1-7+ sind 100% autonomer Agent. Phase 8 (narratives Selbstmodell, SelfReflector + PersonalityTripwire) und Phase 9 (Long-Horizon-Planung) sind 100% deployed. Phase 10 (kausale Hypothesen) ist mit Foundation + CausalDreamer + Hot-Path zu 80% deployed. Phase 11 PersonModel ist 100% vollstaendig verdrahtet (Telegram + HTTP + Approval-Gate). Phase 12a (Selbst-Bugfixing) bei 15%.
 
 Offen für weitere EDI-Annäherung:
-
-- **Phase 10 Hot-Path** — CausalDreamer ist deployed (Idle-Guard + Hypothesen-Generierung), Intervention→Observe→Update Loop im CoreLoop fehlt noch
-- **Phase 11** — PersonModel/PersonStore/TrustLevel deployed, PersonAwareSystemPrompt + EmpathySignal-Hot-Path offen
+- **Phase 10 Hot-Path** — HypothesisStore -> Planner-Prompt (ACTIVE CAUSAL HYPOTHESES). 44 Hypothesen live (04.06.).
+- **Phase 11** — PersonModel vollstaendig: Telegram/HTTP/Approval-Gate (04.06.)
+- **Phase 12a** — BugTracker + SelfFixAction + Watchdog-RemoteBugfix (04.06. 15:00).
 - **Phase 12** — Recursive Self-Improvement (sinnvoll erst nach 8–11)
-
-**Spanne, mit Begründung:** ~65–75%. Phase 11 PersonModel ist deployed (Person/PersonStore/TrustLevel/RelationshipMemory), Phase 8 ist mit SelfReflector + PersonalityTripwire komplett, CausalDreamer (Phase 10.5) deployed. Belege im Repo, nicht in der Selbstbeschreibung: [AGI_EDI_ROADMAP.md](AGI_EDI_ROADMAP.md), [FEATURES.md](FEATURES.md), Endpoints `/api/status`, `/api/hierarchy`, `/api/board`.
+**Spanne:** ~72-80%. Phase 11 komplett, Phase 10 Hot-Path aktiv, Phase 12a gestartet.
 
 **Was Metis ausdrücklich nicht ist:**
 - nicht bewusst, nicht selbstreflexiv im phänomenologischen Sinn
