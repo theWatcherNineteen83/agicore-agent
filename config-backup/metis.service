@@ -20,8 +20,8 @@ ExecStart=/opt/zing25-jdk/bin/java \
             --enable-native-access=ALL-UNNAMED \
     -jar /home/prometheus/metis/metis-agent.jar \
     --api-port 11735 \
-    --planning-model lfm2.5:8b \
-    --mutation-model qwen3.6:27b-q4_K_M \
+    --planning-model mistral-small3.1:24b \
+    --mutation-model gemma4:31b \
     --telegram-token 8334147633:AAEoXX7LS8pDe_gWXO8mUav8i0SGmEPnVLU \
     --weather-api-key 0352c669d7d0422d92c669d7d0522d9a \
     --ha-url http://192.168.22.200:8123 \
