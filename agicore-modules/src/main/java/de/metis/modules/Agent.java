@@ -31,6 +31,7 @@ import de.metis.modules.evolution.ModelRegistry;
 import de.metis.modules.planner.OllamaPlanner;
 import de.metis.modules.planner.PromptChainingService;
 import de.metis.modules.planner.StubPlanner;
+import de.metis.modules.chat.ChatLogService;
 import de.metis.kernel.metrics.FitnessSignal;
 import de.metis.modules.CuriosityEngine;
 
@@ -52,9 +53,10 @@ import java.util.Set;
 public class Agent {
 
     private final AgentCoreLoop core;
+    private final ChatLogService chatLog;
     private PromptChainingService chainService;
 
-    private Agent(AgentCoreLoop core) { this.core = core; }
+    private Agent(AgentCoreLoop core) { this.core = core; this.chatLog = new ChatLogService(); }
 
     public void tick() { core.tick(); }
     public void run(int maxTicks) { core.run(maxTicks); }
@@ -72,6 +74,8 @@ public class Agent {
     }
 
     public AgentCoreLoop core() { return core; }
+    public ChatLogService chatLog() { return chatLog; }
+
     public Planner planner() { return core.planner(); }
     public de.metis.kernel.action.ActionExecutor executor() { return core.executor(); }
     public GoalManager goals() { return core.goals(); }
@@ -125,6 +129,10 @@ public class Agent {
         public Builder registerWikipedia(String topic, String mode, Path dir) { executor.register(new WikipediaAction(topic, mode, dir)); return this; }
         public Builder registerCameraSnapshot(String cameraName, String source) { executor.register(new CameraSnapshotAction(cameraName, source)); return this; }
         public Builder registerCameraSnapshot(String cameraName, String source, java.nio.file.Path dir) { executor.register(new CameraSnapshotAction(cameraName, source, dir)); return this; }
+        public Builder registerSensorBridge() { executor.register(new de.metis.modules.sensor.SensorBridgeAction()); return this; }
+        public Builder registerSensorBridge(String url) { executor.register(new de.metis.modules.sensor.SensorBridgeAction(url)); return this; }
+        public Builder registerAudioBridge() { executor.register(new de.metis.modules.sensor.AudioBridgeAction()); return this; }
+        public Builder registerAudioBridge(int sec) { executor.register(new de.metis.modules.sensor.AudioBridgeAction("ws://localhost:8765/audio", sec, System.getProperty("vosk.model.path", "/data/prometheus/vosk-model-de"))); return this; }
         public Builder registerCodeGeneration(String specification, String ollamaUrl, String model, java.nio.file.Path targetDir, Duration timeout) {
             executor.register(new CodeGenerationAction(specification, ollamaUrl, model, targetDir, timeout)); return this;
         }

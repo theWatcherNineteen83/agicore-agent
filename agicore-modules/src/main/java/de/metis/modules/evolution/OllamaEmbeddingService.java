@@ -29,7 +29,7 @@ public class OllamaEmbeddingService {
     private static final String OLLAMA_URL = "http://192.168.22.204:11434/api/embeddings";
     private static final String DEFAULT_MODEL = "nomic-embed-text"; // 768-dim, preferred
     private static final String FALLBACK_MODEL = "llama3.2:3b";     // 3072-dim, legacy
-    private static final Duration TIMEOUT = Duration.ofSeconds(5);
+    private static final Duration TIMEOUT = Duration.ofSeconds(30);
     private static final int DEFAULT_CACHE_SIZE = 4096;
 
     private final HttpClient http = HttpClient.newBuilder()
@@ -50,8 +50,8 @@ public class OllamaEmbeddingService {
     // ── Circuit breaker ───────────────────────────────────────────────
     // After N consecutive failures (503 or timeout), stop calling the API for a cooldown period
     // to avoid flooding Ollama's request queue (which caused 103+ 503s on 2026-06-02).
-    private static final int CB_FAILURE_THRESHOLD = 3;
-    private static final long CB_COOLDOWN_MS = 120_000; // 1 minute
+    private static final int CB_FAILURE_THRESHOLD = 5;
+    private static final long CB_COOLDOWN_MS = 60_000; // 1 minute
     private volatile int consecutive503s = 0;
     private volatile long circuitOpenUntil = 0;
     private volatile int circuitOpenCount = 0;
@@ -126,7 +126,7 @@ public class OllamaEmbeddingService {
 
         try {
             String jsonBody = String.format("""
-                    {"model": "%s", "prompt": %s, "options": {"num_gpu": 0}}
+                    {"model": "%s", "prompt": %s, "options": {}, "keep_alive": "30m"}
                     """, model, escapeJson(apiInput));
 
             HttpRequest request = HttpRequest.newBuilder()

@@ -1,6 +1,6 @@
 # Metis AGI — Feature-Katalog
 
-**Stand: 04.06.2026 17:30 · Repo-Tag v0.11.11-governance · 330 Tests (gruen) · CI: Kernel+Watchdog (GitHub Actions)**
+**Stand: 06.06.2026 21:30 (+Phase 3.5 S9-Mobile-Sensor-Array) · Repo-Tag v0.11.11-governance · 330 Tests (gruen) · CI: Kernel+Watchdog (GitHub Actions)**
 
 ---
 

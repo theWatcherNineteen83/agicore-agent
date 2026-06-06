@@ -179,8 +179,8 @@ public class OllamaPlanner implements Planner {
         // Default fallback chain: mistral-small3.1 → nemotron → qwen3.6
         this.fallbackModels.addAll(List.of(
             "mistral-small3.1:24b",
-            "nemotron:latest",
-            "qwen3.6:latest"
+            "nemotron-cascade-2:30b",
+            "qwen3.6:27b-q4_K_M"
         ));
         initABTesting();
         initFlywheel();
@@ -197,8 +197,8 @@ public class OllamaPlanner implements Planner {
         // Default fallback chain: mistral-small3.1 → nemotron → qwen3.6
         this.fallbackModels.addAll(List.of(
             "mistral-small3.1:24b",
-            "nemotron:latest",
-            "qwen3.6:latest"
+            "nemotron-cascade-2:30b",
+            "qwen3.6:27b-q4_K_M"
         ));
         initABTesting();
     }
@@ -549,9 +549,9 @@ public class OllamaPlanner implements Planner {
                 }
             }
             // Also add qwen3.6:latest as ultimate LLM fallback if not already in chain
-            if (!modelsToTry.contains("qwen3.6:latest")
-                    && !"qwen3.6:latest".equals(primaryModel)) {
-                modelsToTry.add("qwen3.6:latest");
+            if (!modelsToTry.contains("qwen3.6:27b-q4_K_M")
+                    && !"qwen3.6:27b-q4_K_M".equals(primaryModel)) {
+                modelsToTry.add("qwen3.6:27b-q4_K_M");
             }
 
             for (String fallbackModel : modelsToTry) {
@@ -588,12 +588,11 @@ public class OllamaPlanner implements Planner {
                       "model": "%s",
                       "prompt": %s,
                       "stream": false,
-                      "format": "json",
                       "options": {
                         "temperature": 0.3,
                         "top_p": 0.95,
-                        "num_predict": 256,
-                        "num_ctx": 4096
+                        "num_predict": 1024,
+                        "num_ctx": 8192
                       },
                       "keep_alive": "10m"
                     }
@@ -938,7 +937,7 @@ public class OllamaPlanner implements Planner {
                       "stream": false,
                       "options": {
                         "temperature": 0.3,
-                        "num_predict": 100
+                        "num_predict": 256
                       }
                     }
                     """, resolveModel(), escapeJson(prompt));
@@ -1102,10 +1101,17 @@ public class OllamaPlanner implements Planner {
     }
 
     private String extractJsonStringField(String json, String fieldName) {
-        String searchKey = "\"" + fieldName + "\":\"";
+        String searchKey = "\"" + fieldName + "\"";
         int start = json.indexOf(searchKey);
         if (start < 0) return null;
         start += searchKey.length();
+        while (start < json.length()) {
+            char c = json.charAt(start);
+            if (c == ':' || c == ' ' || c == '\t' || c == '\n' || c == '\r') { start++; }
+            else { break; }
+        }
+        if (start >= json.length() || json.charAt(start) != '"') return null;
+        start++;
 
         StringBuilder val = new StringBuilder();
         for (int i = start; i < json.length(); i++) {
@@ -1130,10 +1136,15 @@ public class OllamaPlanner implements Planner {
     }
 
     private double extractJsonDoubleField(String json, String fieldName) {
-        String searchKey = "\"" + fieldName + "\":";
+        String searchKey = "\"" + fieldName + "\"";
         int start = json.indexOf(searchKey);
         if (start < 0) return 0.5;
         start += searchKey.length();
+        while (start < json.length()) {
+            char c = json.charAt(start);
+            if (c == ':' || c == ' ' || c == '\t' || c == '\n' || c == '\r') { start++; }
+            else { break; }
+        }
 
         StringBuilder num = new StringBuilder();
         for (int i = start; i < json.length(); i++) {

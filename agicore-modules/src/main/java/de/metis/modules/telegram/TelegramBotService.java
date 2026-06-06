@@ -7,6 +7,7 @@ import de.metis.kernel.self.SystemPromptBuilder;
 import de.metis.modules.Agent;
 import de.metis.modules.persona.Persona;
 import de.metis.modules.chat.KnowledgeReplyService;
+import de.metis.modules.chat.ChatLogService;
 import de.metis.kernel.goal.KanbanBoard;
 import de.metis.kernel.goal.Goal;
 
@@ -54,6 +55,7 @@ public class TelegramBotService {
     private SystemPromptBuilder systemPromptBuilder;
     private de.metis.kernel.person.PersonStore personStore;        // Phase 11
     private de.metis.kernel.person.EmpathySignal empathySignal;    // Phase 11
+    private ChatLogService chatLog;
     private Thread pollingThread;
     private long lastUpdateId = 0;
     /**
@@ -346,6 +348,7 @@ public class TelegramBotService {
                         String response = processMessage(chatIdF, firstNameF, textF);
                         if (response != null && !response.isBlank()) {
                             sendMessage(chatIdF, response);
+                            chatLog.log("telegram", String.valueOf(chatIdF), firstNameF, "assistant", response);
                         }
                     } catch (Exception ex) {
                         LOG.warning("Telegram worker [" + chatIdF + "] failed: " + ex.getMessage());

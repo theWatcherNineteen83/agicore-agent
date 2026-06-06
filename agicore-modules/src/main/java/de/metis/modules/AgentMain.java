@@ -858,6 +858,8 @@ public final class AgentMain {
         Agent agent = Agent.builder()
                 .registerShellCommand(List.of("uname", "-a"))
                 .registerHttpGet(URI.create("https://httpbin.org/get"))
+                .registerSensorBridge()
+                .registerAudioBridge()
                 .ollamaPlanner("http://192.168.22.204:11434/api/generate", modelRegistry, Duration.ofSeconds(60))
                 .promptChainingService("http://192.168.22.204:11434/api/generate", "nemotron-cascade-2:30b", Duration.ofSeconds(90))
                 .workspaceCapacity(5)
@@ -1167,6 +1169,8 @@ public final class AgentMain {
         AgentCoordinator coordinator = new AgentCoordinator();
         // Spawn Ops-Agent: 24/7 monitoring, no evolution
         var opsAgent = Agent.builder()
+                .registerSensorBridge()
+                .registerAudioBridge()
                 .registerShellCommand(List.of("uptime"))
                 .registerHttpGet(URI.create("https://httpbin.org/status/200"))
                 .ollamaPlanner("http://192.168.22.204:11434/api/generate", modelRegistry, Duration.ofSeconds(60))
