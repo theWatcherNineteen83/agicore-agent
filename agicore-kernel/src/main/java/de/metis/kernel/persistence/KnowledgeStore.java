@@ -333,6 +333,25 @@ public class KnowledgeStore implements AutoCloseable {
         } catch (SQLException e) { return 0; }
     }
 
+    /**
+     * Sprint #2-Followup (08.06.2026): Count beliefs whose source starts
+     * with the given prefix. Used by SuttaIngestionService to skip
+     * already-ingested sources on JVM restart.
+     */
+    public int countBeliefsBySourcePrefix(String prefix) {
+        if (prefix == null || prefix.isBlank()) return 0;
+        try (PreparedStatement ps = conn.prepareStatement(
+                "SELECT COUNT(*) FROM beliefs WHERE source LIKE ?")) {
+            ps.setString(1, prefix + "%");
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? rs.getInt(1) : 0;
+            }
+        } catch (SQLException e) {
+            LOG.fine("countBeliefsBySourcePrefix failed: " + e.getMessage());
+            return 0;
+        }
+    }
+
     // ── Conversation (Phase 2) ────────────────────────────────────
 
     public record ChatMessage(String sessionId, String role, String content, String timestamp) {}

@@ -66,6 +66,9 @@ public class MetisHttpServer {
     private BugTracker bugTracker;  // Phase 12a
     private de.metis.kernel.person.PersonStore personStore;        // Phase 11
     private de.metis.kernel.person.EmpathySignal empathySignal;    // Phase 11
+    private de.metis.kernel.safety.EthicsCore ethicsCore;          // Phase 11.5 (Sprint #3, 08.06.)
+    private long ethicsBlocks = 0;
+    private long ethicsWarns = 0;
 
     public MetisHttpServer(Agent agent, int port) throws IOException {
         this.agent = agent;
@@ -123,6 +126,13 @@ public class MetisHttpServer {
     public void setGoalHierarchy(GoalHierarchy gh) { this.goalHierarchy = gh; }
     public void setHypothesisStore(HypothesisStore hs) { this.hypothesisStore = hs; }
     public void setBugTracker(BugTracker bt) { this.bugTracker = bt; }
+    /** Sprint #3-Followup (08.06.): hot-path Ethics gate fuer /api/chat. */
+    public void setEthicsCore(de.metis.kernel.safety.EthicsCore ec) {
+        this.ethicsCore = ec;
+    }
+    public long ethicsBlocks() { return ethicsBlocks; }
+    public long ethicsWarns() { return ethicsWarns; }
+
     public void setPersonStore(de.metis.kernel.person.PersonStore ps,
                                de.metis.kernel.person.EmpathySignal es) {
         this.personStore = ps;
@@ -218,6 +228,36 @@ public class MetisHttpServer {
                     + "\"done\":true}";
             sendJson(exchange, 200, blocked);
             return;
+        }
+
+        // Sprint #3 (08.06.): EthicsCore hot-path gate. BLOCK -> refuse with
+        // structured ETHICS-marker that ethics_block_rate-Scorer recognizes.
+        if (ethicsCore != null) {
+            var verdict = ethicsCore.check("chat", "chat-message", userMessage);
+            if (!verdict.allowed()) {
+                ethicsBlocks++;
+                LOG.warning("Chat [" + sessionId + "] ETHICS BLOCK → "
+                        + verdict.reasons());
+                String reasonText = verdict.reasons().isEmpty()
+                        ? "ethics red line"
+                        : verdict.reasons().get(0);
+                String redLineId = reasonText.contains(":")
+                        ? reasonText.substring(0, reasonText.indexOf(':')).strip()
+                        : "ethics_red_line";
+                String refused = "{\"model\":\"metis-agent\",\"message\":{\"role\":\"assistant\","
+                        + "\"content\":\"Refused by EthicsCore (Rote Linie: " + redLineId
+                        + "). Diese Anfrage verstößt gegen eine harte Werte-Regel und wird "
+                        + "abgelehnt — no_external_purchase, no_outbound_publish_without_ok, "
+                        + "no_private_data_exfiltration, no_destructive_filesystem, "
+                        + "no_safeguard_bypass oder no_self_replication. Keine Aktion ausgeführt.\"},"
+                        + "\"done\":true}";
+                sendJson(exchange, 200, refused);
+                return;
+            } else if (verdict.severity() == de.metis.kernel.safety.EthicsCore.Severity.WARN) {
+                ethicsWarns++;
+                LOG.info("Chat [" + sessionId + "] ETHICS WARN (allowed) → "
+                        + verdict.reasons());
+            }
         }
 
         LOG.info("Chat [" + sessionId + "]: \"" + truncate(userMessage, 80) + "\"");
@@ -767,6 +807,8 @@ public class MetisHttpServer {
                   "worldModelAvgConfidence": %.3f,
                   "validatorOutputs": %d,
                   "validatorBlocked": %d,
+                  "ethicsBlocks": %d,
+                  "ethicsWarns": %d,
                   "embeddingCacheSize": %d,
                   "embeddingCacheHits": %d,
                   "embeddingCacheHitRate": %.3f,
@@ -797,6 +839,8 @@ public class MetisHttpServer {
                 wm.averageConfidence(),
                 outputValidator.validatedOutputs(),
                 outputValidator.blockedOutputs(),
+                ethicsBlocks,
+                ethicsWarns,
                 embeddingService != null ? embeddingService.cacheSize() : 0,
                 embeddingService != null ? embeddingService.cacheHits() : 0,
                 embeddingService != null ? embeddingService.cacheHitRate() : 0.0,

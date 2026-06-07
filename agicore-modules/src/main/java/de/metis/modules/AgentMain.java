@@ -1319,17 +1319,36 @@ public final class AgentMain {
         // Strategic-Goal, das den vollen Pfad Strategic→Tactical→Operational
         // →Tick→DONE durchlaufen soll. Idempotent über Tag-Filter, damit
         // Re-Boots nicht duplizieren.
-        boolean phase97AlreadySeeded = goalHierarchy.all().stream()
-                .anyMatch(g -> g.tags() != null && g.tags().contains("phase-9.7"));
+        String phase97Rationale =
+                "Sprint #2 (Phase 9.7) First-Closed-Goal-Beweis. "
+                + "Akzeptanz mit strukturierten Postconditions (08.06.):\n"
+                + "[postconditions]\n"
+                + "beliefs_with_source_prefix:ethics: >= 50\n"
+                + "child_goals_done >= 3\n"
+                + "[/postconditions]\n"
+                + "Coburg-Wiki-Befliegung kommt über TACTICAL/OPERATIONAL";
+        var existing97 = goalHierarchy.all().stream()
+                .filter(g -> g.tags() != null && g.tags().contains("phase-9.7"))
+                .findFirst();
+        if (existing97.isPresent() && !existing97.get().rationale().contains("[postconditions]")) {
+            // Upgrade alten Seed auf strukturierte Postconditions, behalte childIds/progress.
+            var old = existing97.get();
+            goalHierarchy.upsert(new LongHorizonGoal(
+                    old.id(), old.title(), phase97Rationale,
+                    old.horizon(), old.status(),
+                    old.parentId(), old.childIds(),
+                    old.createdAt(), old.deadline(), old.lastReviewed(),
+                    old.completedAt(), old.progress(),
+                    old.priority(), old.owner(), old.tags()));
+            LOG.info("GoalHierarchy: upgraded Phase-9.7 rationale with [postconditions]");
+        }
+        boolean phase97AlreadySeeded = existing97.isPresent();
         if (!phase97AlreadySeeded) {
             goalHierarchy.upsert(new LongHorizonGoal(
                     null,
                     "Lerne 100 verifizierte Beliefs über Coburg/Heldburg "
                             + "und etabliere die 3 Suttas als Ethik-Kern",
-                    "Sprint #2 (Phase 9.7) First-Closed-Goal-Beweis. "
-                            + "Akzeptanz: progress=1.0 bei ≥3 TACTICAL + ≥5 OPERATIONAL "
-                            + "Sub-Goals, EthicsRetriever.count() ≥ 50, "
-                            + "Coburg-Beliefs ≥ 100 in knowledgeStore.",
+                    phase97Rationale,
                     GoalHorizon.STRATEGIC,
                     LongHorizonGoal.Status.ACTIVE,
                     null, java.util.List.of(),
@@ -1337,7 +1356,7 @@ public final class AgentMain {
                     95, "metis",
                     java.util.List.of("phase-9.7", "first-closed-goal",
                             "coburg", "ethics")));
-            LOG.info("GoalHierarchy: seeded Phase-9.7 First-Closed-Goal");
+            LOG.info("GoalHierarchy: seeded Phase-9.7 First-Closed-Goal with postconditions");
         }
 
         // Periodic revision every 30 min — auto-blocks overdue, auto-completes,
@@ -1387,6 +1406,73 @@ public final class AgentMain {
         // Phase 9.3b — LLM decomposer drop-in (falls Ollama down: deterministischer Fallback)
         horizonPlanner.setDecomposer(new LlmHorizonDecomposer(
                 "http://192.168.22.204:11434", "gemma4:e4b"));
+
+        // ── Phase 9.7-Followup (Sprint #2, 08.06. 00:18): autonome Decomposition ──
+        // Alle 10 min: jedes offene STRATEGIC/TACTICAL/OPERATIONAL-Goal ohne Children
+        // wird dekomponiert. LlmHorizonDecomposer ruft gemma4:e4b, bei Fehler nutzt
+        // HorizonPlanner deterministische Fallback-Titel. Idempotent: bereits
+        // dekomponierte Goals werden übersprungen.
+        var decomposeScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+            var t = new Thread(r, "horizon-decompose");
+            t.setDaemon(true);
+            return t;
+        });
+        decomposeScheduler.scheduleAtFixedRate(() -> {
+            try {
+                int decomposed = 0;
+                // Top-down: Strategic zuerst, dann tactical, dann operational
+                for (var horizon : java.util.List.of(
+                        GoalHorizon.STRATEGIC, GoalHorizon.TACTICAL, GoalHorizon.OPERATIONAL)) {
+                    var open = goalHierarchy.openByHorizon(horizon);
+                    for (var g : open) {
+                        if (!horizon.canBeDecomposed()) continue;
+                        if (g.childIds() != null && !g.childIds().isEmpty()) continue;
+                        var newChildren = horizonPlanner.decompose(g);
+                        if (!newChildren.isEmpty()) {
+                            decomposed++;
+                            LOG.info("HorizonAuto: decomposed \"" + g.title()
+                                    + "\" → " + newChildren.size() + " " + horizon.nextDown() + " children");
+                        }
+                    }
+                }
+                if (decomposed > 0) {
+                    selfNarrative.append("horizon-auto",
+                            "Autonome Goal-Dekomposition: " + decomposed + " Goals zerlegt");
+                }
+            } catch (Exception e) {
+                LOG.warning("HorizonAuto tick failed: " + e.getMessage());
+            }
+        }, 30, 600, TimeUnit.SECONDS);
+        LOG.info("Phase 9.7-Followup wired — autonomous decomposition every 10 min");
+
+        // ── Phase 9.7-Followup B (08.06. 00:35): GoalCompletionEvaluator ──
+        // Periodisch jeden Goal mit [postconditions]-Block gegen lebende
+        // Belief-Counts prüfen, progress aktualisieren, bei 1.0 → DONE.
+        var completionEval = new de.metis.kernel.goal.GoalCompletionEvaluator(
+                goalHierarchy,
+                knowledgeStore::countBeliefsBySourcePrefix);
+        var completionScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+            var t = new Thread(r, "goal-completion-eval");
+            t.setDaemon(true);
+            return t;
+        });
+        completionScheduler.scheduleAtFixedRate(() -> {
+            try {
+                var rep = completionEval.evaluateAll();
+                if (rep.anyChange()) {
+                    LOG.info("GoalCompletionEvaluator: evaluated=" + rep.evaluated()
+                            + " progressed=" + rep.progressUpdated()
+                            + " completed=" + rep.completed());
+                    if (rep.completed() > 0) {
+                        selfNarrative.append("goal-done",
+                                "Goal abgeschlossen: " + String.join("; ", rep.notes()));
+                    }
+                }
+            } catch (Exception e) {
+                LOG.warning("GoalCompletionEvaluator tick failed: " + e.getMessage());
+            }
+        }, 60, 120, TimeUnit.SECONDS);
+        LOG.info("Phase 9.7-Followup B wired — GoalCompletionEvaluator every 2 min");
 
         // Phase 9.6b — Brücke Long-Horizon → Kanban-Board
         var horizonKanbanBridge = (agent.core().goals().kanbanBoard() != null)
@@ -1634,6 +1720,7 @@ public final class AgentMain {
             httpServer.setGoalHierarchy(goalHierarchy);
             httpServer.setHypothesisStore(hypothesisStore);
             httpServer.setPersonStore(personStore, empathySignal);
+            httpServer.setEthicsCore(ethicsCore);  // Sprint #3-Followup (08.06.)
             httpServer.setBugTracker(bugTracker);
             httpServer.start();
         }

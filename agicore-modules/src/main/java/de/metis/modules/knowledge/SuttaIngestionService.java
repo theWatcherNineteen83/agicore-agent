@@ -94,6 +94,16 @@ public class SuttaIngestionService {
         String content = Files.readString(file);
         String tag = sourceTagFrom(file);
 
+        // Idempotenz: skip if any belief with this exact ethics:<tag># prefix exists.
+        String prefix = EthicsCore.SOURCE_PREFIX + tag + "#";
+        int existing = knowledgeStore.countBeliefsBySourcePrefix(prefix);
+        if (existing > 0) {
+            LOG.info("SuttaIngestionService: skip " + file.getFileName()
+                    + " — already ingested (" + existing + " beliefs with source prefix '"
+                    + prefix + "')");
+            return 0;
+        }
+
         // Strip simple Markdown noise: leading #, ** **, code fences.
         String text = content
                 .replaceAll("(?m)^#{1,6}\\s+", "")
