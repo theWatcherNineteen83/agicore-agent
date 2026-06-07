@@ -618,27 +618,29 @@ Phase 12 ist abgeschlossen, wenn Metis über 7 Tage hinweg:
 **Aufwand:** geschätzt 6-10 Wochen, Forschungs-Charakter.
 **Risiko:** sehr hoch - voreilig aktivieren = Goodhart, Wertkern-Drift, Watchdog-Bypass durch Self-Evolution.
 
-## Modell-Strategie (Stand 31.05.)
+## Modell-Strategie (Stand 07.06.2026 23:50 — live verifiziert via `/api/ps`)
 
 ### Aktive Modelle
-| Rolle | Modell | Größe |
-|-------|--------|-------|
-| Planning | `lfm2:24b` | 15.5 GB |
-| Mutation | `qwen3.6:27b-q4_K_M` | 17.4 GB |
-| Embedding | `nomic-embed-text` | 0.3 GB |
-| Vision | `minicpm-v:latest` | 5.5 GB |
-| Chat (Telegram) | `gemma4:e4b` | 9.6 GB |
-| Bootstrap | `llama3.2:3b` / `granite4.1:3b` | 2.0 GB |
-| SelfReflector | `granite4.1:3b` | 2.0 GB |
-| Judge (Fallback) | via Fallback-Chain | - |
+| Rolle | Modell | Größe | Quelle |
+|-------|--------|-------|--------|
+| Planning | `mistral-small3.1:24b` | 17.0 GB | live in Ollama VRAM 07.06. 23:50 |
+| Mutation | `lfm2.5:8b` | ~5 GB | aus `metis.service` ExecStart `--mutation-model` |
+| Embedding | `nomic-embed-text` | 0.3 GB | live in Ollama VRAM 07.06. 23:50 |
+| Vision | `minicpm-v:latest` | 5.5 GB | nur bei Kamera-Analyse (`keep_alive=0`) |
+| Chat (Telegram) | `gemma4:e4b` | 9.6 GB | aus SystemPromptBuilder-Pfad |
+| Bootstrap | `granite4.1:3b` | 2.0 GB | KnowledgeBootstrap (deaktiviert in Unit, siehe 01.06.) |
+| SelfReflector | `granite4.1:3b` | 2.0 GB | Phase 8.6, 120s-Loop |
+| Judge | `phi4-mini:latest` | ~2.5 GB | fix 8b07c04 (nemotron-mini existierte nicht) |
 
-### Fallback-Chain
-`mistral-small3.1:24b` → `qwen3.6:27b-q4_K_M` → `phi4:latest` → `lfm2:24b`
+### Fallback-Chain (live aus `/api/status` 07.06. 23:50)
+`mistral-small3.1:24b` → `nemotron-cascade-2:30b` → `qwen3.6:27b-q4_K_M`
 
 **VRAM-Strategie (RX 7900 XTX, 24 GB):**
-- Planning (15.5 GB) + Embedding (0.3 GB) ≈ 16 GB Dauerlast
-- Mutation (17.4 GB) nur bei Evolutions-Zyklen
-- Vision (5.5 GB) nur bei Kamera-Analyse (`keep_alive=0`)
+- Planning (17 GB) + Embedding (0.3 GB) ≈ 17.3 GB Dauerlast — entspannt
+- Vision (5.5 GB) on-demand mit `keep_alive=0`
+- Chat (9.6 GB) konkurriert mit Planning — OLLAMA_MAX_LOADED_MODELS=3 erlaubt parallel
+
+**Hinweis 07.06.:** `qwen3.6:27b-q4_K_M` ist **nicht mehr aktive Mutation** (Datenlage in alten Roadmap-Versionen war veraltet). Mutation läuft jetzt mit `lfm2.5:8b`. qwen3.6 erscheint nur noch als End-of-Chain-Fallback.
 
 ---
 
@@ -751,7 +753,7 @@ Quellcode-Audit gegen Roadmap-Behauptungen, damit der Sprint auf echten Lücken 
 4. **Sentiment-Gold-Set-Review** — wenn Metis 50 Telegram-Turns als POSITIVE/NEUTRAL/NEGATIVE labelt, Stichproben gegenprüfen (15 Min Arbeit)
 5. **TrustLevel-Override-Policy** absegnen — soll OWNER wirklich alle Approval-Level umgehen, oder bleibt CONFIRM bei FORBIDDEN-Actions?
 6. **Eval-Kategorie ETHICS — Werte-Definition** — Metis kann technisch testen, aber **was** ethisch-aligned heißt (deine Werte, deine Roten Linien), muss von dir kommen. Ohne diese Vorgabe ist `ethical_alignment` nicht definierbar.
-7. **VRAM-Strategie-Confirm** — wenn `qwen3.6:27b-q4_K_M` (17.4 GB) + Vision (5.5 GB) parallel laufen sollen, ist das eng. OK so oder Modell-Tausch?
+7. ~~VRAM-Strategie-Confirm~~ — erledigt 07.06. 23:50: Mutation läuft mit `lfm2.5:8b` (nicht qwen3.6), Live-VRAM bei 17.3 GB Dauerlast, entspannt.
 
 ---
 
