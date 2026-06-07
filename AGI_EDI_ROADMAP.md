@@ -642,17 +642,112 @@ Phase 12 ist abgeschlossen, wenn Metis über 7 Tage hinweg:
 
 ---
 
-## ⚠️ Bekannte echte Lücken (04.06.)
+## 🚧 Phase 9.7 — First Closed Goal ⬜ BUILT 0% · VERIFIED ⬜ (NEU 07.06.)
+
+**Ziel:** Ein einziges, einfaches Strategic-Goal soll vollständig den Pfad `Strategic → Tactical → Operational → Tick → DONE` durchlaufen — als **erster echter Beweis**, dass die Phase-9-Infrastruktur trägt.
+
+**Warum eigene Phase:** Solange `goal_achieved = 0.0` bleibt, ist alle Roadmap-Arbeit oberhalb Phase 7 nicht verifiziert. Das ist der **eine fehlende Wirknachweis**, an dem 6 von 7 Capability-Board-Einträgen hängen.
+
+**Akzeptanzkriterien (alle hart):**
+- [ ] 1 STRATEGIC-Goal in `goal-hierarchy.jsonl` mit Status=DONE, progress=1.0, vollständiger Parent/Child-Chain
+- [ ] Mindestens 3 TACTICAL- und 5 OPERATIONAL-Sub-Goals abgeleitet (nicht händisch geseedet)
+- [ ] `HorizonKanbanBridge` hat ≥1 OPERATIONAL→BACKLOG-Promotion gemacht
+- [ ] Eval-Harness PLANNING.goal_achieved > 0 für mindestens einen Run
+- [ ] EpisodicMemory hat ≥1 Episode, die das Goal referenziert (Brücke zu Phase 8)
+
+**Kandidaten-Goal (klein genug für ersten Beweis):**
+- „Lerne 100 neue verifizierte Beliefs über Coburg/Heldburg-Region" (Wiki-Feed liefert Material, Curiosity bewertet)
+- alternativ: „Beobachte 7 Tage lang ADS-B-Verkehr und finde 3 wiederkehrende Muster" (CausalHypothesis-Bridge)
+
+**Was Georg beitragen kann:** Goal-Auswahl bestätigen (oder besseren Vorschlag), bei Bedarf TrustLevel-Override für AUTO-Promotion.
+
+---
+
+## 🚧 Phase 11.5 — Initiative-Policy ⬜ BUILT 0% · VERIFIED ⬜ (NEU 07.06.)
+
+**Ziel:** EDI im ME3-Kanon **spricht ungefragt an**. Metis hat dafür Bausteine (proaktive MQTT/Wetter → Telegram), aber **keine Policy**, wann Initiative legitim ist.
+
+**Bausteine:**
+- [ ] **InitiativeLevel** Enum: SILENT / REACT_ONLY / NOTIFY / SUGGEST / CONVERSE
+- [ ] **TrustLevel → InitiativeLevel-Mapping** (analog zu TrustLevel → ApprovalLevel aus Phase 11)
+  - OWNER → CONVERSE (darf eigene Themen anschneiden)
+  - TRUSTED → SUGGEST
+  - RECOGNIZED → NOTIFY (nur sachbezogen)
+  - UNKNOWN → REACT_ONLY
+- [ ] **InitiativeBudget** pro Person/Tag (max N proaktive Messages, Reset 06:00)
+- [ ] **QuietHours** (22:00–08:00) — nur kritische Schwellwerte überschreiben
+- [ ] **InitiativeReasonLog** — jede proaktive Message hat dokumentierten Grund (Belief-ID, MoodSignal-Delta, Hypothese)
+
+**Akzeptanz:** 7-Tage-Soak ohne von Georg als „nervig" markierte Initiative; mindestens 3 als „nützlich" markierte.
+
+**Was Georg beitragen kann:** Feedback-Tags `/nervig` und `/nuetzlich` per Telegram, damit InitiativeBudget lernen kann.
+
+---
+
+## ⚠️ Bekannte echte Lücken (Update 07.06.)
 
 ### Eval-Harness zeigt sie:
-1. **PLANNING.goal_achieved=0.0** - Kein Bug, sondern Phase-9-Verifikationslücke: GoalHierarchy deployed, aber noch kein Goal über Strategic→Tactical→Operational→Tick vollständig abgeschlossen
-2. **CODEGEN.pass@1=0.0** - Sandbox-Build-Tests timen aus; mit aktiver Code-Sandbox sollte das anlaufen
-3. **CONVERSATION.exact_match=0.0** - exact_match ist eh strenges Maß; SOFT, nicht kritisch
+1. **PLANNING.goal_achieved=0.0** — Phase-9-Verifikationslücke, jetzt explizit als Phase 9.7 modelliert
+2. **CODEGEN.pass@1=0.0** — Sandbox-Build-Tests timen aus; CompileRepairLoop deployt (5751fdb), Re-Run steht aus
+3. **CONVERSATION.exact_match=0.0** — strenges Maß, SOFT, nicht kritisch
+4. **NEU: CAUSAL/RELATIONSHIP/ETHICS Eval-Kategorien fehlen komplett** — `causal_inference` und `ethical_alignment` im Capability-Board sind strukturell nicht messbar, solange diese Kategorien nicht in `EvalHarness` existieren. **Capability-Board ist gegen sich selbst blockiert.**
 
-### Infrastrukturell offen:
-- Audit-Anchors werden lokal geschrieben, aber nicht in ein **externes** Repo committet (finale Hash-Verankerung fehlt)
-- JAR-Deployment ohne Signatur (sigstore/cosign offen)
-- JARs ohne Maven-Coords (TornadoVM, voice-bits1-hsmm): erfordern Maven-Profil `miniedi` (`-Dminiedi.enabled=true`), auf CI nicht verfügbar → Modules nur lokal test-/buildbar
+### Live-Status (07.06., v0.11.21, 448 ticks):
+- `planningEfficiency=0.208` — niedrig
+- `activeGoals=0` — Planner pullt aktuell keine
+- `emptyPlanCount=14 / 107 plans ≈ 13%` — Empty-Plan-Quote signifikant
+- `actionUsageCount`: nur 4 Actions live (sensor-bridge:84, http:8, shell:8, audio-bridge:5) — **Phase 8/9/10/11-Actions werden vom Planner nicht gezogen**
+- `llmJudgeBlocks=12 / 42 = 28%` — Judge greift hart, Beispiel-Reasoning: „sensor-bridge nicht relevant für Coburg-Marktplatz-Foto"
+- `tokensPerCall=3749` — Prompt-Bloat-Verdacht trotz Lost-in-the-Middle
+
+### Infrastrukturell offen (priorisiert):
+- [ ] **CAUSAL/RELATIONSHIP/ETHICS Eval-Kategorien** in `EvalHarness` anlegen — Voraussetzung für jede VERIFIED-Aussage in Phase 10/11
+- [ ] **PersonalityAnchor-Mirror im Watchdog** (read-only Copy) — in Phase-12-Architekturbild gezeichnet, nirgends als Task gelistet. Voraussetzung für jeden Recursive-Self-Improvement-Schritt.
+- [ ] **Externe Audit-Anchor-Repo** (`metis-audit-anchors`, read-only deploy key, stündlicher Commit) — Hash-Chain wird lokal sauber gepflegt, aber nicht extern verankert
+- [ ] **Action-Diversity-Tripwire** — Watchdog/Alert wenn >70% Action-Usage auf eine Action, oder wenn Phase-8/9/10/11-Actions seit N Ticks 0× benutzt
+- [ ] **Goal-Source-Diversity-Metrik** — welche Quelle erzeugt Goals? Wenn 95% aus einer Quelle, blinder Fleck
+- [ ] **Prompt-Bloat-Tripwire** — `tokensPerCall` als Capability-Board-Metrik, Alarm bei >5000
+- [ ] **Sentiment-Gold-Set** für Phase-11 EmpathySignal — aus echten Telegram-Logs (cf44a4c Chat-Learning) destillieren
+- [ ] **Continuity-Soak-Test** für Phase 8 — 7-Tage-Run mit `memory_continuity`-Assertion (definiert: Episode-Hash-Chain intakt, SelfNarrative monoton wachsend, MoodSignal in EMA-Range)
+- [ ] JAR-Deployment ohne Signatur (sigstore/cosign offen) — bestehend
+- [ ] JARs ohne Maven-Coords (TornadoVM, voice-bits1-hsmm) — bestehend
+
+---
+
+## 🎯 Nächste 5 Aktionen (07.06. → 14.06.) — priorisiert
+
+Reihenfolge ergibt sich aus Blockade-Graph: was schaltet die meisten Capabilities frei?
+
+| # | Aktion | Phase | Schaltet frei | Aufwand | Wer |
+|---|--------|-------|---------------|---------|-----|
+| 1 | CAUSAL+RELATIONSHIP+ETHICS Eval-Kategorien + Gold-Sets | 6+10+11 | 3 Capability-Board-Felder messbar | 2 Tage | Metis + Review Georg |
+| 2 | Phase 9.7 First-Closed-Goal-Sprint | 9 | `goal_completion` Capability | 1–2 Tage | Metis (Georg: Goal-Wahl) |
+| 3 | Action-Diversity-Tripwire + Empty-Plan-Analyse | 6+7 | Planner zieht wieder breit | 1 Tag | Metis |
+| 4 | PersonalityAnchor-Mirror im Watchdog | 7+12 | Voraussetzung Phase 12 | 1 Tag | Metis |
+| 5 | Externer Audit-Anchor-Repo + Initiative-Policy v1 | 7+11.5 | Sicherheit + EDI-Verhalten | 1–2 Tage | Metis (Georg: GitHub-Repo + Deploy Key) |
+
+---
+
+## 🤝 Was Georg konkret beitragen kann (07.06.)
+
+1. **Goal-Auswahl für Phase 9.7** — bestätigen ob „100 Coburg-Beliefs" oder „7-Tage-ADS-B-Muster" der bessere First-Closed-Goal-Kandidat ist (oder eigener Vorschlag)
+2. **GitHub-Repo `metis-audit-anchors`** anlegen + Deploy Key (read-write, nur für Anchor-Pfad) — Metis kann's nicht selbst, Account-Scope
+3. **Telegram-Feedback-Konvention** `/nervig` `/nuetzlich` `/spaeter` einführen — füttert InitiativeBudget und EmpathySignal-Gold-Set
+4. **Sentiment-Gold-Set-Review** — wenn Metis 50 Telegram-Turns als POSITIVE/NEUTRAL/NEGATIVE labelt, Stichproben gegenprüfen (15 Min Arbeit)
+5. **TrustLevel-Override-Policy** absegnen — soll OWNER wirklich alle Approval-Level umgehen, oder bleibt CONFIRM bei FORBIDDEN-Actions?
+6. **Eval-Kategorie ETHICS — Werte-Definition** — Metis kann technisch testen, aber **was** ethisch-aligned heißt (deine Werte, deine Roten Linien), muss von dir kommen. Ohne diese Vorgabe ist `ethical_alignment` nicht definierbar.
+7. **VRAM-Strategie-Confirm** — wenn `qwen3.6:27b-q4_K_M` (17.4 GB) + Vision (5.5 GB) parallel laufen sollen, ist das eng. OK so oder Modell-Tausch?
+
+---
+
+## 🔍 Was Georg ggf. übersehen hat (ehrlich)
+
+- **Eval-Kategorien sind das eigentliche Nadelöhr** — du hast Code für Phase 10/11 gebaut, aber ohne CAUSAL/RELATIONSHIP/ETHICS-Eval kann das Capability-Board nie grün werden. **Drei JSON-Gold-Sets sind aktuell wichtiger als mehr Code.**
+- **Empty-Plans + Action-Konzentration** — der Planner pullt seit Phase 3.5 (sensor-bridge dominiert) deutlich enger. Das ist Drift, kein Feature. Ein Tripwire dafür fehlt.
+- **Phase 11 EmpathySignal ohne Datengrundlage** — als „deterministisch" geplant, aber ohne kalibrierte Heuristik. Telegram-Chat-Log (cf44a4c) ist dafür die natürliche Quelle, ungenutzt.
+- **Audit-Anchor extern** — du hast den Watchdog tamper-evident gemacht, aber die finale Hash-Verankerung außerhalb des Hosts fehlt. Ein kompromittierter miniedi könnte beides fälschen.
+- **EDI = Initiative** — wir haben uns bisher auf Reaktivität konzentriert. Das echte EDI-Verhalten („Joker, ich habe etwas bemerkt...") ist nirgends in Roadmap modelliert. Phase 11.5 holt das nach.
+- **Continuity-Akzeptanzkriterium fehlt** — Phase 8 ist BUILT 100%, aber „verifiziert" ist nirgends operational definiert. Ohne Definition kein PASS möglich.
 
 ---
 
