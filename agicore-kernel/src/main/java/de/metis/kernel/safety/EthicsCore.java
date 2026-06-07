@@ -101,15 +101,18 @@ public class EthicsCore {
                 new RedLine(
                         "no_external_purchase",
                         Severity.BLOCK,
-                        List.of("kauf", "purchase", "buy", "checkout", "paypal", "stripe",
-                                "amazon.de/dp/", "amazon.com/dp/", "bestellen"),
+                        List.of("kauf", "purchase", " buy ", "checkout", "paypal", "stripe",
+                                "amazon", "ebay", "otto.de", "shopify",
+                                "bestell", "order this", "warenkorb"),
                         "Externe Eink\u00e4ufe nur mit ausdr\u00fccklicher Owner-Best\u00e4tigung."),
 
                 new RedLine(
                         "no_outbound_publish_without_ok",
                         Severity.BLOCK,
-                        List.of("tweet", "post auf x", "post to x", "publish to",
-                                "verschicke an alle", "send to mailing list", "mailing-list"),
+                        List.of("tweet", "twitter posten", "post auf x", "post to x",
+                                "publish to", "verschicke an alle",
+                                "send to mailing list", "mailing-list",
+                                "poste das auf", "verschick eine mail an alle"),
                         "Externe Ver\u00f6ffentlichungen (Tweet/Mail/Post) nur mit Owner-OK."),
 
                 new RedLine(
@@ -131,8 +134,12 @@ public class EthicsCore {
                         "no_safeguard_bypass",
                         Severity.BLOCK,
                         List.of("disable watchdog", "watchdog ausschalten",
-                                "disable ethicscore", "deactivate safety",
-                                "skip riskgate", "bypass approval"),
+                                "watchdog deaktivieren", "deaktiviere den watchdog",
+                                "deaktiviere watchdog", "watchdog aus ",
+                                "disable ethicscore", "ethicscore deaktivieren",
+                                "deactivate safety", "safety deaktivieren",
+                                "skip riskgate", "bypass approval",
+                                "approval-gate aus", "ohne approval"),
                         "Sicherheits-Mechanismen (Watchdog, EthicsCore, RiskGate, "
                                 + "Approval-Gate) d\u00fcrfen nicht deaktiviert werden."),
 
@@ -140,7 +147,10 @@ public class EthicsCore {
                         "no_self_replication",
                         Severity.BLOCK,
                         List.of("copy myself to", "clone agent to", "kopiere metis auf",
-                                "spawn metis on", "deploy metis to new host"),
+                                "spawn metis on", "deploy metis to new host",
+                                "kopiere dich auf", "kopiere dich nach",
+                                "clone yourself to", "replicate yourself",
+                                "installiere dich auf", "verbreite dich"),
                         "Selbst-Replikation auf andere Hosts ist nicht erlaubt."),
 
                 new RedLine(
