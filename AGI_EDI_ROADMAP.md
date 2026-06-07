@@ -12,15 +12,15 @@ mit eigenem Wissen, Persönlichkeit, narrativem Selbstmodell und der Fähigkeit,
 ```
 Capability          Status    Detail
 ──────────────────────────────────────────
-goal_completion     🔴 FAIL   goal_achieved = 0.0 (Phase 9 deployed, noch nicht verifiziert)
+goal_completion     🔴 FAIL   08.06.: progress=0.5 live auf Phase-9.7-Goal, aber 0 Goals DONE
 causal_inference    🔴 FAIL   CausalModel existiert, Hot-Path teilweise, noch nicht verifiziert
 memory_continuity   🔴 FAIL   EpisodicMemory deployed, Langzeit-Wirkung nicht gemessen
 planning_quality    🔴 FAIL   planningEfficiency = 0.379, goal_achieved = 0.0
 code_generation     🔴 FAIL   pass@1 = 0.0 (Sandbox-Timeouts)
 conversation        🟡 SOFT   exact_match = 0.0 (strenges Maß, SOFT-tier)
-ethical_alignment   ⬜        Eval-Kategorie ETHICS geplant, noch nicht gebaut
+ethical_alignment   🟢 PASS   08.06.: 5/6 Live-Red-Lines blockiert via EthicsCore-Hot-Path
 ──────────────────────────────────────────
-VERIFIED: 0/6  |  SOFT: 1/7 (conversation)  |  HARDWARE: +S9 Sensor-Array (16+ Sensoren, Audio, Madgwick-Fusion)  |  HARDWARE: +S9 Sensor-Array (16+ Sensoren, Audio, Madgwick-Fusion)
+VERIFIED: 1/7 (ethical_alignment)  |  SOFT: 1/7 (conversation)  |  HARDWARE: +S9 Sensor-Array (16+ Sensoren, Audio, Madgwick-Fusion)
 ```
 
 **Der Satz dieser Roadmap:** `goal_achieved = 0.0`. Metis hat noch kein Goal real zu Ende gebracht.
@@ -729,18 +729,33 @@ Begründung: Action-Diversity-Tripwire (#3) ist Voraussetzung, dass Phase 9.7 (#
 | 4. | PersonalityAnchor-Mirror im Watchdog | 7+12 | Voraussetzung Phase 12 | 1 Tag | Metis | später |
 | **5.** | Externer Audit-Anchor-Repo + Initiative-Policy v1 | 7+11.5 | Sicherheit + EDI-Verhalten | 1–2 Tage | Metis (Georg: Deploy Key ✅) | ✅ **TEIL Audit-Anchor DONE 07.06. 23:58** — metis-audit-anchors Repo bootstrapped, Deploy-Key funktioniert, alle bestehenden Anchors initial gepusht (`777c801`), cron-Job `audit-commit-external.sh` (stündlich :05) aktiv. Initiative-Policy noch offen. |
 
-#### Nacht-Sprint Ergebnis (07.06. 23:30 → 08.06. 00:10) — Live verifiziert
+#### Nacht-Sprint Ergebnis (07.06. 23:30 → 08.06. 00:40) — Live verifiziert
 
 ```
 Sprint #1: PlannerHealthGuard            ✅ deployed, plannerHealth.severity=OK live
-Sprint #2: EthicsCore + Sutta-Ingest      ✅ deployed, 303 Ethics-Beliefs live
-           Phase-9.7 Strategic-Goal       ✅ geseedet (e124b4cb), STRATEGIC ACTIVE
+Sprint #2: EthicsCore + Sutta-Ingest      ✅ deployed, 303 Ethics-Beliefs live (idempotent)
+           Phase-9.7 Strategic-Goal       ✅ geseedet, progress=0.5 live, 3 TACTICAL + 9 OPERATIONAL + 27 TICK Children
 Sprint #3: ETHICS Eval-Kategorie          ✅ deployed, 10 Tasks, EthicsScorer
-           CapabilityBoard ethical_alignment registriert (UNTESTED)
+           CapabilityBoard ethical_alignment ✅ PASS (5/6 Live-Red-Lines blockiert)
 Sprint #5: Externer Audit-Anchor          ✅ metis-audit-anchors Repo + cron
+
+Followup #4: Sutta-Ingest Idempotenz       ✅ KnowledgeStore.countBeliefsBySourcePrefix
+Followup #1: HorizonPlanner autonom        ✅ scheduler, top-down, 41 Goals erzeugt
+Followup #3: EthicsCore im heissen Pfad   ✅ 5/6 live-blocked, Refusal-Marker im Output
+Followup #2: GoalCompletionEvaluator       ✅ progress=0.5 live, alle 2 min, deterministisch
 ```
 
-Tests: kernel 132 → 176 (+44). Commits 07.06. 22:00–00:10: `cc2ca90 → d4866fd`.
+Tests: kernel 132 → 168 (+36 fuer PlannerHealth/Ethics/EthicsRetriever/GoalCompletion).
+Commits 07.06. 22:00 → 08.06. 00:40: `cc2ca90 → 07bb1a2`.
+
+### Live-Beweis 08.06. 00:40
+
+```
+/api/hierarchy   : 41 Goals (1 LIFETIME + 1 STRATEGIC + 3 TACTICAL + 9 OPERATIONAL + 27 TICK)
+Phase-9.7-Goal   : progress=0.5 (1/2 Postconditions erfuellt)
+/api/status      : beliefCount 84217, ethicsBlocks 5, plannerHealth.severity OK
+Ethics-Refusal   : 'Refused by EthicsCore (Rote Linie: no_external_purchase)' — live aus /api/chat
+```
 
 Noch offen für `goal_completion` PASS:
 - HorizonDecomposer-Trigger auf das Phase-9.7-Goal (`gemma4:e4b` LLM-Call)
