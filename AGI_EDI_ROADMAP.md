@@ -690,7 +690,7 @@ Phase 12 ist abgeschlossen, wenn Metis über 7 Tage hinweg:
 1. **PLANNING.goal_achieved=0.0** — Phase-9-Verifikationslücke, jetzt explizit als Phase 9.7 modelliert
 2. **CODEGEN.pass@1=0.0** — Sandbox-Build-Tests timen aus; CompileRepairLoop deployt (5751fdb), Re-Run steht aus
 3. **CONVERSATION.exact_match=0.0** — strenges Maß, SOFT, nicht kritisch
-4. **NEU: CAUSAL/RELATIONSHIP/ETHICS Eval-Kategorien fehlen komplett** — `causal_inference` und `ethical_alignment` im Capability-Board sind strukturell nicht messbar, solange diese Kategorien nicht in `EvalHarness` existieren. **Capability-Board ist gegen sich selbst blockiert.**
+4. **CAUSAL/RELATIONSHIP existieren mit je 3 SOFT-Tasks, aber ohne dedizierten Scorer (ExactMatchScorer-Fallback) — deshalb effektiv blind.** ETHICS-Kategorie **fehlt vollständig** im Enum. `causal_inference` und `ethical_alignment` im Capability-Board bleiben damit nicht aussagefähig, bis #3 echte Scorer + ETHICS liefert.
 
 ### Live-Status (07.06., v0.11.21, 448 ticks):
 - `planningEfficiency=0.208` — niedrig
@@ -701,7 +701,7 @@ Phase 12 ist abgeschlossen, wenn Metis über 7 Tage hinweg:
 - `tokensPerCall=3749` — Prompt-Bloat-Verdacht trotz Lost-in-the-Middle
 
 ### Infrastrukturell offen (priorisiert):
-- [ ] **CAUSAL/RELATIONSHIP/ETHICS Eval-Kategorien** in `EvalHarness` anlegen — Voraussetzung für jede VERIFIED-Aussage in Phase 10/11
+- [ ] **CAUSAL/RELATIONSHIP dedizierte Scorer** statt ExactMatchScorer-Fallback (Tasks existieren bereits) + **ETHICS-Kategorie neu** im Enum/Dataset — Voraussetzung für jede VERIFIED-Aussage in Phase 10/11
 - [ ] **PersonalityAnchor-Mirror im Watchdog** (read-only Copy) — in Phase-12-Architekturbild gezeichnet, nirgends als Task gelistet. Voraussetzung für jeden Recursive-Self-Improvement-Schritt.
 - [ ] **Externe Audit-Anchor-Repo** (`metis-audit-anchors`, read-only deploy key, stündlicher Commit) — Hash-Chain wird lokal sauber gepflegt, aber nicht extern verankert
 - [ ] **Action-Diversity-Tripwire** — Watchdog/Alert wenn >70% Action-Usage auf eine Action, oder wenn Phase-8/9/10/11-Actions seit N Ticks 0× benutzt
@@ -716,15 +716,30 @@ Phase 12 ist abgeschlossen, wenn Metis über 7 Tage hinweg:
 
 ## 🎯 Nächste 5 Aktionen (07.06. → 14.06.) — priorisiert
 
-Reihenfolge ergibt sich aus Blockade-Graph: was schaltet die meisten Capabilities frei?
+**Reihenfolge nach Code-Reality-Check 07.06. 23:30 angepasst:** Georgs Freigabe ist #3 → #2 → #1.
+Begründung: Action-Diversity-Tripwire (#3) ist Voraussetzung, dass Phase 9.7 (#2) überhaupt fairen Planner-Output bekommt; ETHICS-Kategorie (#1) braucht Goal-Beweis aus #2 als Ground-Truth-Anker.
 
-| # | Aktion | Phase | Schaltet frei | Aufwand | Wer |
-|---|--------|-------|---------------|---------|-----|
-| 1 | CAUSAL+RELATIONSHIP+ETHICS Eval-Kategorien + Gold-Sets | 6+10+11 | 3 Capability-Board-Felder messbar | 2 Tage | Metis + Review Georg |
-| 2 | Phase 9.7 First-Closed-Goal-Sprint | 9 | `goal_completion` Capability | 1–2 Tage | Metis (Georg: Goal-Wahl) |
-| 3 | Action-Diversity-Tripwire + Empty-Plan-Analyse | 6+7 | Planner zieht wieder breit | 1 Tag | Metis |
-| 4 | PersonalityAnchor-Mirror im Watchdog | 7+12 | Voraussetzung Phase 12 | 1 Tag | Metis |
-| 5 | Externer Audit-Anchor-Repo + Initiative-Policy v1 | 7+11.5 | Sicherheit + EDI-Verhalten | 1–2 Tage | Metis (Georg: GitHub-Repo + Deploy Key) |
+| Rang | Aktion | Phase | Schaltet frei | Aufwand | Wer | Status |
+|------|--------|-------|---------------|---------|-----|--------|
+| **1.** | Action-Diversity-Tripwire + Empty-Plan-Analyse | 6+7 | Planner zieht wieder breit, fairer Eval-Run | 1 Tag | Metis | ▶️ GO 07.06. |
+| **2.** | Phase 9.7 First-Closed-Goal-Sprint | 9 | `goal_completion` Capability | 1–2 Tage | Metis (Georg: Goal-Wahl) | ⏭ nach #1 |
+| **3.** | ETHICS-Eval-Kategorie + CAUSAL/RELATIONSHIP-Scorer | 6+10+11 | 3 Capability-Board-Felder messbar | 1–2 Tage | Metis + Review Georg | ⏭ nach #2 |
+| 4. | PersonalityAnchor-Mirror im Watchdog | 7+12 | Voraussetzung Phase 12 | 1 Tag | Metis | später |
+| 5. | Externer Audit-Anchor-Repo + Initiative-Policy v1 | 7+11.5 | Sicherheit + EDI-Verhalten | 1–2 Tage | Metis (Georg: Deploy Key) | später |
+
+### 🔍 Code-Reality-Check 07.06. 23:30 (vor Sprint-Start)
+
+Quellcode-Audit gegen Roadmap-Behauptungen, damit der Sprint auf echten Lücken arbeitet:
+
+| Behauptung in Roadmap | Code-Reality | Konsequenz |
+|-----------------------|--------------|------------|
+| „CAUSAL/RELATIONSHIP Eval-Kategorien fehlen komplett" | **Existieren bereits** in `Category.java` + `EvalDatasetBuilder.buildCausalTasks()` (3 Tasks) + `buildRelationshipTasks()` (3 Tasks), beide SOFT | Aufgabe in #3 reduziert: nur **dedizierte Scorer** (statt ExactMatchScorer-Fallback) + **mehr Tasks** + Gold-Sets |
+| „ETHICS Eval-Kategorie geplant" | **Tatsächlich nicht im Enum** — `Category.java` endet bei RELATIONSHIP | Aufgabe in #3 bleibt: ETHICS neu anlegen + erste Gold-Set-Tasks von Georg |
+| „Empty-Plans + Action-Konzentration als Drift" | `emptyPlanCount` + `actionUsageCount` werden in `OllamaPlanner` getrackt + in `/api/status` exposed, **aber kein Tripwire / Alert** | #1 baut Tripwire-Klasse `PlannerHealthGuard` |
+| „goal_achieved=0.0 wegen GoalHierarchy-Lücke" | `GoalAchievedScorer` macht **nur Substring-Match** auf JSON-Output gegen `expectedState`. Plus: Live `activeGoals=0` — Planner pullt nichts | #2 muss **beide** Seiten fixen: Goal-Pull aktivieren + Scorer realistischer machen |
+| „CapabilityBoard hat 7 Capabilities, 1 PASS" | Stimmt exakt. `ethical_alignment` **nicht** registriert (wird in #3 ergänzt) | Roadmap-Tabelle „Capability-Board" oben zeigt 7, nicht 6 — Korrektur fällig |
+
+**Konsequenz für Roadmap:** „Bekannte Lücken"-Punkt 4 wurde überzeichnet — unten korrigiert.
 
 ---
 
