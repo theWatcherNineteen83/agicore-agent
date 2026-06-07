@@ -1009,6 +1009,43 @@ public final class AgentMain {
         agent.worldModel().setKnowledgeStore(knowledgeStore);
         agent.worldModel().loadFromStore();
 
+        // ── Phase 11.5 (Sprint #2, 07.06.): Ethik-Kern aufbauen ─────
+        // Sutta-Ingest: Markdown-Quellen unter ${metis.suttas.dir} oder
+        // /home/prometheus/wissen/buddhismus laden. Source-Tag-Prefix
+        // "ethics:" macht sie für EthicsRetriever/EthicsScorer auffindbar.
+        try {
+            String suttaDirProp = System.getProperty("metis.suttas.dir",
+                    "/home/prometheus/wissen/buddhismus");
+            Path suttaDir = Path.of(suttaDirProp);
+            if (java.nio.file.Files.isDirectory(suttaDir)) {
+                var suttaIngest = new de.metis.modules.knowledge.SuttaIngestionService(
+                        knowledgeStore, suttaDir);
+                var ingestResult = suttaIngest.ingest();
+                LOG.info("Phase 11.5 Sutta-Ingest: " + ingestResult.summary()
+                        + " details=" + ingestResult.details());
+            } else {
+                LOG.info("Phase 11.5 Sutta-Ingest skipped: " + suttaDir
+                        + " (kein Verzeichnis)");
+            }
+        } catch (Exception e) {
+            LOG.warning("Phase 11.5 Sutta-Ingest failed: " + e.getMessage());
+        }
+
+        // EthicsCore + EthicsRetriever instanziieren (kernelweite Singletons,
+        // SystemPromptBuilder/EthicsScorer/SafetyGuard können später andocken).
+        var ethicsCore = new de.metis.kernel.safety.EthicsCore();
+        var ethicsRetriever = new de.metis.kernel.safety.EthicsRetriever(
+                () -> {
+                    try {
+                        return knowledgeStore.loadBeliefs();
+                    } catch (Exception ex) {
+                        return java.util.List.of();
+                    }
+                });
+        LOG.info("Phase 11.5 EthicsCore wired — redLines="
+                + ethicsCore.redLines().size()
+                + " ethicsBeliefs=" + ethicsRetriever.count());
+
         // Embedding: Ollama nomic-embed-text CPU-only (num_gpu=0, circuit-tolerant)
         // JLama multi-model embedding targeted for JLama >= 0.9.x
         var ollamaEmbedSvc = new OllamaEmbeddingService();
@@ -1276,6 +1313,31 @@ public final class AgentMain {
                     100, "metis",
                     java.util.List.of("lifetime", "edi")));
             LOG.info("GoalHierarchy: seeded lifetime goal");
+        }
+
+        // ── Phase 9.7 (Sprint #2, 07.06.): First-Closed-Goal-Seed ───
+        // Strategic-Goal, das den vollen Pfad Strategic→Tactical→Operational
+        // →Tick→DONE durchlaufen soll. Idempotent über Tag-Filter, damit
+        // Re-Boots nicht duplizieren.
+        boolean phase97AlreadySeeded = goalHierarchy.all().stream()
+                .anyMatch(g -> g.tags() != null && g.tags().contains("phase-9.7"));
+        if (!phase97AlreadySeeded) {
+            goalHierarchy.upsert(new LongHorizonGoal(
+                    null,
+                    "Lerne 100 verifizierte Beliefs über Coburg/Heldburg "
+                            + "und etabliere die 3 Suttas als Ethik-Kern",
+                    "Sprint #2 (Phase 9.7) First-Closed-Goal-Beweis. "
+                            + "Akzeptanz: progress=1.0 bei ≥3 TACTICAL + ≥5 OPERATIONAL "
+                            + "Sub-Goals, EthicsRetriever.count() ≥ 50, "
+                            + "Coburg-Beliefs ≥ 100 in knowledgeStore.",
+                    GoalHorizon.STRATEGIC,
+                    LongHorizonGoal.Status.ACTIVE,
+                    null, java.util.List.of(),
+                    null, null, null, null, 0.0,
+                    95, "metis",
+                    java.util.List.of("phase-9.7", "first-closed-goal",
+                            "coburg", "ethics")));
+            LOG.info("GoalHierarchy: seeded Phase-9.7 First-Closed-Goal");
         }
 
         // Periodic revision every 30 min — auto-blocks overdue, auto-completes,
