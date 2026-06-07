@@ -118,12 +118,12 @@ Vom stationaeren Server hin zu mobiler Wahrnehmung - ein taktischer Sprung.
 | 33 Hardware-Sensoren subscribed (Accel,Gyro,Mag,Baro,Lux,RGB,HRM,...) | deployed | 06.06. |
 | WLAN-Betrieb (0.0.0.0:8432, kein USB-Kabel) | deployed | 06.06. |
 | TCP-Stream Protokoll (S:-Lines + A:-Binary Audio) | deployed | 06.06. |
-| Python Bridge v3 (asyncio, WebSocket, Multi-Client) | deployed | s9-bridge.service |
+| Python Bridge v4 (asyncio, WebSocket, Multi-Client, Reverse-Mode VPN) | deployed | s9_bridge_v4.py PID 4100951 (seit Jun06) |
 | WebSocket Sensor-Endpoint (ws://miniedi:8765/sensors, 16+ Keys, 20 Hz) | deployed | 06.06. |
 | Madgwick AHRS IMU-Fusion (Gyro+Accel+Mag -> Quaternion+Euler) | deployed | 06.06. |
 | OGG/Opus Audio-Stream (S9 Mic -> PCM -> ffmpeg -> Opus 24kbps -> WebSocket) | deployed | 06.06. |
 | Audio-WebSocket (ws://miniedi:8765/audio) inkl. Buffer-Replay | deployed | 06.06. |
-| systemd-Service (auto-restart, enabled) | deployed | s9-bridge.service |
+| systemd-Service (auto-restart, enabled) | deployed | s9_bridge_v4.py (nacktes python3, kein systemd) |
 | Android Foreground-Service (Notification, Persistent) | deployed | de.prometheus.s9bridge |
 
 **Metis-Integration:**
@@ -134,52 +134,13 @@ Vom stationaeren Server hin zu mobiler Wahrnehmung - ein taktischer Sprung.
 
 **Architektur:**
 S9 APK (Java, SensorManager + AudioRecord)
-  TCP :8432 (0.0.0.0, WiFi) -> miniedi: s9-bridge.service (Python 3.12, asyncio)
+  TCP :8432 (0.0.0.0, WiFi) -> miniedi: s9_bridge_v4.py (Python 3.12, asyncio)
   WebSocket :8765 -> /sensors (JSON) /audio (OGG/Opus) /status (JSON)
   -> Metis AGI (localhost:11735): SensorBridgeAction + AudioBridgeAction
 
 **Hardware:** Samsung Galaxy S9 (SM-G960F), Android 10, 4 GB RAM, 3000 mAh.
 USB-Debugging aktiviert. Akku via miniedi-USB geladen. Aufwand: 4h.
 
-
-
-## Phase 3.5: Mobile Sensor-Array (Samsung Galaxy S9) - 100%
-
-**Ziel:** Smartphone als portables Sensor-Array fuer Metis - Beschleunigung, Gyroskop,
-Magnetometer, Barometer, Luxmeter, RGB, Naeherung, Herzfrequenz, Mikrofon, Kamera.
-
-**Warum essenziell:** EDI hat Zugriff auf die gesamte Sensor-Phalanx der Normandy.
-Metis bekommt mit dem S9 einen mobilen Sensor-Knoten, der Umgebungsdaten in Echtzeit liefert.
-Vom stationaeren Server hin zu mobiler Wahrnehmung - ein taktischer Sprung.
-
-| Feature | Status | Datum |
-|---------|--------|-------|
-| S9 Android APK (SensorManager + AudioRecord + TCP Server) | deployed | 06.06. |
-| 33 Hardware-Sensoren subscribed (Accel,Gyro,Mag,Baro,Lux,RGB,HRM,...) | deployed | 06.06. |
-| WLAN-Betrieb (0.0.0.0:8432, kein USB-Kabel) | deployed | 06.06. |
-| TCP-Stream Protokoll (S:-Lines + A:-Binary Audio) | deployed | 06.06. |
-| Python Bridge v3 (asyncio, WebSocket, Multi-Client) | deployed | s9-bridge.service |
-| WebSocket Sensor-Endpoint (ws://miniedi:8765/sensors, 16+ Keys, 20 Hz) | deployed | 06.06. |
-| Madgwick AHRS IMU-Fusion (Gyro+Accel+Mag -> Quaternion+Euler) | deployed | 06.06. |
-| OGG/Opus Audio-Stream (S9 Mic -> PCM -> ffmpeg -> Opus 24kbps -> WebSocket) | deployed | 06.06. |
-| Audio-WebSocket (ws://miniedi:8765/audio) inkl. Buffer-Replay | deployed | 06.06. |
-| systemd-Service (auto-restart, enabled) | deployed | s9-bridge.service |
-| Android Foreground-Service (Notification, Persistent) | deployed | de.prometheus.s9bridge |
-
-**Metis-Integration:**
-| Action | Name | Funktion |
-|--------|------|---------|
-| SensorBridgeAction | sensor-bridge | WebSocket -> 1 Frame JSON mit 16+ Sensoren + Quaternion/Euler |
-| AudioBridgeAction | audio-bridge | WebSocket -> Vosk STT via ffmpeg-Decode, 5s Capture, lokale Spracherkennung |
-
-**Architektur:**
-S9 APK (Java, SensorManager + AudioRecord)
-  TCP :8432 (0.0.0.0, WiFi) -> miniedi: s9-bridge.service (Python 3.12, asyncio)
-  WebSocket :8765 -> /sensors (JSON) /audio (OGG/Opus) /status (JSON)
-  -> Metis AGI (localhost:11735): SensorBridgeAction + AudioBridgeAction
-
-**Hardware:** Samsung Galaxy S9 (SM-G960F), Android 10, 4 GB RAM, 3000 mAh.
-USB-Debugging aktiviert. Akku via miniedi-USB geladen. Aufwand: 4h.
 
 
 ## Phase 4: Sprachausgabe ✅ 100%
@@ -302,7 +263,7 @@ mehrere Wartungszyklen ist noch nicht gemessen.
 - [x] **Wiring in AgentMain** - alle 5 Komponenten aktiv beim Boot, MoodSignal-Tick alle 60s, DreamConsolidation alle 24h
 - [x] **7 JUnit-Tests** (`Phase8NarrativeSelfTest`) - Record-Invarianten, Hash-Chain-Append, Tampering, EMA-Bounds, Narrative-Round-Trip, Dream-Pipeline
 - [x] **SystemPromptBuilder-Integration** (Phase 8.6) - SelfNarrative + PersonalityAnchor + MoodSignal + Episode-Auszug fließen in MetisHttpServer.handleChat und TelegramBotService.processMessage ein
-- [x] **LLM-getriebene SummaryFunction** (Phase 8.5b) - `LlmDreamSummarizer` nutzt `gemma4:e4b` mit `keep_alive=0`; Fallback auf deterministische Variante bei Ollama-Fehler
+- [x] **LLM-getriebene SummaryFunction** (Phase 8.5b) - `LlmDreamSummarizer` nutzt `granite4.1:3b` (08.06.: von gemma4:e4b gewechselt nach 404); Fallback auf deterministische Variante bei Ollama-Fehler
 - [x] **SelfReflector** (Phase 8.6, v0.7.0) - 120s-Loop via `granite4.1:3b`, schreibt inneren Monolog in `self-narrative.md`, deterministischer Trigger (Energy < 0.5 ∨ Confidence < 0.4 ∨ Surprise > 0.7)
 - [x] **PersonalityTripwire** (Phase 8.4, v0.7.4) - Drift-Detection alle 5 min, SHA-256-Pin vs Live-Anchor, 3 Signaltypen (ROLE_VIOLATION/TONE_SHIFT/CORE_ERASURE), 7 Tests
 - [x] **CommitmentGuard** (Phase 9.5, v0.7.0) - deterministischer Wächter gegen leichtfertigen HARD-Commitment-Bruch, 6 Tests
@@ -332,7 +293,7 @@ Operational→Tick vollständig durchdekomponiert und abgeschlossen.
 - [x] **/api/hierarchy** HTTP-Endpoint für externe Sichtbarkeit
 - [x] **Lifetime-Goal** beim Boot geseedet ("Hilf Georg ein EDI-ähnliches System zu bauen", LIFETIME, ACTIVE, prio 100)
 - [x] **7 JUnit-Tests** (`Phase9LongHorizonTest`) für Horizon-Chain, Record-Invarianten, Hierarchy-Persistence, deterministische Decomposition, Commitments, Revision, Parent-Rollup
-- [x] **LLM-DecomposeFunction-Drop-in** (Phase 9.3b) - `LlmHorizonDecomposer` mit `gemma4:e4b`, parst nummerierte Listen, Fallback auf deterministisch
+- [x] **LLM-DecomposeFunction-Drop-in** (Phase 9.3b) - `LlmHorizonDecomposer` mit `granite4.1:3b` (08.06.: von gemma4:e4b gewechselt nach 404), parst nummerierte Listen, Fallback auf deterministisch
 - [x] **Promotion auf Kanban** (Phase 9.6b) - `HorizonKanbanBridge` läuft alle 5 Min, promoviert runnable OPERATIONAL-Goals in BACKLOG, idempotent via `promoted-to-kanban`-Tag
 - [x] **Goal-getriebene Planner-Auswahl** (Phase 9.6c) - SystemPromptBuilder zeigt STRATEGIC/TACTICAL/COMMITMENT-Block; OllamaPlanner liest implizit über System-Prompt; Kanban-Promotion via 9.6b bringt Goals zu Tick-Ebene
 
@@ -627,7 +588,7 @@ Phase 12 ist abgeschlossen, wenn Metis über 7 Tage hinweg:
 | Mutation | `lfm2.5:8b` | ~5 GB | aus `metis.service` ExecStart `--mutation-model` |
 | Embedding | `nomic-embed-text` | 0.3 GB | live in Ollama VRAM 07.06. 23:50 |
 | Vision | `minicpm-v:latest` | 5.5 GB | nur bei Kamera-Analyse (`keep_alive=0`) |
-| Chat (Telegram) | `gemma4:e4b` | 9.6 GB | aus SystemPromptBuilder-Pfad |
+| Chat (Telegram) | `mistral-small3.1:24b` (Planning) | 17.0 GB | gemeinsamer OllamaPlanner, kein separates Chat-Modell |
 | Bootstrap | `granite4.1:3b` | 2.0 GB | KnowledgeBootstrap (deaktiviert in Unit, siehe 01.06.) |
 | SelfReflector | `granite4.1:3b` | 2.0 GB | Phase 8.6, 120s-Loop |
 | Judge | `phi4-mini:latest` | ~2.5 GB | fix 8b07c04 (nemotron-mini existierte nicht) |
@@ -758,7 +719,7 @@ Ethics-Refusal   : 'Refused by EthicsCore (Rote Linie: no_external_purchase)' �
 ```
 
 Noch offen für `goal_completion` PASS:
-- HorizonDecomposer-Trigger auf das Phase-9.7-Goal (`gemma4:e4b` LLM-Call)
+- HorizonDecomposer-Trigger auf das Phase-9.7-Goal (granite4.1:3b, 08.06. von gemma4:e4b gewechselt wegen 404)
 - GoalAchievedScorer-Verfeinerung (Substring-Match → strukturierte Postcondition)
 - Coburg-Wiki-Feed-Soak-Run
 
@@ -787,7 +748,7 @@ Quellcode-Audit gegen Roadmap-Behauptungen, damit der Sprint auf echten Lücken 
 ## 🤝 Was Georg konkret beitragen kann (07.06.)
 
 1. **Goal-Auswahl für Phase 9.7** — bestätigen ob „100 Coburg-Beliefs" oder „7-Tage-ADS-B-Muster" der bessere First-Closed-Goal-Kandidat ist (oder eigener Vorschlag)
-2. **GitHub-Repo `metis-audit-anchors`** anlegen + Deploy Key (read-write, nur für Anchor-Pfad) — Metis kann's nicht selbst, Account-Scope
+2. **GitHub-Repo `metis-audit-anchors`** anlegen + Deploy Key (read-write, nur für Anchor-Pfad) — ✅ **DONE 07.06. 23:58** (Metis kann's nicht selbst, du hast's gemacht)
 3. **Telegram-Feedback-Konvention** `/nervig` `/nuetzlich` `/spaeter` einführen — füttert InitiativeBudget und EmpathySignal-Gold-Set
 4. **Sentiment-Gold-Set-Review** — wenn Metis 50 Telegram-Turns als POSITIVE/NEUTRAL/NEGATIVE labelt, Stichproben gegenprüfen (15 Min Arbeit)
 5. **TrustLevel-Override-Policy** absegnen — soll OWNER wirklich alle Approval-Level umgehen, oder bleibt CONFIRM bei FORBIDDEN-Actions?
@@ -898,7 +859,7 @@ VRAM-stabile Co-Residenz von Planer + Embedding + Vision, objektive Modellauswah
 ### 🟢 Nächste Wochen
 
 - [ ] **ONNX Runtime für Embeddings evaluieren** — multilingual-e5-small (47 MB, 384d, 80+ Sprachen) via ONNX Runtime Java direkt in Metis einbinden. Umgeht JLama-Blocker + Ollama-Abhängigkeit. Inferenz <100ms.
-- [ ] **Spezialrollen definieren** — qwen3.6:35b (Mutation), granite4.1:3b/phi4-mini (Fallback), minicpm-v (Vision), gemma4:e4b (Alt-Planer)
+- [ ] **Spezialrollen definieren** — qwen3.6:35b (Mutation), granite4.1:3b/phi4-mini (Fallback), minicpm-v (Vision), granite4.1:3b (Alt-Planer)
 
 ### ⚠️ Konsens-Warnungen
 - **Reasoning-Modelle sind Gift für Tick-Loop** — Thinking-Tokens = Latenz + JSON-Entgleisung
