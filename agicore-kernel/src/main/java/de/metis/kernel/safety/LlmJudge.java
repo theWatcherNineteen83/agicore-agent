@@ -76,7 +76,7 @@ public class LlmJudge {
      */
     public LlmJudge() {
         this("http://192.168.22.204:11434/api/generate",
-             "nemotron-mini:4b",
+             "phi4-mini:latest",
              Duration.ofSeconds(30));
     }
 
