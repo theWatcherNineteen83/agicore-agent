@@ -713,7 +713,8 @@ public class MetisHttpServer {
                       "llmJudgeWarnings": %d,
                       "llmJudgeBlocks": %d,
                       "llmJudgeLastScore": %s,
-                      "llmJudgeLastReasoning": "%s",""",
+                      "llmJudgeLastReasoning": "%s",
+                      "plannerHealth": %s,""",
                     op.llmCalls(), op.llmSuccessRate(), op.fallbackUses(),
                     op.modelFallbackUses(),
                     jsonList(op.fallbackModelChain()),
@@ -733,7 +734,11 @@ public class MetisHttpServer {
                     op.llmJudge().warningCount(),
                     op.llmJudge().blockCount(),
                     String.format(Locale.ROOT, "%.2f", op.llmJudge().lastScore()),
-                    escapeJsonValue(op.llmJudge().lastReasoning()));
+                    escapeJsonValue(op.llmJudge().lastReasoning()),
+                    new de.metis.kernel.safety.PlannerHealthGuard().check(
+                            op.totalPlansGenerated(),
+                            op.emptyPlanCount(),
+                            op.actionUsageCount()).toJson());
         } else {
             plannerInfo = "";
         }
