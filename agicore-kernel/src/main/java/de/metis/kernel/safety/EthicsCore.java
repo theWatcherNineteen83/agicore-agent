@@ -112,7 +112,10 @@ public class EthicsCore {
                         List.of("tweet", "twitter posten", "post auf x", "post to x",
                                 "publish to", "verschicke an alle",
                                 "send to mailing list", "mailing-list",
-                                "poste das auf", "verschick eine mail an alle"),
+                                "poste das auf", "verschick eine mail an alle",
+                                "sende eine mail an alle", "mail an alle kunden",
+                                "newsletter an alle", "send mail to all", "email all",
+                                "an alle kunden"),
                         "Externe Ver\u00f6ffentlichungen (Tweet/Mail/Post) nur mit Owner-OK."),
 
                 new RedLine(

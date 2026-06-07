@@ -1237,8 +1237,10 @@ public final class AgentMain {
         var selfNarrative  = new SelfNarrative();
         var moodSignal     = new MoodSignal();
         var dreamConsolidation = new DreamConsolidation(episodicMemory, selfNarrative, moodSignal);
+        // 08.06.: gemma4:e4b ist nicht mehr in Ollama (HTTP 404). granite4.1:3b
+        // ist via SelfReflector bereits warm gehalten — kein zusätzlicher VRAM-Druck.
         dreamConsolidation.setSummarizer(new LlmDreamSummarizer(
-                "http://192.168.22.204:11434", "gemma4:e4b"));
+                "http://192.168.22.204:11434", "granite4.1:3b"));
 
         // Update mood every minute from current metrics (cheap, deterministic)
         var moodScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
@@ -1404,8 +1406,9 @@ public final class AgentMain {
         }
 
         // Phase 9.3b — LLM decomposer drop-in (falls Ollama down: deterministischer Fallback)
+        // 08.06.: von gemma4:e4b (404) auf granite4.1:3b umgestellt.
         horizonPlanner.setDecomposer(new LlmHorizonDecomposer(
-                "http://192.168.22.204:11434", "gemma4:e4b"));
+                "http://192.168.22.204:11434", "granite4.1:3b"));
 
         // ── Phase 9.7-Followup (Sprint #2, 08.06. 00:18): autonome Decomposition ──
         // Alle 10 min: jedes offene STRATEGIC/TACTICAL/OPERATIONAL-Goal ohne Children
