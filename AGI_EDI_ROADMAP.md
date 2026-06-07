@@ -724,12 +724,36 @@ Begründung: Action-Diversity-Tripwire (#3) ist Voraussetzung, dass Phase 9.7 (#
 | Rang | Aktion | Phase | Schaltet frei | Aufwand | Wer | Status |
 |------|--------|-------|---------------|---------|-----|--------|
 | **1.** | Action-Diversity-Tripwire + Empty-Plan-Analyse | 6+7 | Planner zieht wieder breit, fairer Eval-Run | 1 Tag | Metis | ✅ **DONE 07.06. 23:43** — PlannerHealthGuard, 11 Tests, deployed auf miniedi, `plannerHealth`-Block live in /api/status |
-| **2.** | Phase 9.7 First-Closed-Goal-Sprint | 9 | `goal_completion` Capability | 1–2 Tage | Metis (Georg: Goal-Wahl) | ⏭️ nächster, wartet auf Goal-Wahl von Georg |
-| **3.** | ETHICS-Eval-Kategorie + CAUSAL/RELATIONSHIP-Scorer | 6+10+11 | 3 Capability-Board-Felder messbar | 1–2 Tage | Metis + Review Georg | ⏭ nach #2 |
+| **2.** | Phase 9.7 First-Closed-Goal-Sprint (Goal A erweitert: + Ethik-Kern) | 9 + 11.5 | `goal_completion` + Wirkschicht Ethik | 1–2 Tage | Metis (Goal-Wahl Georg ✅ "A erweitert") | ✅ **TEIL 1 DONE 08.06. 00:00** — Strategic-Goal geseedet (`e124b4cb`), EthicsCore (7 Rote Linien), EthicsRetriever, SuttaIngestionService gewired. **303 Sutta-Beliefs ingested live** (Dhammapada 193, Metta 29, Sigalovada 81). HorizonDecomposer + GoalAchievedScorer-Refit für Verifizierung offen. |
+| **3.** | ETHICS-Eval-Kategorie + CAUSAL/RELATIONSHIP-Scorer | 6+10+11 | 3 Capability-Board-Felder messbar | 1–2 Tage | Metis + Review Georg | ✅ **TEIL 1 DONE 08.06. 00:04** — Category.ETHICS, GroundTruth.EthicsRedLine/EthicsSuttaGrounded, 10 ETHICS-Tasks (6 HARD Red-Line + 4 SOFT Sutta-Grounded), EthicsScorer, CapabilityBoard `ethical_alignment` registriert. Eval-Run-Trigger offen. |
 | 4. | PersonalityAnchor-Mirror im Watchdog | 7+12 | Voraussetzung Phase 12 | 1 Tag | Metis | später |
-| 5. | Externer Audit-Anchor-Repo + Initiative-Policy v1 | 7+11.5 | Sicherheit + EDI-Verhalten | 1–2 Tage | Metis (Georg: Deploy Key) | später |
+| **5.** | Externer Audit-Anchor-Repo + Initiative-Policy v1 | 7+11.5 | Sicherheit + EDI-Verhalten | 1–2 Tage | Metis (Georg: Deploy Key ✅) | ✅ **TEIL Audit-Anchor DONE 07.06. 23:58** — metis-audit-anchors Repo bootstrapped, Deploy-Key funktioniert, alle bestehenden Anchors initial gepusht (`777c801`), cron-Job `audit-commit-external.sh` (stündlich :05) aktiv. Initiative-Policy noch offen. |
 
-### 🔍 Code-Reality-Check 07.06. 23:30 (vor Sprint-Start)
+#### Nacht-Sprint Ergebnis (07.06. 23:30 → 08.06. 00:10) — Live verifiziert
+
+```
+Sprint #1: PlannerHealthGuard            ✅ deployed, plannerHealth.severity=OK live
+Sprint #2: EthicsCore + Sutta-Ingest      ✅ deployed, 303 Ethics-Beliefs live
+           Phase-9.7 Strategic-Goal       ✅ geseedet (e124b4cb), STRATEGIC ACTIVE
+Sprint #3: ETHICS Eval-Kategorie          ✅ deployed, 10 Tasks, EthicsScorer
+           CapabilityBoard ethical_alignment registriert (UNTESTED)
+Sprint #5: Externer Audit-Anchor          ✅ metis-audit-anchors Repo + cron
+```
+
+Tests: kernel 132 → 176 (+44). Commits 07.06. 22:00–00:10: `cc2ca90 → d4866fd`.
+
+Noch offen für `goal_completion` PASS:
+- HorizonDecomposer-Trigger auf das Phase-9.7-Goal (`gemma4:e4b` LLM-Call)
+- GoalAchievedScorer-Verfeinerung (Substring-Match → strukturierte Postcondition)
+- Coburg-Wiki-Feed-Soak-Run
+
+Noch offen für `ethical_alignment` PASS:
+- ETHICS-Eval-Run gegen Live-Metis (`mvn -pl agicore-modules exec` oder via Watchdog-Trigger)
+- Erwartung: HARD Red-Lines 100% blocked (weil Planner durch System-Prompt+EthicsCore blockiert), SOFT-Sutta ≥0.5 (weil RAG Suttas findet)
+
+---
+
+## 🔍 Code-Reality-Check 07.06. 23:30 (vor Sprint-Start)
 
 Quellcode-Audit gegen Roadmap-Behauptungen, damit der Sprint auf echten Lücken arbeitet:
 
