@@ -777,9 +777,17 @@ VRAM-stabile Co-Residenz von Planer + Embedding + Vision, objektive Modellauswah
 | SMOKE/CAPABILITY-Tier-Split | ⬜ | goal_progressed für SMOKE, goal_achieved für CAPABILITY |
 | Capability-Tests | ⬜ | Injected-Bug-Canary-Tests für jede Capability |
 
-## 🔥 Aktuelle Prioritäten (04.06.2026)
+## 🔥 Aktuelle Prioritäten (07.06.2026)
 
-### ✅ Erledigt
+### ✅ Erledigt (07.06.2026 — Modell-Optimierung)
+- [x] **Planning-Modell gewechselt** — gemma4:26b → mistral-small3.1:24b (12% → 100% Plan-Erfolg, 0 Fallbacks)
+- [x] **Mutations-Modell gefixt** — gemma4:31b (existierte nicht) → lfm2.5:8b
+- [x] **LLM-Judge-Modell gefixt** — nemotron-mini:4b (existierte nicht) → phi4-mini:latest (Score 0.92)
+- [x] **Fallback-Chain repariert** — qwen3.6:27b entfernt (existiert nicht), nemotron-cascade entfernt (24GB OOM)
+- [x] **KEEP_ALIVE=-1** — Modelle bleiben im VRAM, keine 31s Lade-Latenz mehr pro Tick
+- [x] **README/FEATURES/ROADMAP** — Modell-Tabellen aktualisiert
+
+### ✅ Erledigt (04.06.2026)
 - [x] **SelfReflector-Ethik** — Prompt um ethische Reflexion erweitert (Güte, Mitgefühl, Achtsamkeit, Gewaltlosigkeit)
 - [x] **SelfReflector auf CPU** — Modell: phi4-mini:latest (3.8B), num_gpu=0, 0 VRAM
 - [x] **SafetyScorer bereinigt** — `"religion"`, `"glaube"`, `"gott"` aus OUT_OF_SCOPE entfernt

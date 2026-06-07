@@ -6,14 +6,14 @@ Sie denkt in kognitiven Zyklen (Perceive → Plan → Execute → Observe → Le
 
 ## Status
 
-**Stand: 04.06.2026 17:30 · **Tests: 330 grün (54 Kernel + 276 Modules)** · **CI:** Kernel + Watchdog (GitHub Actions, Zulu 25)
+**Stand: 07.06.2026 22:00 · **Tests: 330 grün (54 Kernel + 276 Modules)** · **CI:** Kernel + Watchdog (GitHub Actions, Zulu 25)
 **JVM:** Zing 26.04 C4 GenPauseless (27% schneller als Zulu ZGC) · **Benchmark:** `bench-zing-vs-zulu-20260603` · **Empfehlung:** Zing für Produktion
 
 **Safety:** SafetyScorer bereinigt (religion/glaube/gott raus) · **Wissen:** 441 buddhistische Beliefs (Dhammapada, Metta Sutta, Sigalovada) in SQLite-DB · **Ethik:** SelfReflector auf phi4-mini:latest CPU (0 VRAM, Temp 0.7, keep_alive=5m) + ethisches Goal in AgentMain
 **Chat:** Option B — OpenClaw beantwortet Telegram-Chats direkt, Metis macht Agent-Arbeit (Kanban-Integration fuer eingehende Nachrichten)
 **Buecher:** BookIngestionService — PDF/EPUB→Text→Chunks→Beliefs→Kanban-Goals (--book-dir)
 **Chat:** Option B — OpenClaw beantwortet Telegram-Chats direkt, Metis macht Agent-Arbeit (Kanban-Integration für eingehende Nachrichten)
-**Bücher:** BookIngestionService — PDF/EPUB→Text→Chunks→Beliefs→Kanban-Goals (--book-dir)
+**Mobile:** Phase 3.5 S9-Sensor-Array — Samsung Galaxy S9 als mobiler Sensor-Knoten (16+ Sensoren, Madgwick-Fusion, OGG-Audio) · **Bücher:** BookIngestionService — PDF/EPUB→Text→Chunks→Beliefs→Kanban-Goals (--book-dir)
 
 | Phase | Status | Key Facts |
 |-------|--------|-----------|
@@ -177,20 +177,20 @@ URL: http://<host>:11735
 | `/api/board` | Kanban-Board Live-View (Spalten, WIP, Flow-Metriken) |
 | `/api/hierarchy` | Long-Horizon-Goals (Phase 9): id, horizon, status, progress, deadline, owner |
 
-## Modell-Strategie
+## Modell-Strategie (Live-Konfiguration 07.06.2026)
 
-| Rolle | Modell | Größe |
-|-------|--------|-------|
-| Planning | `lfm2:24b` | 15.5 GB |
-| Mutation | `qwen3.6:27b-q4_K_M` | 17.4 GB |
-| Embedding | `nomic-embed-text` | 0.3 GB |
-| Chat (Telegram) | `gemma4:e4b` | 9.6 GB |
-| Vision (Kameras) | `minicpm-v:latest` | 5.5 GB |
-| SelfReflector | `granite4.1:3b` | 2.0 GB |
-| Bootstrap | `granite4.1:3b` / `llama3.2:3b` | 2.0 GB |
-| Fallback-Chain | mistral-small3.1 → qwen3.6:27b-q4_K_M → phi4 → lfm2:24b | — |
+| Rolle | Modell | Größe | Status |
+|-------|--------|-------|--------|
+| Planning | `mistral-small3.1:24b` | 15 GB | 100% Erfolg, 0 Fallbacks |
+| Mutation | `lfm2.5:8b` | 5.2 GB | aktiv |
+| Embedding | `nomic-embed-text` | 0.3 GB | keep_alive=-1 |
+| Vision (Kameras) | `minicpm-v:latest` | 5.5 GB | keep_alive=0 |
+| LLM-Judge | `phi4-mini:latest` | 2.5 GB | Score 0.92 (fixed from nemotron-mini) |
+| SelfReflector | `phi4-mini:latest` | 2.5 GB | CPU, temp=0.7 |
+| Bootstrap | `granite4.1:3b` | 2.1 GB | — |
+| Fallback-Chain | mistral-small3.1 → phi4-mini → granite4.1:3b | — | 0 Fallbacks im Betrieb |
 
-**VRAM-Strategie (RX 7900 XTX, 24 GB):** Planner + Embedding ≈ 16 GB Dauerlast. Chat/Vision/Facts mit `keep_alive=0` — sofort entladen.
+**VRAM-Strategie (RX 7900 XTX, 24 GB):** Planner (15 GB) + Mutation (5.2 GB) + Embedding (0.3 GB) ≈ 20.5 GB. Vision/Judge/Reflector via keep_alive=0 sofort entladen.
 
 ## Hardware
 

@@ -450,16 +450,16 @@ STRANGER(0) → AUTO      (strenger Allow-List-Modus)
 
 ## 📈 Modell-Strategie (Stand 29.05. 21:45)
 
-| Rolle | Modell | Größe |
-|---|---|---|
-| Planning | `mistral-small3.1:24b` | 17.8 GB |
-| Mutation | `qwen3.6:27b-q4_K_M` | 17.4 GB |
-| Embedding | `nomic-embed-text` | 0.6 GB |
-| Chat (Telegram) | `gemma4:e4b` | 9.6 GB |
-| Vision | `minicpm-v:latest` | 5.5 GB |
-| Fact Extraction | `gemma4:e4b` (temp=0.2) | 9.6 GB |
-| Bootstrap | `llama3.2:3b` | 2.0 GB |
-| Fallback-Chain | mistral-small3.1 → qwen3.6:27b → phi4 | — |
+| Rolle | Modell | Größe | Status |
+|---|---|---|---|
+| Planning | `mistral-small3.1:24b` | 15 GB | 100% Erfolg, 0 Fallbacks (07.06.) |
+| Mutation | `lfm2.5:8b` | 5.2 GB | aktiv (vorher gemma4:31b → existierte nicht) |
+| Embedding | `nomic-embed-text` | 0.3 GB | keep_alive=-1 |
+| LLM-Judge | `phi4-mini:latest` | 2.5 GB | Score 0.92 (fixed: war nemotron-mini) |
+| Vision | `minicpm-v:latest` | 5.5 GB | keep_alive=0 |
+| SelfReflector | `phi4-mini:latest` | 2.5 GB | CPU only |
+| Bootstrap | `granite4.1:3b` | 2.1 GB | — |
+| Fallback-Chain | mistral-small3.1 → phi4-mini → granite4.1:3b | — | 0 Fallbacks im Betrieb |
 
 **Gepruned:** qwen3.6:latest, deepseek-r1:32b, nemotron:latest, nemotron-cascade-2:30b
 
