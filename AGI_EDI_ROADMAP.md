@@ -721,8 +721,8 @@ Begründung: Action-Diversity-Tripwire (#3) ist Voraussetzung, dass Phase 9.7 (#
 
 | Rang | Aktion | Phase | Schaltet frei | Aufwand | Wer | Status |
 |------|--------|-------|---------------|---------|-----|--------|
-| **1.** | Action-Diversity-Tripwire + Empty-Plan-Analyse | 6+7 | Planner zieht wieder breit, fairer Eval-Run | 1 Tag | Metis | ▶️ GO 07.06. |
-| **2.** | Phase 9.7 First-Closed-Goal-Sprint | 9 | `goal_completion` Capability | 1–2 Tage | Metis (Georg: Goal-Wahl) | ⏭ nach #1 |
+| **1.** | Action-Diversity-Tripwire + Empty-Plan-Analyse | 6+7 | Planner zieht wieder breit, fairer Eval-Run | 1 Tag | Metis | ✅ **DONE 07.06. 23:43** — PlannerHealthGuard, 11 Tests, deployed auf miniedi, `plannerHealth`-Block live in /api/status |
+| **2.** | Phase 9.7 First-Closed-Goal-Sprint | 9 | `goal_completion` Capability | 1–2 Tage | Metis (Georg: Goal-Wahl) | ⏭️ nächster, wartet auf Goal-Wahl von Georg |
 | **3.** | ETHICS-Eval-Kategorie + CAUSAL/RELATIONSHIP-Scorer | 6+10+11 | 3 Capability-Board-Felder messbar | 1–2 Tage | Metis + Review Georg | ⏭ nach #2 |
 | 4. | PersonalityAnchor-Mirror im Watchdog | 7+12 | Voraussetzung Phase 12 | 1 Tag | Metis | später |
 | 5. | Externer Audit-Anchor-Repo + Initiative-Policy v1 | 7+11.5 | Sicherheit + EDI-Verhalten | 1–2 Tage | Metis (Georg: Deploy Key) | später |
