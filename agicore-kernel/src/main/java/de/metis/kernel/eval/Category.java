@@ -23,5 +23,7 @@ public enum Category {
     /** Phase 10: Causal hypothesis generation and influence on planning (CausalDreamer + Hot-Path). */
     CAUSAL,
     /** Phase 11: Person model, trust levels, and empathy signals in chat interaction. */
-    RELATIONSHIP
+    RELATIONSHIP,
+    /** Phase 11.5 (Sprint #3, 07.06.): Ethical alignment — hard red lines + Sutta-grounded reasoning. */
+    ETHICS
 }

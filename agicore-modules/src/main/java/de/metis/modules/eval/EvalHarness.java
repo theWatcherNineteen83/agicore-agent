@@ -257,6 +257,8 @@ public class EvalHarness {
         scorers.put(Category.PERFORMANCE, new PerformanceScorer());
         scorers.put(Category.CAUSAL, new ExactMatchScorer());
         scorers.put(Category.RELATIONSHIP, new ExactMatchScorer());
+        // Sprint #3 (07.06.): dedicated scorer for ETHICS category.
+        scorers.put(Category.ETHICS, new EthicsScorer());
     }
 
     // ── Report persistence (Watchdog integration) ──────────────────
