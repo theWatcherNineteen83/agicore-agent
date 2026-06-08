@@ -13,6 +13,7 @@ EnvironmentFile=-/run/metis/version.env
 ExecStartPre=/usr/local/bin/metis-version-helper.sh
 Environment=JAVA_HOME=/opt/zing25-jdk
 Environment="OLLAMA_MAX_LOADED_MODELS=3"
+Environment="OLLAMA_KEEP_ALIVE=-1"
 Environment="OLLAMA_NUM_PARALLEL=1"
 Environment="HSA_OVERRIDE_GFX_VERSION=11.0.0"
 ExecStart=/opt/zing25-jdk/bin/java \
@@ -20,8 +21,8 @@ ExecStart=/opt/zing25-jdk/bin/java \
             --enable-native-access=ALL-UNNAMED \
     -jar /home/prometheus/metis/metis-agent.jar \
     --api-port 11735 \
-    --planning-model gemma4:26b \
-    --mutation-model gemma4:31b \
+    --planning-model mistral-small3.1:24b \
+    --mutation-model lfm2.5:8b \
     --telegram-token 8334147633:AAEoXX7LS8pDe_gWXO8mUav8i0SGmEPnVLU \
     --weather-api-key 0352c669d7d0422d92c669d7d0522d9a \
     --ha-url http://192.168.22.200:8123 \
