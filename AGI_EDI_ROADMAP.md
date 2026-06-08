@@ -889,6 +889,22 @@ VRAM-stabile Co-Residenz von Planer + Embedding + Vision, objektive Modellauswah
 | SMOKE/CAPABILITY-Tier-Split | ⬜ | goal_progressed für SMOKE, goal_achieved für CAPABILITY |
 | Capability-Tests | ⬜ | Injected-Bug-Canary-Tests für jede Capability |
 
+## 🔥 Aktuelle Prioritäten (08.06.2026)
+
+### ✅ Erledigt (08.06.2026 — LlmJudge-Fix)
+- [x] **Judge-Modell auf granite4.1:3b** — phi4-mini:latest lief auf CPU (VRAM voll), 100% Timeouts → granite4.1:3b passt neben Planner in GPU
+- [x] **keep_alive 5m → 30m** — Judge-Modell bleibt zwischen Eval-Calls warm, kein Reload pro Eval
+- [x] **OLLAMA_MAX_LOADED_MODELS=2 → 3** — `/etc/systemd/system/ollama.service.d/override.conf`, Backup angelegt, daemon-reload + restart
+- [x] **Live-Verifikation:** 12/12 Evaluations gelaufen, llmJudgeAvgScore 0.00 → **0.73**, llmJudgeLastScore 0.50 (default-pass) → **0.93**, llmJudgeLastReasoning ist jetzt echtes Begründungs-Text statt "judge model unavailable"
+- [x] **Erstes echtes Warning** (llmJudgeWarnings 0 → 1) — Judge urteilt nicht mehr blind-pass
+- [x] **VRAM-Status:** 3 Modelle gleichzeitig auf GPU (mistral 16GB + granite 2.3GB + nomic-embed 0.3GB ≈ 23GB / 24GB, 99% Auslastung — knapp aber stabil)
+
+### ⚠️ Caveats nach Judge-Fix
+- VRAM-Headroom ~1 GB → Watchdog-Eval mit zusätzlichem Modell (qwen3.6/nemotron) führt zu LRU-Eviction. Im Auge behalten.
+- `audio-bridge`-Action zeigt 6/6 Errors im Status — noch offen, nicht angefasst.
+
+---
+
 ## 🔥 Aktuelle Prioritäten (07.06.2026)
 
 ### ✅ Erledigt (07.06.2026 — Modell-Optimierung)
