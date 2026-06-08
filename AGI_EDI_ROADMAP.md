@@ -901,7 +901,37 @@ VRAM-stabile Co-Residenz von Planer + Embedding + Vision, objektive Modellauswah
 
 ### ⚠️ Caveats nach Judge-Fix
 - VRAM-Headroom ~1 GB → Watchdog-Eval mit zusätzlichem Modell (qwen3.6/nemotron) führt zu LRU-Eviction. Im Auge behalten.
-- `audio-bridge`-Action zeigt 6/6 Errors im Status — noch offen, nicht angefasst.
+- ~~`audio-bridge`-Action zeigt 6/6 Errors im Status~~ → **gefixt** (siehe Sektion S9-Audio-Pipeline unten).
+
+
+### ✅ Erledigt (08.06.2026 — S9-Audio-Pipeline End-to-End)
+Live-Debug-Session: `audio-bridge` lieferte seit Tagen **0 KB OGG / 5s** → 100% FAIL-Rate.
+Root-cause-Kette aufgedeckt und gefixt (alles operativ, kein Repo-Code):
+
+- [x] **Bridge-Service-Konflikt aufgelöst** — zwei systemd-Units (`s9-bridge.service` mit `s9_bridge_v4.py` + `s9-sensor-bridge.service` mit `s9_server.py`) kämpften um Port 8765. Die ADB-Polling-Variante (`s9_server.py`) crasht im Restart-Loop (12.455 Restarts!) wegen `OSError: address already in use`. Außerdem nutzt sie `tinycap` als Audio-Tool, das auf S9 Stock-ROM **nicht existiert**. → `s9-sensor-bridge.service` disabled, `s9-bridge.service` als single source of truth.
+- [x] **Endianness-Bug in `s9_bridge_v4.py`** — Audio-Frame-Header war als **`struct.unpack("<I", ...)`** (Little-Endian) gelesen → `00 00 20 00` wurde als `2.097.152 Bytes` interpretiert. Die App schreibt aber **Big-Endian** (`ByteBuffer.putInt()` in Java = BE per default!) → echte Frame-Größe `8192 Bytes`. Parser blockte auf 2 MB die nie kamen → 0 KB Output. **Fix: `<I` → `>I`** an zwei Stellen (reverse + forward Modus). Backup `s9_bridge_v4.py.bak-*` angelegt.
+- [x] **Vosk-Model-Pfad korrigiert** — Default war `/data/prometheus/vosk-model-de`, aber die `am/`-Dateien liegen in der Unterordner-Schachtelung `vosk-model-small-de-0.15/`. Symlink `/data/prometheus/vosk-model-de-current` existierte schon. **Fix: `-Dvosk.model.path=/data/prometheus/vosk-model-de-current`** in `/etc/systemd/system/metis.service` (Backup `metis.service.bak-*` angelegt).
+- [x] **Live-Verifikation:** OGG-Magic `4f 67 67 53` ("OggS") empfangen, 32 KB in 8s über `/audio`-WebSocket. Metis-Tick 11/12/114: `captured 16 KB OGG in 5s`, **`audio-bridge [OK]`** — kein Vosk-Error mehr.
+
+**Diagnostik-Methode:** Live-Sniff am S9-TCP-Port 8432 mit eigenem Python-Client (`/tmp/sniff_s9.py`) — zeigte rohe Bytes:
+```
+pos=25832: before=3133340a | A+next11=4100002000002e002c002d00 | LE=2097152 BE=8192
+```
+→ Endianness-Mismatch eindeutig diagnostizierbar.
+
+**Ergebnis-Tabelle:**
+
+| Metrik | Vor heute | Jetzt |
+|---|---|---|
+| audio-bridge success | 0/6 (0%) | 1/1 (100%) ✅ |
+| OGG-Capture | 0 KB | 16 KB / 5s |
+| Vosk-Model | "not found" | geladen ✅ |
+| Bridge-Endianness | LE (kaputt) | BE (S9-konform) ✅ |
+| Bridge-Service-Konflikt | 2 enabled, Restart-Loop | 1 enabled, sauber ✅ |
+
+**Code-Repos außerhalb agicore-agent** (für Reproduzierbarkeit dokumentiert):
+- `s9_bridge_v4.py`: `/home/prometheus/s9-sensor-server/` auf miniedi (Bridge-Parser)
+- `SensorBridgeService.java`: `~/.openclaw/workspace/s9-sensor-app/app/src/main/java/de/prometheus/s9bridge/` auf kali (Android-App, schreibt BE-Header)
 
 ---
 
