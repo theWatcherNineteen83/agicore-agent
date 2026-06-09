@@ -156,6 +156,28 @@ public class KnowledgeStore implements AutoCloseable {
         return beliefs;
     }
 
+    /**
+     * Load only the top-N highest-confidence beliefs (warm-start cache).
+     */
+    public List<Belief> loadTopBeliefs(int limit) {
+        List<Belief> beliefs = new ArrayList<>();
+        try (PreparedStatement ps = conn.prepareStatement(
+                "SELECT statement, confidence, source FROM beliefs ORDER BY confidence DESC LIMIT ?")) {
+            ps.setInt(1, limit);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    beliefs.add(new Belief(
+                            rs.getString("statement"),
+                            rs.getDouble("confidence"),
+                            rs.getString("source")));
+                }
+            }
+        } catch (SQLException e) {
+            LOG.warning("Failed to load top beliefs: " + e.getMessage());
+        }
+        return beliefs;
+    }
+
     public void deleteWeakBeliefs(double threshold) {
         try (PreparedStatement ps = conn.prepareStatement(
                 "DELETE FROM beliefs WHERE confidence < ?")) {

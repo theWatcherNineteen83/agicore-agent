@@ -21,6 +21,7 @@ import de.metis.kernel.safety.OutputValidator;
 import de.metis.kernel.optimize.ABTestService;
 import de.metis.kernel.optimize.DataFlywheelService;
 
+import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -149,9 +150,50 @@ public class OllamaPlanner implements Planner {
     // ── ReAct state ──────────────────────────────────────────
     private String lastThought = null;
 
-    private final HttpClient http = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(10))
-            .build();
+    private volatile HttpClient http = createHttpClient();
+    private static final int MAX_HTTP_RETRIES = 2;
+
+    private static HttpClient createHttpClient() {
+        return HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(10))
+                .build();
+    }
+
+    /**
+     * Recreate the HttpClient after a selector/connection failure.
+     * Called automatically by sendWithRetry when "selector manager closed" is detected.
+     */
+    private void resetHttpClient() {
+        this.http = createHttpClient();
+    }
+
+    /**
+     * Send an HTTP request with automatic retry on NIO selector failures.
+     * <p>
+     * Java's HttpClient can permanently lose its NIO selector under GC pressure,
+     * causing all subsequent requests to hang forever. This wrapper recreates the
+     * client and retries when that happens.
+     */
+    private HttpResponse<String> sendWithRetry(HttpRequest request) throws IOException, InterruptedException {
+        IOException lastException = null;
+        for (int attempt = 0; attempt <= MAX_HTTP_RETRIES; attempt++) {
+            try {
+                return http.send(request, HttpResponse.BodyHandlers.ofString());
+            } catch (IOException e) {
+                lastException = e;
+                String msg = e.getMessage() != null ? e.getMessage() : "";
+                if (msg.contains("closed") || msg.contains("selector") || msg.contains("shutdown")) {
+                    LOG.warning("HttpClient selector failure (attempt " + (attempt + 1) + "/" + (MAX_HTTP_RETRIES + 1) + "): " + msg);
+                    resetHttpClient();
+                    // Brief pause to let the new client initialise
+                    try { Thread.sleep(100); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); throw ie; }
+                } else {
+                    throw e; // Don't retry on other IO errors
+                }
+            }
+        }
+        throw lastException != null ? lastException : new IOException("HTTP send failed after retries");
+    }
 
     /**
      * Create with defaults: miniedi Ollama, default model.
@@ -605,7 +647,7 @@ public class OllamaPlanner implements Planner {
                     .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
                     .build();
 
-            HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response = sendWithRetry(request);
 
             // ── Track latency + tokens (Phase 2.5.2) ──────────────
             lastCallLatencyMs = System.currentTimeMillis() - startMs;
@@ -949,7 +991,7 @@ public class OllamaPlanner implements Planner {
                     .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
                     .build();
 
-            HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response = sendWithRetry(request);
             if (response.statusCode() != 200) return null;
 
             String text = extractResponseField(response.body());

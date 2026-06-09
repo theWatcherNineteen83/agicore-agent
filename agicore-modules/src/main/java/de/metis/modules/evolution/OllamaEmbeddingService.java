@@ -32,9 +32,37 @@ public class OllamaEmbeddingService {
     private static final Duration TIMEOUT = Duration.ofSeconds(30);
     private static final int DEFAULT_CACHE_SIZE = 4096;
 
-    private final HttpClient http = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(10))
-            .build();
+    private volatile HttpClient http = createClient();
+    private static final int MAX_HTTP_RETRIES = 2;
+
+    private static HttpClient createClient() {
+        return HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(10))
+                .build();
+    }
+
+    private void resetHttpClient() {
+        this.http = createClient();
+    }
+
+    /** Send with automatic retry on NIO selector failure (see OllamaPlanner.sendWithRetry). */
+    private HttpResponse<String> sendWithRetry(HttpRequest request) throws Exception {
+        for (int attempt = 0; attempt <= MAX_HTTP_RETRIES; attempt++) {
+            try {
+                return http.send(request, HttpResponse.BodyHandlers.ofString());
+            } catch (java.io.IOException e) {
+                String msg = e.getMessage() != null ? e.getMessage() : "";
+                if (msg.contains("closed") || msg.contains("selector") || msg.contains("shutdown")) {
+                    LOG.warning("Embedding HttpClient selector failure (attempt " + (attempt + 1) + "): " + msg);
+                    resetHttpClient();
+                    try { Thread.sleep(50); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); throw ie; }
+                } else {
+                    throw e;
+                }
+            }
+        }
+        throw new java.io.IOException("Embedding HTTP send failed after retries");
+    }
 
     private final String model;
     private final int cacheCapacity;
@@ -136,14 +164,14 @@ public class OllamaEmbeddingService {
                     .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
                     .build();
 
-            HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response = sendWithRetry(request);
 
             if (response.statusCode() == 503) {
                 // Retry with exponential backoff (Ollama queue saturation)
                 for (int retry = 0; retry < 3; retry++) {
                     long backoff = (long) (1000 * Math.pow(2, retry));
                     Thread.sleep(backoff);
-                    response = http.send(request, HttpResponse.BodyHandlers.ofString());
+                    response = sendWithRetry(request);
                     if (response.statusCode() == 200) break;
                 }
             }
