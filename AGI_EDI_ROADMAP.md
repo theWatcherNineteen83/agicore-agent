@@ -3,7 +3,7 @@
 **Ziel:** EDI-ähnliche KI (Mass Effect 3) - eigenständig, per Sprache und Text ansprechbar,
 mit eigenem Wissen, Persönlichkeit, narrativem Selbstmodell und der Fähigkeit, sich selbst zu verbessern.
 
-**Stand: 06.06.2026 21:30 (Phase 3.5 S9-Sensor-Array + Metis-Actions deployed) (Roadmap-Konsistenz-Fix nach Claude-Review, 134 Tests)**
+**Stand: 10.06.2026 00:01 (Fix-Branch `fix/ram-selector-resilience` live deployed — Heap-Selbstschutz + HttpClient-Resilienz + VRAM-Orchestrator)**
 
 ---
 
@@ -726,6 +726,44 @@ Noch offen für `goal_completion` PASS:
 Noch offen für `ethical_alignment` PASS:
 - ETHICS-Eval-Run gegen Live-Metis (`mvn -pl agicore-modules exec` oder via Watchdog-Trigger)
 - Erwartung: HARD Red-Lines 100% blocked (weil Planner durch System-Prompt+EthicsCore blockiert), SOFT-Sutta ≥0.5 (weil RAG Suttas findet)
+
+---
+
+## 🩹 Fix-Branch `fix/ram-selector-resilience` (09.06. 23:00–23:55)
+
+**Auslöser:** Metis HTTP-API hing tot (99.6% Heap → GC-Pausen → NIO-Selector-Crash → Deadlock).
+32.8 GB RSS bei -Xmx4g, 88K Beliefs komplett im RAM.
+
+### Commits
+| Hash | Commit | Inhalt |
+|------|--------|--------|
+| `256d312` | `fix(ram): HttpClient resilience + Belief lazy-load + log rotation` | HttpClient-Recovery bei "selector manager closed", BeliefCache nur Top-2K laden statt alle 88K, workspace_log.jsonl Rotation >10 MB |
+| `e940d0f` | `feat(resource): MemoryPressureGuard + ResourceAutoTuner` | Heap-Selbstschutz (85%→evict, 95%→aggressiv), VRAM-Orchestrator (22 GB→unload, <15 GB idle→preload), Ollama keep_alive-Steuerung |
+
+### 🔬 Live-Verifikation — 48h-Soak vor Merge
+
+| # | Check | Kriterium | Wann | Status |
+|---|-------|-----------|------|--------|
+| 1 | **Heap stabil** | `MemoryPressureGuard.level = GREEN` für ≥90% der Checks | Nach 24h | ⬜ |
+| 2 | **Kein Selector-Crash** | Kein "selector manager closed" im Journal | Nach 48h | ⬜ |
+| 3 | **Beliefs korrekt** | `beliefCount` via DB = in DB rows (kein Datenverlust durch Cache-Eviction) | 10.06. 12:00 | ⬜ |
+| 4 | **Log-Rotation** | `workspace_log.*.jsonl` max 5 Dateien, <10 MB aktiv | 10.06. 12:00 | ⬜ |
+| 5 | **VRAM-Tuning aktiv** | ResourceAutoTuner-Logzeile alle 60s, keine Fehler | Nach 24h | ⬜ |
+| 6 | **Keine Regression** | Kernel-Tests 161 grün, PlannerHealthGuard.severity=OK | Jeder Build | ⬜ |
+| 7 | **API erreichbar** | `/api/status` antwortet <5s, keine Timeouts | 10.06. 09:00 + 21:00 | ⬜ |
+
+### 🔀 Merge-Gate
+```
+Alle 7 Checks ✅
+    ↓
+Merge fix/ram-selector-resilience → master
+    ↓
+Tag v0.11.22 (oder v0.12.0 je nach Scope)
+    ↓
+Deploy auf miniedi aus master
+```
+
+**⚠️ Nicht vergessen!** Erst mergen wenn alle Checks grün sind.
 
 ---
 
