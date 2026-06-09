@@ -325,4 +325,24 @@ public class WorldModel implements AutoCloseable {
                 .limit(topN)
                 .toList();
     }
+
+    /**
+     * Evict in-memory belief cache down to a target size, keeping the
+     * highest-confidence entries. The underlying SQLite store is untouched.
+     * Used by {@code MemoryPressureGuard} under heap pressure.
+     */
+    public void evictCacheToTarget(int targetKeep) {
+        if (beliefs.size() <= targetKeep) return;
+        int before = beliefs.size();
+        var sorted = beliefs.values().stream()
+                .sorted(Comparator.comparingDouble(Belief::confidence).reversed())
+                .limit(targetKeep)
+                .toList();
+        beliefs.clear();
+        for (Belief b : sorted) {
+            beliefs.put(b.statement(), b);
+        }
+        LOG.info("MemoryPressure: evicted belief cache " + before + " → " + beliefs.size()
+                + " (target " + targetKeep + ")");
+    }
 }

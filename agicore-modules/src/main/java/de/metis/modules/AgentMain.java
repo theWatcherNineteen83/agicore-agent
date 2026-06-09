@@ -1710,6 +1710,31 @@ public final class AgentMain {
             LOG.info("Phase 7.x wired — WorkspaceShadowLogger -> " + workspaceShadow.file());
         }
 
+        // ── Phase 2.5+: MemoryPressureGuard + ResourceAutoTuner ─────────
+        // Proactive heap protection: evicts belief cache under pressure.
+        // VRAM orchestration: unloads stale models, preloads useful ones when idle.
+        var memoryGuard = new de.metis.kernel.monitor.MemoryPressureGuard(agent.worldModel());
+        var resourceTuner = new de.metis.modules.monitor.ResourceAutoTuner(
+                memoryGuard, null, agent.worldModel(),
+                workspaceShadow, modelRegistry,
+                "http://192.168.22.204:11434");
+        var tunerScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+            var t = new Thread(r, "resource-tuner");
+            t.setDaemon(true);
+            return t;
+        });
+        tunerScheduler.scheduleAtFixedRate(() -> {
+            try {
+                String report = resourceTuner.tune();
+                if (!report.isEmpty() && !report.equals("heap:GREEN")) {
+                    LOG.fine("ResourceAutoTuner: " + report);
+                }
+            } catch (Exception e) {
+                LOG.fine("ResourceAutoTuner tick failed (non-fatal): " + e.getMessage());
+            }
+        }, 60, 60, TimeUnit.SECONDS);
+        LOG.info("Phase 2.5+ wired — MemoryPressureGuard + ResourceAutoTuner every 60s");
+
         if (apiPort > 0) {
             httpServer = new MetisHttpServer(agent, apiPort);
             httpServer.setKnowledgeStore(knowledgeStore);
