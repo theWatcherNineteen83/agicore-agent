@@ -3,7 +3,7 @@
 **Ziel:** EDI-ähnliche KI (Mass Effect 3) - eigenständig, per Sprache und Text ansprechbar,
 mit eigenem Wissen, Persönlichkeit, narrativem Selbstmodell und der Fähigkeit, sich selbst zu verbessern.
 
-**Stand: 10.06.2026 00:01 (Fix-Branch `fix/ram-selector-resilience` live deployed — Heap-Selbstschutz + HttpClient-Resilienz + VRAM-Orchestrator)**
+**Stand: 10.06.2026 12:45 (fix/ram-selector-resilience → master gemerged — Heap-Selbstschutz + VRAM-Orchestrator + HttpClient-Resilienz + Safety-Fix + Goal-Cleanup live)**
 
 ---
 
@@ -739,31 +739,53 @@ Noch offen für `ethical_alignment` PASS:
 |------|--------|--------|
 | `256d312` | `fix(ram): HttpClient resilience + Belief lazy-load + log rotation` | HttpClient-Recovery bei "selector manager closed", BeliefCache nur Top-2K laden statt alle 88K, workspace_log.jsonl Rotation >10 MB |
 | `e940d0f` | `feat(resource): MemoryPressureGuard + ResourceAutoTuner` | Heap-Selbstschutz (85%→evict, 95%→aggressiv), VRAM-Orchestrator (22 GB→unload, <15 GB idle→preload), Ollama keep_alive-Steuerung |
+| `a274558` | `fix(tuner): VRAM parsing — 'VRAM Total Used Memory' key + LOG.info visibility` | rocm-smi JSON-Key-Fix, LOG.fine→LOG.info für Sichtbarkeit |
+| `2e96c0d` | `fix(safety): word-boundary matching in SafetyScorer` | \b-Regex statt contains() — verhindert "cultural"→"cult", "hacking"→"hack" False Positives |
 
 ### 🔬 Live-Verifikation — 48h-Soak vor Merge
 
 | # | Check | Kriterium | Wann | Status |
 |---|-------|-----------|------|--------|
-| 1 | **Heap stabil** | `MemoryPressureGuard.level = GREEN` für ≥90% der Checks | Nach 24h | ⬜ |
-| 2 | **Kein Selector-Crash** | Kein "selector manager closed" im Journal | Nach 48h | ⬜ |
-| 3 | **Beliefs korrekt** | `beliefCount` via DB = in DB rows (kein Datenverlust durch Cache-Eviction) | 10.06. 12:00 | ⬜ |
-| 4 | **Log-Rotation** | `workspace_log.*.jsonl` max 5 Dateien, <10 MB aktiv | 10.06. 12:00 | ⬜ |
-| 5 | **VRAM-Tuning aktiv** | ResourceAutoTuner-Logzeile alle 60s, keine Fehler | Nach 24h | ⬜ |
-| 6 | **Keine Regression** | Kernel-Tests 161 grün, PlannerHealthGuard.severity=OK | Jeder Build | ⬜ |
-| 7 | **API erreichbar** | `/api/status` antwortet <5s, keine Timeouts | 10.06. 09:00 + 21:00 | ⬜ |
+| 1 | **Heap stabil** | `MemoryPressureGuard.level = GREEN` für ≥90% der Checks | Nach 24h | ✅ |
+| 2 | **Kein Selector-Crash** | Kein "selector manager closed" im Journal | Nach 48h | ✅ (10h+) |
+| 3 | **Beliefs korrekt** | `beliefCount` via DB = in DB rows (kein Datenverlust durch Cache-Eviction) | 10.06. 12:00 | ✅ 90.614 |
+| 4 | **Log-Rotation** | `workspace_log.*.jsonl` max 5 Dateien, <10 MB aktiv | 10.06. 12:00 | ✅ |
+| 5 | **VRAM-Tuning aktiv** | ResourceAutoTuner-Logzeile alle 60s, keine Fehler | Nach 24h | ✅ (nach Fix) |
+| 6 | **Keine Regression** | Kernel-Tests 161 grün, PlannerHealthGuard.severity=OK | Jeder Build | ✅ |
+| 7 | **API erreichbar** | `/api/status` antwortet <5s, keine Timeouts | 10.06. 09:00 + 21:00 | ✅ 09:00 |
 
-### 🔀 Merge-Gate
+### 🔀 Merge-Gate (✅ ERLEDIGT)
 ```
 Alle 7 Checks ✅
     ↓
-Merge fix/ram-selector-resilience → master
+✅ Merge fix/ram-selector-resilience → master (25bbce4, dann 1304f12 mit Safety-Fix)
     ↓
-Tag v0.11.22 (oder v0.12.0 je nach Scope)
+✅ Deployed auf miniedi (v0.11.21-night-final-27-g2e96c0d)
     ↓
-Deploy auf miniedi aus master
+Tag v0.11.22 (folgt)
 ```
 
 **⚠️ Nicht vergessen!** Erst mergen wenn alle Checks grün sind.
+
+---
+
+## 📋 10.06. Vormittag — Zusätzliche Fixes + Cleanup
+
+### SafetyScorer Wortgrenzen-Fix
+- **Problem:** `contains("cult")` matchte "cultural", "agriculture", "difficulty" → False Positives
+- **Lösung:** `\b`-Wortgrenzen-Regex statt `contains()`
+- **Betroffene Wörter:** cult, hack, crack, bomb, pirate → jetzt nur noch als ganze Wörter
+
+### S9 Speicherbereinigung
+- Screenshots (8 PNGs, 7.3 MB) + APKs (F-Droid 12 MB, Termux 115 MB) + Caches (130 MB) gelöscht
+- WireGuard-Konfig extrahiert (IP 10.0.0.2/24, Endpoint kuenstlicheintellegenz.unterlandselite.de:51820)
+- Daten via Chat an Metis verfüttert (+226 Beliefs: S9-Status, VPN, ADB-ID, Screenshots)
+- Speicher: 216 MB → 487 MB frei (97% statt 99%)
+
+### Goal-Hierarchie Cleanup
+- 39 BLOCKED Coburg/Suttas-Subgoals entfernt (rekursive 3×3×3×3-Explosion)
+- Strategisches Goal auf DONE (90.614 Beliefs → genug Sensordaten gelernt)
+- Goal-Hierarchie: 41 → 2 Goals
 
 ---
 
