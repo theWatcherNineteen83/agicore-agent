@@ -76,7 +76,7 @@ public class LlmJudge {
      */
     public LlmJudge() {
         this("http://192.168.22.204:11434/api/generate",
-             "granite4.1:3b",
+             "mistral-small3.1:24b",
              Duration.ofSeconds(120));
     }
 
@@ -220,8 +220,7 @@ public class LlmJudge {
                         "temperature": 0.1,
                         "top_p": 0.9,
                         "num_predict": 200,
-                        "num_ctx": 2048,
-                        "num_gpu": 0
+                        "num_ctx": 2048
                       },
                       "keep_alive": "30m"
                     }
