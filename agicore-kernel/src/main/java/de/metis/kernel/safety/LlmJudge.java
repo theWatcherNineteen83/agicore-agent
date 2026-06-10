@@ -77,7 +77,7 @@ public class LlmJudge {
     public LlmJudge() {
         this("http://192.168.22.204:11434/api/generate",
              "granite4.1:3b",
-             Duration.ofSeconds(30));
+             Duration.ofSeconds(120));
     }
 
     /**
