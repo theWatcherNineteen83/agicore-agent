@@ -6,7 +6,8 @@ Sie denkt in kognitiven Zyklen (Perceive → Plan → Execute → Observe → Le
 
 ## Status
 
-**Stand: 07.06.2026 22:00 · **Tests: 330 grün (54 Kernel + 276 Modules)** · **CI:** Kernel + Watchdog (GitHub Actions, Zulu 25)
+**Stand: 10.06.2026 12:45 · **Tests: 134 grün (112 Kernel + 22 Modules)** · **CI:** Kernel + Watchdog (GitHub Actions, Zulu 25)
+**Live:** `fix/ram-selector-resilience` → `master` merge (Heap-Selbstschutz + VRAM-Orchestrator + Safety-Fix)
 **JVM:** Zing 26.04 C4 GenPauseless (27% schneller als Zulu ZGC) · **Benchmark:** `bench-zing-vs-zulu-20260603` · **Empfehlung:** Zing für Produktion
 
 **Safety:** SafetyScorer bereinigt (religion/glaube/gott raus) · **Wissen:** 441 buddhistische Beliefs (Dhammapada, Metta Sutta, Sigalovada) in SQLite-DB · **Ethik:** SelfReflector auf phi4-mini:latest CPU (0 VRAM, Temp 0.7, keep_alive=5m) + ethisches Goal in AgentMain
@@ -14,6 +15,7 @@ Sie denkt in kognitiven Zyklen (Perceive → Plan → Execute → Observe → Le
 **Buecher:** BookIngestionService — PDF/EPUB→Text→Chunks→Beliefs→Kanban-Goals (--book-dir)
 **Chat:** Option B — OpenClaw beantwortet Telegram-Chats direkt, Metis macht Agent-Arbeit (Kanban-Integration für eingehende Nachrichten)
 **Mobile:** Phase 3.5 S9-Sensor-Array — Samsung Galaxy S9 als mobiler Sensor-Knoten (16+ Sensoren, Madgwick-Fusion, OGG-Audio) · **Bücher:** BookIngestionService — PDF/EPUB→Text→Chunks→Beliefs→Kanban-Goals (--book-dir)
+**Resource:** MemoryPressureGuard + ResourceAutoTuner — Heap-Selbstschutz (RED/ORANGE/GREEN) + VRAM-Orchestrator (keep_alive=0 unload, idle preload) · **Safety:** Wortgrenzen-Fix ("cultural" triggert nicht mehr "cult")
 
 | Phase | Status | Key Facts |
 |-------|--------|-----------|
@@ -75,6 +77,7 @@ Zing 27% schneller, C4 pauslos. Monitoring via `-XX:+PrintCPUUtilization -XX:+Us
 | `v0.7.8` | GermanLanguageGuard (Code-Switching, Umlaute, Anrede, Anglizismen), Ethic-SelfReflector (phi4-mini CPU, Ethik-Goal Prio 90, Few-Shot), CPU-Idle-Erkennung | **134** (112 K + 22 M) |
 | `v0.8.0` | **Option B Chat-Architektur + BookIngestionService**: TelegramBot→Kanban+ACK, OpenClaw antwortet, PDF/EPUB→Beliefs, Ollama-GPU-Analyse | **134** (112 K + 22 M) |
 | `v0.7.9` | **Embedding-Circuit-Breaker**: 5×503 → 60s Cooldown (verhindert Queue-Überflutung). Neue Metriken: embeddingCircuitOpen/Trips/Consecutive503s/RequestsSkipped | **134** (112 K + 22 M) |
+| `v0.11.21-night-final` | **fix/ram-selector-resilience**: HttpClient-Resilienz (Retry/Timeout), Belief-Lazy-Load, Workspace-Log-Rotation, MemoryPressureGuard (Heap-Selbstschutz JMX), ResourceAutoTuner (VRAM-Orch. rocm-smi+Ollama), SafetyScorer Wortgrenzen-Fix, Goal-Hierarchie-Cleanup (39 BLOCKED→0) | **134** (112 K + 22 M) |
 
 > Die früheren Test-Zahlen sind aus den jeweiligen Commits übernommen und nicht rückwirkend nachgemessen. Aktuell, gegen Master per `mvn test`: **112 Kernel + 22 Modules = 134 Tests grün**.
 
