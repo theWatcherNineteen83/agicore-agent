@@ -1727,10 +1727,10 @@ public final class AgentMain {
             try {
                 String report = resourceTuner.tune();
                 if (!report.isEmpty() && !report.equals("heap:GREEN")) {
-                    LOG.fine("ResourceAutoTuner: " + report);
+                    LOG.info("ResourceAutoTuner: " + report);
                 }
             } catch (Exception e) {
-                LOG.fine("ResourceAutoTuner tick failed (non-fatal): " + e.getMessage());
+                LOG.warning("ResourceAutoTuner tick failed (non-fatal): " + e.getMessage());
             }
         }, 60, 60, TimeUnit.SECONDS);
         LOG.info("Phase 2.5+ wired — MemoryPressureGuard + ResourceAutoTuner every 60s");

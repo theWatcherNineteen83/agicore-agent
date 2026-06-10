@@ -123,9 +123,9 @@ public class ResourceAutoTuner {
         try {
             String raw = exec("rocm-smi --showmeminfo vram --json 2>/dev/null");
             if (raw == null || !raw.contains("VRAM")) return -1;
-            // Quick JSON extraction
-            int idx = raw.indexOf("\"Total Used Memory (B)\":");
-            if (idx < 0) idx = raw.indexOf("\"Total Used Memory");
+            // Quick JSON extraction — key may be "VRAM Total Used Memory (B)" or "Total Used Memory (B)"
+            int idx = raw.indexOf("VRAM Total Used Memory");
+            if (idx < 0) idx = raw.indexOf("Total Used Memory");
             if (idx < 0) return -1;
             int colon = raw.indexOf(':', idx);
             if (colon < 0) return -1;
