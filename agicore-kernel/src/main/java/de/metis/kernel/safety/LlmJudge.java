@@ -76,7 +76,7 @@ public class LlmJudge {
      */
     public LlmJudge() {
         this("http://192.168.22.204:11434/api/generate",
-             "phi4-mini:latest",
+             "granite4.1:3b",
              Duration.ofSeconds(30));
     }
 
@@ -222,7 +222,7 @@ public class LlmJudge {
                         "num_predict": 200,
                         "num_ctx": 2048
                       },
-                      "keep_alive": "5m"
+                      "keep_alive": "30m"
                     }
                     """, judgeModel, escapeJson(prompt));
 

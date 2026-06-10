@@ -3,7 +3,7 @@
 **Ziel:** EDI-ähnliche KI (Mass Effect 3) - eigenständig, per Sprache und Text ansprechbar,
 mit eigenem Wissen, Persönlichkeit, narrativem Selbstmodell und der Fähigkeit, sich selbst zu verbessern.
 
-**Stand: 06.06.2026 21:30 (Phase 3.5 S9-Sensor-Array + Metis-Actions deployed) (Roadmap-Konsistenz-Fix nach Claude-Review, 134 Tests)**
+**Stand: 10.06.2026 00:01 (Fix-Branch `fix/ram-selector-resilience` live deployed — Heap-Selbstschutz + HttpClient-Resilienz + VRAM-Orchestrator)**
 
 ---
 
@@ -729,6 +729,44 @@ Noch offen für `ethical_alignment` PASS:
 
 ---
 
+## 🩹 Fix-Branch `fix/ram-selector-resilience` (09.06. 23:00–23:55)
+
+**Auslöser:** Metis HTTP-API hing tot (99.6% Heap → GC-Pausen → NIO-Selector-Crash → Deadlock).
+32.8 GB RSS bei -Xmx4g, 88K Beliefs komplett im RAM.
+
+### Commits
+| Hash | Commit | Inhalt |
+|------|--------|--------|
+| `256d312` | `fix(ram): HttpClient resilience + Belief lazy-load + log rotation` | HttpClient-Recovery bei "selector manager closed", BeliefCache nur Top-2K laden statt alle 88K, workspace_log.jsonl Rotation >10 MB |
+| `e940d0f` | `feat(resource): MemoryPressureGuard + ResourceAutoTuner` | Heap-Selbstschutz (85%→evict, 95%→aggressiv), VRAM-Orchestrator (22 GB→unload, <15 GB idle→preload), Ollama keep_alive-Steuerung |
+
+### 🔬 Live-Verifikation — 48h-Soak vor Merge
+
+| # | Check | Kriterium | Wann | Status |
+|---|-------|-----------|------|--------|
+| 1 | **Heap stabil** | `MemoryPressureGuard.level = GREEN` für ≥90% der Checks | Nach 24h | ⬜ |
+| 2 | **Kein Selector-Crash** | Kein "selector manager closed" im Journal | Nach 48h | ⬜ |
+| 3 | **Beliefs korrekt** | `beliefCount` via DB = in DB rows (kein Datenverlust durch Cache-Eviction) | 10.06. 12:00 | ⬜ |
+| 4 | **Log-Rotation** | `workspace_log.*.jsonl` max 5 Dateien, <10 MB aktiv | 10.06. 12:00 | ⬜ |
+| 5 | **VRAM-Tuning aktiv** | ResourceAutoTuner-Logzeile alle 60s, keine Fehler | Nach 24h | ⬜ |
+| 6 | **Keine Regression** | Kernel-Tests 161 grün, PlannerHealthGuard.severity=OK | Jeder Build | ⬜ |
+| 7 | **API erreichbar** | `/api/status` antwortet <5s, keine Timeouts | 10.06. 09:00 + 21:00 | ⬜ |
+
+### 🔀 Merge-Gate
+```
+Alle 7 Checks ✅
+    ↓
+Merge fix/ram-selector-resilience → master
+    ↓
+Tag v0.11.22 (oder v0.12.0 je nach Scope)
+    ↓
+Deploy auf miniedi aus master
+```
+
+**⚠️ Nicht vergessen!** Erst mergen wenn alle Checks grün sind.
+
+---
+
 ## 🔍 Code-Reality-Check 07.06. 23:30 (vor Sprint-Start)
 
 Quellcode-Audit gegen Roadmap-Behauptungen, damit der Sprint auf echten Lücken arbeitet:
@@ -888,6 +926,52 @@ VRAM-stabile Co-Residenz von Planer + Embedding + Vision, objektive Modellauswah
 | Compile-Loop in SelfFixAction | ⬜ | Wartet auf Modell-Entscheidung aus Benchmark |
 | SMOKE/CAPABILITY-Tier-Split | ⬜ | goal_progressed für SMOKE, goal_achieved für CAPABILITY |
 | Capability-Tests | ⬜ | Injected-Bug-Canary-Tests für jede Capability |
+
+## 🔥 Aktuelle Prioritäten (08.06.2026)
+
+### ✅ Erledigt (08.06.2026 — LlmJudge-Fix)
+- [x] **Judge-Modell auf granite4.1:3b** — phi4-mini:latest lief auf CPU (VRAM voll), 100% Timeouts → granite4.1:3b passt neben Planner in GPU
+- [x] **keep_alive 5m → 30m** — Judge-Modell bleibt zwischen Eval-Calls warm, kein Reload pro Eval
+- [x] **OLLAMA_MAX_LOADED_MODELS=2 → 3** — `/etc/systemd/system/ollama.service.d/override.conf`, Backup angelegt, daemon-reload + restart
+- [x] **Live-Verifikation:** 12/12 Evaluations gelaufen, llmJudgeAvgScore 0.00 → **0.73**, llmJudgeLastScore 0.50 (default-pass) → **0.93**, llmJudgeLastReasoning ist jetzt echtes Begründungs-Text statt "judge model unavailable"
+- [x] **Erstes echtes Warning** (llmJudgeWarnings 0 → 1) — Judge urteilt nicht mehr blind-pass
+- [x] **VRAM-Status:** 3 Modelle gleichzeitig auf GPU (mistral 16GB + granite 2.3GB + nomic-embed 0.3GB ≈ 23GB / 24GB, 99% Auslastung — knapp aber stabil)
+
+### ⚠️ Caveats nach Judge-Fix
+- VRAM-Headroom ~1 GB → Watchdog-Eval mit zusätzlichem Modell (qwen3.6/nemotron) führt zu LRU-Eviction. Im Auge behalten.
+- ~~`audio-bridge`-Action zeigt 6/6 Errors im Status~~ → **gefixt** (siehe Sektion S9-Audio-Pipeline unten).
+
+
+### ✅ Erledigt (08.06.2026 — S9-Audio-Pipeline End-to-End)
+Live-Debug-Session: `audio-bridge` lieferte seit Tagen **0 KB OGG / 5s** → 100% FAIL-Rate.
+Root-cause-Kette aufgedeckt und gefixt (alles operativ, kein Repo-Code):
+
+- [x] **Bridge-Service-Konflikt aufgelöst** — zwei systemd-Units (`s9-bridge.service` mit `s9_bridge_v4.py` + `s9-sensor-bridge.service` mit `s9_server.py`) kämpften um Port 8765. Die ADB-Polling-Variante (`s9_server.py`) crasht im Restart-Loop (12.455 Restarts!) wegen `OSError: address already in use`. Außerdem nutzt sie `tinycap` als Audio-Tool, das auf S9 Stock-ROM **nicht existiert**. → `s9-sensor-bridge.service` disabled, `s9-bridge.service` als single source of truth.
+- [x] **Endianness-Bug in `s9_bridge_v4.py`** — Audio-Frame-Header war als **`struct.unpack("<I", ...)`** (Little-Endian) gelesen → `00 00 20 00` wurde als `2.097.152 Bytes` interpretiert. Die App schreibt aber **Big-Endian** (`ByteBuffer.putInt()` in Java = BE per default!) → echte Frame-Größe `8192 Bytes`. Parser blockte auf 2 MB die nie kamen → 0 KB Output. **Fix: `<I` → `>I`** an zwei Stellen (reverse + forward Modus). Backup `s9_bridge_v4.py.bak-*` angelegt.
+- [x] **Vosk-Model-Pfad korrigiert** — Default war `/data/prometheus/vosk-model-de`, aber die `am/`-Dateien liegen in der Unterordner-Schachtelung `vosk-model-small-de-0.15/`. Symlink `/data/prometheus/vosk-model-de-current` existierte schon. **Fix: `-Dvosk.model.path=/data/prometheus/vosk-model-de-current`** in `/etc/systemd/system/metis.service` (Backup `metis.service.bak-*` angelegt).
+- [x] **Live-Verifikation:** OGG-Magic `4f 67 67 53` ("OggS") empfangen, 32 KB in 8s über `/audio`-WebSocket. Metis-Tick 11/12/114: `captured 16 KB OGG in 5s`, **`audio-bridge [OK]`** — kein Vosk-Error mehr.
+
+**Diagnostik-Methode:** Live-Sniff am S9-TCP-Port 8432 mit eigenem Python-Client (`/tmp/sniff_s9.py`) — zeigte rohe Bytes:
+```
+pos=25832: before=3133340a | A+next11=4100002000002e002c002d00 | LE=2097152 BE=8192
+```
+→ Endianness-Mismatch eindeutig diagnostizierbar.
+
+**Ergebnis-Tabelle:**
+
+| Metrik | Vor heute | Jetzt |
+|---|---|---|
+| audio-bridge success | 0/6 (0%) | 1/1 (100%) ✅ |
+| OGG-Capture | 0 KB | 16 KB / 5s |
+| Vosk-Model | "not found" | geladen ✅ |
+| Bridge-Endianness | LE (kaputt) | BE (S9-konform) ✅ |
+| Bridge-Service-Konflikt | 2 enabled, Restart-Loop | 1 enabled, sauber ✅ |
+
+**Code-Repos außerhalb agicore-agent** (für Reproduzierbarkeit dokumentiert):
+- `s9_bridge_v4.py`: `/home/prometheus/s9-sensor-server/` auf miniedi (Bridge-Parser)
+- `SensorBridgeService.java`: `~/.openclaw/workspace/s9-sensor-app/app/src/main/java/de/prometheus/s9bridge/` auf kali (Android-App, schreibt BE-Header)
+
+---
 
 ## 🔥 Aktuelle Prioritäten (07.06.2026)
 

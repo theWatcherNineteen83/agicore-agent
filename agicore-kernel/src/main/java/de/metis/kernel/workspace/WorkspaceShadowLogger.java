@@ -27,6 +27,7 @@ import java.util.logging.Logger;
  *   <li>Best-effort: I/O-Fehler werden geloggt, nie propagiert.</li>
  *   <li>Größen-Cap pro Zeile, damit ein Ausreißer-Item die Datei nicht sprengt.</li>
  *   <li>Pfad via System-Property {@code metis.workspace.shadow.path}.</li>
+ *   <li>Auto-Rotation bei 10 MB, behält max 5 rotierte Dateien.</li>
  * </ul>
  *
  * <p>Rein deterministisch, nur File-I/O — daher im Kernel (analog
@@ -42,6 +43,12 @@ public final class WorkspaceShadowLogger {
 
     /** Max Zeichen pro JSON-Zeile (Schutz vor Runaway-Content). */
     private static final int MAX_LINE_CHARS = 8 * 1024;
+
+    /** Rotate when file exceeds this size (10 MB). */
+    private static final long MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
+
+    /** Keep at most this many rotated files. */
+    private static final int MAX_ROTATED_FILES = 5;
 
     private final Path file;
     private volatile boolean enabled = true;
@@ -68,6 +75,61 @@ public final class WorkspaceShadowLogger {
     }
 
     /**
+     * Rotate the current log file if it exceeds {@link #MAX_FILE_SIZE_BYTES}.
+     * Renames to {@code workspace_log.YYYYMMDD-HHMMSS.jsonl} and prunes old rotations.
+     */
+    private void rotateIfNeeded() {
+        try {
+            if (!Files.exists(file)) return;
+            long size = Files.size(file);
+            if (size < MAX_FILE_SIZE_BYTES) return;
+
+            String timestamp = java.time.LocalDateTime.now()
+                    .format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"));
+            String baseName = file.getFileName().toString();
+            int dot = baseName.lastIndexOf('.');
+            String rotatedName = (dot > 0 ? baseName.substring(0, dot) : baseName)
+                    + "." + timestamp + (dot > 0 ? baseName.substring(dot) : "");
+            Path rotated = file.resolveSibling(rotatedName);
+            Files.move(file, rotated, java.nio.file.StandardCopyOption.ATOMIC_MOVE);
+            LOG.info("WorkspaceShadowLogger rotated: " + rotated.getFileName()
+                    + " (was " + (size / (1024 * 1024)) + " MB)");
+
+            // Prune old rotations — keep only MAX_ROTATED_FILES most recent
+            pruneRotations();
+        } catch (Exception e) {
+            LOG.fine("WorkspaceShadowLogger rotation failed (non-fatal): " + e.getMessage());
+        }
+    }
+
+    private void pruneRotations() {
+        try {
+            String baseName = file.getFileName().toString();
+            int dot = baseName.lastIndexOf('.');
+            String prefix = (dot > 0 ? baseName.substring(0, dot) : baseName) + ".";
+            String suffix = dot > 0 ? baseName.substring(dot) : "";
+
+            var candidates = new java.util.ArrayList<Path>();
+            try (var stream = Files.list(file.getParent())) {
+                stream.filter(p -> {
+                    String n = p.getFileName().toString();
+                    return n.startsWith(prefix) && n.endsWith(suffix)
+                            && n.length() > prefix.length() + suffix.length();
+                }).forEach(candidates::add);
+            }
+            candidates.sort((a, b) -> b.getFileName().toString()
+                    .compareTo(a.getFileName().toString())); // newest first
+            for (int i = MAX_ROTATED_FILES; i < candidates.size(); i++) {
+                Files.deleteIfExists(candidates.get(i));
+                LOG.fine("WorkspaceShadowLogger pruned old rotation: "
+                        + candidates.get(i).getFileName());
+            }
+        } catch (Exception e) {
+            LOG.fine("WorkspaceShadowLogger prune failed (non-fatal): " + e.getMessage());
+        }
+    }
+
+    /**
      * Hängt einen Broadcast als JSONL-Zeile an. Best-effort.
      *
      * @param broadcast Gewinner-Items des aktuellen Broadcasts
@@ -77,6 +139,7 @@ public final class WorkspaceShadowLogger {
     public void log(List<ContentItem> broadcast, double entropy, boolean stuck) {
         if (!enabled || broadcast == null) return;
         try {
+            rotateIfNeeded();
             String line = render(broadcast, entropy, stuck);
             if (line.length() > MAX_LINE_CHARS) {
                 line = line.substring(0, MAX_LINE_CHARS - 2) + "\"}";

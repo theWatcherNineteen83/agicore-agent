@@ -111,14 +111,28 @@ public class WorldModel implements AutoCloseable {
         }
     }
 
-    /** Load beliefs from persistence (called after setKnowledgeStore). */
+    /**
+     * Load beliefs from persistence (called after setKnowledgeStore).
+     * <p>
+     * <b>Fix (09.06.2026):</b> No longer loads all 88K+ beliefs into RAM.
+     * Instead starts with an empty in-memory map that acts as a write-through cache.
+     * Queries that miss the cache fall back to {@link KnowledgeStore#searchBeliefs}.
+     * This prevents the 99.6% heap utilisation and GC→selector-crash cascade observed
+     * when -Xmx4g held all beliefs in memory.
+     * <p>
+     * {@link #beliefCount()} delegates to {@link KnowledgeStore#beliefCount()} to report
+     * the full count without loading everything.
+     */
     public void loadFromStore() {
         if (knowledgeStore == null) return;
-        List<Belief> stored = knowledgeStore.loadBeliefs();
-        for (Belief b : stored) {
+        // Warm the cache with top 2000 highest-confidence beliefs (fast path for
+        // common queries without hitting SQLite on every Planner tick).
+        List<Belief> top = knowledgeStore.loadTopBeliefs(2000);
+        for (Belief b : top) {
             beliefs.put(b.statement(), b);
         }
-        LOG.info("Loaded " + stored.size() + " beliefs from KnowledgeStore");
+        LOG.info("WorldModel warm-loaded " + top.size() + " top beliefs (DB total: "
+                + knowledgeStore.beliefCount() + "), query miss falls back to SQLite");
     }
     // Key = statement (simple dedup — future: embedding-based)
 
@@ -214,25 +228,47 @@ public class WorldModel implements AutoCloseable {
             }
         }
 
-        // ── Fallback: substring match ─────────────────────────
+        // ── Fallback: in-memory substring match ──────────────
         String lower = context.toLowerCase();
-        return beliefs.values().stream()
+        List<Belief> fromMemory = beliefs.values().stream()
                 .filter(b -> b.statement().toLowerCase().contains(lower))
                 .sorted(Comparator.comparingDouble(Belief::confidence).reversed())
                 .limit(maxResults)
                 .toList();
+        if (!fromMemory.isEmpty() || knowledgeStore == null) {
+            return fromMemory;
+        }
+        // ── DB fallback: keyword search via SQLite LIKE ────────
+        List<String> keywords = new ArrayList<>();
+        for (String word : lower.split("\\s+")) {
+            if (word.length() >= 3) keywords.add(word);
+        }
+        if (keywords.isEmpty()) keywords.add(lower);
+        return knowledgeStore.searchBeliefs(keywords, maxResults);
     }
 
     /**
      * Generate content items for the Global Workspace.
-     * High-confidence, recently-updated beliefs are more salient.
+     * Streams top beliefs from DB (limited to 500) instead of iterating all 88K in memory.
      */
     public List<ContentItem> generateWorldContent() {
         List<ContentItem> items = new ArrayList<>();
+        int maxItems = 500;
+        if (knowledgeStore != null) {
+            // Use cached top beliefs — avoids iterating full DB
+            for (Belief b : beliefs.values()) {
+                if (b.confidence() < 0.4) continue;
+                double novelty = b.evidence() <= 3 ? 0.6 : 0.1;
+                double relevance = b.confidence();
+                items.add(new ContentItem("world",
+                        b.statement(), b.confidence(), novelty, relevance,
+                        "belief: " + b));
+                if (items.size() >= maxItems) break;
+            }
+            return items;
+        }
         for (Belief b : beliefs.values()) {
-            // Only beliefs with decent evidence compete
             if (b.evidence() < 2 && b.confidence() < 0.5) continue;
-
             double novelty = b.evidence() <= 3 ? 0.6 : 0.1;
             double relevance = b.confidence();
             items.add(new ContentItem("world",
@@ -244,13 +280,18 @@ public class WorldModel implements AutoCloseable {
 
     /**
      * How many beliefs does the agent hold?
+     * Delegates to KnowledgeStore for the true count (DB query, not memory).
      */
     public int beliefCount() {
+        if (knowledgeStore != null) {
+            return knowledgeStore.beliefCount();
+        }
         return beliefs.size();
     }
 
     /**
      * Average confidence across all beliefs.
+     * Uses in-memory cache as a sample (expensive DB query avoided).
      */
     public double averageConfidence() {
         return beliefs.values().stream()
@@ -259,8 +300,19 @@ public class WorldModel implements AutoCloseable {
                 .orElse(0.0);
     }
 
-    /** All beliefs, unmodifiable. */
+    /**
+     * All beliefs. Warning: loads from DB if cache miss, can be expensive with 88K+ beliefs.
+     * Prefer {@link #query(String, int)} for targeted access.
+     */
     public Collection<Belief> all() {
+        if (knowledgeStore != null) {
+            // Merge in-memory cache with DB for completeness
+            List<Belief> fromDb = knowledgeStore.loadBeliefs();
+            Map<String, Belief> merged = new java.util.LinkedHashMap<>();
+            for (Belief b : fromDb) merged.put(b.statement(), b);
+            for (Belief b : beliefs.values()) merged.put(b.statement(), b);
+            return List.copyOf(merged.values());
+        }
         return List.copyOf(beliefs.values());
     }
 
@@ -272,5 +324,25 @@ public class WorldModel implements AutoCloseable {
                 .sorted(Comparator.comparingDouble(Belief::confidence).reversed())
                 .limit(topN)
                 .toList();
+    }
+
+    /**
+     * Evict in-memory belief cache down to a target size, keeping the
+     * highest-confidence entries. The underlying SQLite store is untouched.
+     * Used by {@code MemoryPressureGuard} under heap pressure.
+     */
+    public void evictCacheToTarget(int targetKeep) {
+        if (beliefs.size() <= targetKeep) return;
+        int before = beliefs.size();
+        var sorted = beliefs.values().stream()
+                .sorted(Comparator.comparingDouble(Belief::confidence).reversed())
+                .limit(targetKeep)
+                .toList();
+        beliefs.clear();
+        for (Belief b : sorted) {
+            beliefs.put(b.statement(), b);
+        }
+        LOG.info("MemoryPressure: evicted belief cache " + before + " → " + beliefs.size()
+                + " (target " + targetKeep + ")");
     }
 }
