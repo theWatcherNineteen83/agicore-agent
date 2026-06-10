@@ -220,7 +220,8 @@ public class LlmJudge {
                         "temperature": 0.1,
                         "top_p": 0.9,
                         "num_predict": 200,
-                        "num_ctx": 2048
+                        "num_ctx": 2048,
+                        "num_gpu": 0
                       },
                       "keep_alive": "30m"
                     }
