@@ -39,8 +39,8 @@ public class EvolutionManager {
 
     private static final Logger LOG = Logger.getLogger(EvolutionManager.class.getName());
 
-    private static final int STAGNATION_TICKS = 100;
-    private static final int MAX_STAGNATION_TICKS = 200;
+    private static final int STAGNATION_TICKS = 50;
+    private static final int MAX_STAGNATION_TICKS = 100;
     private static final int SHADOW_TICKS = 100;
 
     private final SafetyGuard safety;
@@ -49,6 +49,8 @@ public class EvolutionManager {
 
     /** Injected mutation service (Ollama, or dummy for testing). */
     private MutationService mutationService = new DummyMutationService();
+    /** Max retries with compiler feedback. */
+    private static final int MAX_COMPILE_RETRIES = 2;
 
     /** Prompt bank for few-shot learning from successful mutations. */
     private PromptBank promptBank = new PromptBank();
@@ -341,12 +343,35 @@ public class EvolutionManager {
         Path tempFile = outputDir.resolve(className + ".java");
         Files.writeString(tempFile, mutantSource);
 
-        // Compile check
-        if (!compileCheck(tempFile, className)) {
+        // ── Compile check with feedback loop ──
+        String compileFeedback = null;
+        boolean compileOk = compileCheck(tempFile, className);
+        int retry = 0;
+        while (!compileOk && retry < MAX_COMPILE_RETRIES) {
+            if (compileFeedback == null) {
+                compileFeedback = captureCompileErrors(tempFile, className);
+            }
+            LOG.warning("Mutation compilation FAILED (attempt " + (retry + 1)
+                    + "/" + MAX_COMPILE_RETRIES + "): " + className
+                    + " — retrying with compiler feedback");
+            String fixedSource = mutationService.mutateWithFeedback(
+                    moduleName, mutantSource, className, resolvePackageName(moduleName), compileFeedback);
+            if (fixedSource == null || fixedSource.equals(mutantSource)) break;
+            mutantSource = fixedSource;
+            Files.writeString(tempFile, mutantSource);
+            compileOk = compileCheck(tempFile, className);
+            retry++;
+            if (!compileOk) {
+                compileFeedback = captureCompileErrors(tempFile, className);
+            }
+        }
+        if (!compileOk) {
+            LOG.warning("Mutation compilation FAILING after " + MAX_COMPILE_RETRIES
+                    + " retries: " + className);
             safety.recordFailure();
             rejectedMutations++;
             Files.deleteIfExists(tempFile);
-            return new EvolutionResult(false, "Compilation failed");
+            return new EvolutionResult(false, "Compilation failed after feedback retries");
         }
 
         ShadowEvalResult shadowResult = runShadowEvaluation(SHADOW_TICKS,
@@ -401,18 +426,36 @@ public class EvolutionManager {
 
     /** Real compilation check using javax.tools.JavaCompiler. */
     public boolean compileCheck(Path sourceFile, String className) {
+        return captureCompileErrors(sourceFile, className) == null;
+    }
+
+    /**
+     * Compile a source file and capture all error diagnostics.
+     * @return null on success, formatted error message on failure
+     */
+    private String captureCompileErrors(Path sourceFile, String className) {
+        return compileWithDiagnostics(sourceFile, className);
+    }
+
+    /**
+     * Internal: compile file and return diagnostics as string, or null on success.
+     */
+    private String compileWithDiagnostics(Path sourceFile, String className) {
         JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
         if (compiler == null) {
             LOG.warning("No system Java compiler available — skipping compile check");
-            return true; // degrade gracefully
+            return null; // degrade gracefully
         }
-
         Path outputDir = Path.of("target/evolution-out");
         try {
             Files.createDirectories(outputDir);
         } catch (IOException e) {
-            return false;
+            return "Cannot create output dir: " + e.getMessage();
         }
+
+        var diagnostics = new java.util.ArrayList<javax.tools.Diagnostic<?>>();
+        var listener = new javax.tools.DiagnosticCollector<javax.tools.JavaFileObject>();
+        var fileManager = compiler.getStandardFileManager(listener, null, null);
 
         List<String> options = List.of(
                 "-d", outputDir.toString(),
@@ -420,13 +463,27 @@ public class EvolutionManager {
                 "-Xlint:none"
         );
 
-        var fileManager = compiler.getStandardFileManager(null, null, null);
         var compilationUnits = fileManager.getJavaFileObjects(sourceFile.toFile());
-        var task = compiler.getTask(null, fileManager, null, options, null, compilationUnits);
+        var task = compiler.getTask(null, fileManager, listener, options, null, compilationUnits);
 
         boolean success = task.call();
-        LOG.info(() -> "Compile check: " + (success ? "PASS" : "FAIL") + " for " + className);
-        return success;
+        if (success) {
+            LOG.info(() -> "Compile check: PASS for " + className);
+            return null;
+        }
+
+        // Collect error diagnostics
+        StringBuilder sb = new StringBuilder();
+        sb.append("Compilation failed (").append(diagnostics.size()).append(" errors):\n");
+        for (var d : diagnostics) {
+            if (d.getKind() == javax.tools.Diagnostic.Kind.ERROR) {
+                sb.append("  Line ").append(d.getLineNumber())
+                  .append(": ").append(d.getMessage(null)).append("\n");
+            }
+        }
+        String err = sb.toString();
+        LOG.warning(() -> "Compile check: FAIL for " + className + " — " + err);
+        return err;
     }
 
     /**
@@ -621,6 +678,12 @@ public class EvolutionManager {
     public interface MutationService {
         String mutate(String moduleName, String currentSource,
                       String className, String packageName);
+
+        /** Retry mutation with compiler error feedback. */
+        default String mutateWithFeedback(String moduleName, String currentSource,
+                      String className, String packageName, String compileErrors) {
+            return mutate(moduleName, currentSource, className, packageName);
+        }
     }
 
     /** Dummy service — returns input unchanged (pipeline smoke test). */

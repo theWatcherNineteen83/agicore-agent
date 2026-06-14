@@ -137,6 +137,70 @@ public class OllamaMutationService implements EvolutionManager.MutationService {
      * Build the constrained mutation prompt.
      * Critical: the prompt must be tight to prevent the LLM from going rogue.
      */
+        /**
+     * Generate a mutated variant with compiler error feedback.
+     * The compile errors are appended to the prompt so the LLM can fix them.
+     */
+    public String mutateWithFeedback(String moduleName, String currentSource,
+                                      String className, String packageName, String compileErrors) {
+        mutationCount++;
+        LOG.info("Ollama mutation #" + mutationCount + " (with compile feedback) for: " + moduleName);
+
+        String prompt = buildMutationPrompt(moduleName, currentSource, className, packageName);
+
+        if (compileErrors != null && !compileErrors.isBlank()) {
+            prompt += "\n\nPREVIOUS COMPILATION ERRORS (must fix):\n"
+                    + compileErrors
+                    + "\n\nFIX THESE ERRORS in the new version. Output ONLY valid Java code.\n";
+        }
+
+        try {
+            String jsonBody = String.format("""
+                    {
+                      "model": "%s",
+                      "prompt": %s,
+                      "stream": false,
+                      "options": {
+                        "temperature": 0.5,
+                        "top_p": 0.9,
+                        "num_predict": 4096
+                      }
+                    }
+                    """, currentModel(), escapeJson(prompt));
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(OLLAMA_URL))
+                    .timeout(TIMEOUT)
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
+                    .build();
+
+            HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
+            lastRawResponse = response.body();
+
+            if (response.statusCode() != 200) {
+                LOG.warning("Ollama returned " + response.statusCode() + ": " + response.body());
+                return null;
+            }
+
+            String generatedText = extractResponse(response.body());
+            String source = extractJavaSource(generatedText, className);
+
+            if (source == null || source.isBlank()) {
+                LOG.warning("Failed to extract Java source from Ollama response (feedback)");
+                return null;
+            }
+
+            LOG.info(() -> "Ollama generated " + source.length() + " chars for " + className + " (with feedback)");
+            return source;
+
+        } catch (Exception e) {
+            LOG.warning("Ollama mutation (feedback) failed: " + e.getMessage());
+            return null;
+        }
+    }
+
+
     private String buildMutationPrompt(String moduleName, String source,
                                         String className, String packageName) {
         String basePrompt = String.format("""

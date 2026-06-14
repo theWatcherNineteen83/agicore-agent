@@ -403,10 +403,28 @@ public final class AgentMain {
 
         // Pattern: unexpected action diversity
         if (idleTicks > 20 && totalTicks > 50) {
+            double idleRatio = 100.0 * idleTicks / totalTicks;
             String event = String.format("T%d: High idle ratio %.1f%% — agent may be in exploration loop",
-                    tick, 100.0 * idleTicks / totalTicks);
+                    tick, idleRatio);
             if (emergenceEvents.size() < 100) emergenceEvents.add(event);
             LOG.fine("EMERGENCE: " + event);
+
+            // ── Exploration Break ──
+            if (idleRatio > 60.0 && agent != null && agent.goals().activeCount() < 5) {
+                LOG.warning("EXPLORATION BREAK: idleRatio=" + String.format("%.0f%%", idleRatio)
+                        + " — forcing goal diversification");
+                String[] diverseGoals = {
+                    "Explore filesystem via filesystem-list",
+                    "Query world model beliefs",
+                    "Self-analyze recent performance",
+                    "HTTP health check request",
+                    "Check system status via shell"
+                };
+                String pick = diverseGoals[RANDOM.nextInt(diverseGoals.length)];
+                agent.addGoal(pick, "exploration", 60, 0.6, 2);
+                LOG.info("Exploration break: generated forced goal: " + pick);
+                idleTicks = (int)(idleTicks * 0.5);  // halve the counter
+            }
         }
 
         // Pattern: world model growth surge
