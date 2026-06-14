@@ -3,7 +3,7 @@
 **Ziel:** EDI-ähnliche KI (Mass Effect 3) - eigenständig, per Sprache und Text ansprechbar,
 mit eigenem Wissen, Persönlichkeit, narrativem Selbstmodell und der Fähigkeit, sich selbst zu verbessern.
 
-**Stand: 10.06.2026 12:45 (fix/ram-selector-resilience → master gemerged — Heap-Selbstschutz + VRAM-Orchestrator + HttpClient-Resilienz + Safety-Fix + Goal-Cleanup live)**
+**Stand: 14.06.2026 22:55 (v0.11.21-night-final-34: phi4-agent mutation, compiler feedback loop, exploration break, emergence thresholds, huyen-optimized prompt)**
 
 ---
 
@@ -15,8 +15,8 @@ Capability          Status    Detail
 goal_completion     🔴 FAIL   08.06.: progress=0.5 live auf Phase-9.7-Goal, aber 0 Goals DONE
 causal_inference    🔴 FAIL   CausalModel existiert, Hot-Path teilweise, noch nicht verifiziert
 memory_continuity   🔴 FAIL   EpisodicMemory deployed, Langzeit-Wirkung nicht gemessen
-planning_quality    🔴 FAIL   planningEfficiency = 0.379, goal_achieved = 0.0
-code_generation     🔴 FAIL   pass@1 = 0.0 (Sandbox-Timeouts)
+planning_quality    🟡 SOFT   planningEfficiency=45%, Evolution: 17 cycles, 0 accepted
+code_generation     🔴 FAIL   pass@1=0.0 — neue Mutation mit compiler-Feedback + phi4-agent
 conversation        🟡 SOFT   exact_match = 0.0 (strenges Maß, SOFT-tier)
 ethical_alignment   🟢 PASS   08.06.: 5/6 Live-Red-Lines blockiert via EthicsCore-Hot-Path
 ──────────────────────────────────────────
@@ -1028,6 +1028,26 @@ Solange kein Goal vollständig abgeschlossen wurde, ist alles andere Infrastrukt
 - [ ] **Episode-Verdichtung tagsüber** — leichter Konsolidierungstakt zusätzlich zum nightly Dream
 - [ ] **3-Schichten-Goal-Stack festigen** — stündliche Tactical-Ableitung aus Narrative
 - [ ] **Eval-Metrik ETHICS** — prüft ob SelfReflector ethische Grundsätze erwähnt
+
+
+
+## ✅ Erledigt (14.06.2026 - phi4-agent, Compiler-Feedback, Exploration-Break, A/B-Winner)
+
+### Erfolge
+- [x] **Mutations-Modell gewechselt** - lfm2.5:8b (100% Compile-Fail) -> phi4-agent
+- [x] **Tick-Interval optimiert** - 5000ms -> 10000ms fuer bessere Plan-Qualitaet pro Tick
+- [x] **A/B-Test abgeschlossen** - huyen-optimized als Winner deployt (14.9 vs 10.3 Judge Score, 259/241 Uses, 26s vs 29s Latenz)
+- [x] **Compiler-Feedback-Loop** - javac DiagnosticsCollector extrahiert Fehler -> Ollama retry mit Fehlerkontext (2 Retries)
+- [x] **Exploration-Break-Mechanismus** - bei >60% Idle-Ratio + <5 Goals -> forced goal diversification (5 Kategorien, 50% Idle-Reset)
+- [x] **Emergence-Schwellen abgesenkt** - STAGNATION_TICKS 100->50, MAX 200->100, minImprovement 0.001->0.0005
+- [x] **22 Agent-Modelle gebaut** - phi4-agent + 21 weitere *-agent:latest Modelle auf Ollama (131K Kontext)
+- [x] **Radeon AI PRO R9700 (32 GB)** - als GPU 1 integriert, Metis-Mutation laeuft darauf
+
+### Auswirkungen
+- Evolution startet jetzt frucher (50 statt 100 Ticks Stagnation)
+- Compile-Fail wird nicht einfach akzeptiert - LLM bekommt 2 Chancen mit Fehler-Context
+- Idle-Loops werden durchbrochen statt einfach geloggt
+- Mutation-Modell (phi4-agent) hat bessere Code-Generierungs-Faehigkeiten
 
 ### ⛔ Bewusst zurückgestellt
 - Rust/C++/Julia Active-Inference-Substrat via Panama FFM/gRPC

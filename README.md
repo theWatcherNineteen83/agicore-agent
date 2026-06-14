@@ -144,7 +144,7 @@ URL: http://<host>:11735
 | Flag | Beschreibung |
 |------|-------------|
 | `--api-port N` | HTTP-API Port (default: 11735) |
-| `--interval N` | Tick-Intervall in ms (default: 5000) |
+| `--interval N          Tick-Intervall in ms (default: 10000)
 | `--evolution` | Self-Evolution aktivieren |
 | `--kanban` | Kanban Goal Board (WIP-Limits, Pull-System) |
 | `--kernel-evolution` | Kernel + Module Evolution |
@@ -185,7 +185,7 @@ URL: http://<host>:11735
 | Rolle | Modell | Größe | Status |
 |-------|--------|-------|--------|
 | Planning | `mistral-small3.1:24b` | 15 GB | 100% Erfolg, 0 Fallbacks |
-| Mutation | `lfm2.5:8b` | 5.2 GB | aktiv |
+| Mutation | `phi4-agent` | ~8 GB | aktiv (compiler-feedback-loop) |
 | Embedding | `nomic-embed-text` | 0.3 GB | keep_alive=-1 |
 | Vision (Kameras) | `minicpm-v:latest` | 5.5 GB | keep_alive=0 |
 | LLM-Judge | `phi4-mini:latest` | 2.5 GB | Score 0.92 (fixed from nemotron-mini) |
@@ -193,7 +193,7 @@ URL: http://<host>:11735
 | Bootstrap | `granite4.1:3b` | 2.1 GB | — |
 | Fallback-Chain | mistral-small3.1 → phi4-mini → granite4.1:3b | — | 0 Fallbacks im Betrieb |
 
-**VRAM-Strategie (RX 7900 XTX, 24 GB):** Planner (15 GB) + Mutation (5.2 GB) + Embedding (0.3 GB) ≈ 20.5 GB. Vision/Judge/Reflector via keep_alive=0 sofort entladen.
+**VRAM-Strategie (2 GPUs: RX 7900 XTX 24GB + Radeon AI PRO R9700 32GB):** Planner (15 GB) auf GPU 0, Mutation (phi4-agent) auf GPU 1, Embedding (0.3 GB) auf GPU 0. Vision/Judge/Reflector via keep_alive=0 sofort entladen.
 
 ## Hardware
 

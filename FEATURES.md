@@ -132,14 +132,14 @@ STRANGER(0) → AUTO      (strenger Allow-List-Modus)
 | **OpenClaw** | Beantwortet Telegram-Chats direkt (deepseek Cloud), kein GPU-Konflikt |
 | **Metis TelegramBot** | Empfängt Nachrichten → Kanban-Goal + Immediate-ACK, keine LLM-Antwort |
 | **Kanban-Integration** | Eingehende Nachrichten als `Goal.ResourceType.INFERENCE` im Backlog |
-| **GPU-Strategie** | lfm2:24b (14.4 GB) exklusiv für Agent-Planning, kein zweites GPU-Modell |
+| **GPU-Strategie: RX 7900 XTX (24 GB, GPU 0) + Radeon AI PRO R9700 (32 GB, GPU 1). Planner auf GPU 0, Mutation auf GPU 1. 56 GB VRAM gesamt.
 
 ## 🔬 Ollama-Modell-Analyse (v0.8.0)
 
 | Modell | Größe | Typ | Nutzung |
 |---|---|---|---|
 | lfm2:24b | 14.4 GB | GPU | Agent-Planning (alle 5s Ticks) |
-| phi4-mini:latest | 2.5 GB | CPU (zu langsam) | SelfReflector (Ethik-Reflexion) |
+| phi4-agent | ~8 GB | GPU 1 | Mutation mit compiler-feedback-loop
 | nomic-embed-text | 0.3 GB | On-Demand | Belief-Embeddings |
 | granite4.1:3b-q2_K | 1.4 GB | CPU | Notiz: >60s Latenz, ungeeignet für Chat |
 | gemma4:e4b | 9.6 GB | GPU | Würde lfm2 verdrängen → nicht parallel nutzbar |
@@ -453,7 +453,7 @@ STRANGER(0) → AUTO      (strenger Allow-List-Modus)
 | Rolle | Modell | Größe | Status |
 |---|---|---|---|
 | Planning | `mistral-small3.1:24b` | 15 GB | 100% Erfolg, 0 Fallbacks (07.06.) |
-| Mutation | `lfm2.5:8b` | 5.2 GB | aktiv (vorher gemma4:31b → existierte nicht) |
+| Mutation | `phi4-agent` | ~8 GB | aktiv, compiler-feedback-loop |
 | Embedding | `nomic-embed-text` | 0.3 GB | keep_alive=-1 |
 | LLM-Judge | `phi4-mini:latest` | 2.5 GB | Score 0.92 (fixed: war nemotron-mini) |
 | Vision | `minicpm-v:latest` | 5.5 GB | keep_alive=0 |
