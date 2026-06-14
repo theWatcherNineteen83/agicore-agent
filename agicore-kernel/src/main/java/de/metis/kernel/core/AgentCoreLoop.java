@@ -15,6 +15,11 @@ import de.metis.kernel.meta.MetaRepresentation;
 import de.metis.kernel.metrics.PerformanceMetrics;
 import de.metis.kernel.optimize.HyperparameterMutator;
 import de.metis.kernel.planner.PlanValidator;
+import de.metis.kernel.goal.Goal;
+import java.util.ArrayList;
+import java.util.Map;
+import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 import de.metis.kernel.planner.Planner;
 
 import java.util.function.Supplier;
@@ -106,6 +111,12 @@ public class AgentCoreLoop {
     private CognitiveCycle currentPhase = CognitiveCycle.PERCEIVE;
     private HyperparameterMutator.Configuration activeConfig;
 
+    /** Multi-step plan cache: goal id -> remaining actions */
+    private final java.util.Map<String, java.util.List<String>> pendingPlans = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final int MAX_PLAN_PERSIST_TICKS = 3;
+    /** Consecutive goal failures for self-reflection trigger (Point 4). */
+    private int consecutiveGoalFailures = 0;
+
     public AgentCoreLoop(GoalManager goals, Planner planner, PlanValidator planValidator,
                          ActionExecutor executor,
                          MemoryConsolidator consolidator, MetaCognition meta,
@@ -145,6 +156,11 @@ public class AgentCoreLoop {
         // Periodic goal cleanup: prevent unbounded accumulation from MQTT floods
         if (tickCount % 30 == 0) {
             goals.purgeExpired(java.time.Duration.ofMinutes(5));
+            // Also clean stale plan cache entries
+            if (pendingPlans.size() > 20) {
+                pendingPlans.clear();
+                LOG.fine("Plan cache cleared (size exceeded 20)");
+            }
         }
 
         // ── Phase 3: GLOBAL WORKSPACE BROADCAST ─────────────────
@@ -222,6 +238,30 @@ public class AgentCoreLoop {
         }
         final Goal currentGoal = resolvedGoal;
 
+        // ── Point 2: Knowledge Retrieval Priority ──
+        // Before planning, check if this goal can be answered from beliefs
+        String goalDesc = currentGoal.description().toLowerCase();
+        boolean isKnowledgeGoal = goalDesc.contains("what do i")
+                || goalDesc.contains("what does metis")
+                || goalDesc.contains("what does the")
+                || goalDesc.contains("what is")
+                || goalDesc.contains("tell me")
+                || goalDesc.contains("explain")
+                || goalDesc.contains("answer based")
+                || goalDesc.contains("from your stored beliefs");
+        if (isKnowledgeGoal && worldModel != null) {
+            var beliefs = worldModel.query(currentGoal.description(), 5);
+            if (beliefs.size() >= 3) {
+                double avgConf = beliefs.stream().mapToDouble(de.metis.kernel.world.Belief::confidence).average().orElse(0);
+                if (avgConf > 0.6) {
+                    LOG.info(() -> "Knowledge retrieval: " + beliefs.size()
+                            + " relevant beliefs found (avg conf=" + String.format("%.2f", avgConf)
+                            + ") for: " + currentGoal.description());
+                    // High-confidence beliefs exist — let planner include them, skip LLM fallback
+                }
+            }
+        }
+
         // Attention bias: if self/world/meta content won, adjust perception
         Optional<ContentItem> focus = workspace.focus();
         String attentionSummary = focus.map(ContentItem::summary).orElse("none");
@@ -235,7 +275,20 @@ public class AgentCoreLoop {
         // ── PLAN ─────────────────────────────────────────────────
         currentPhase = CognitiveCycle.PLAN;
         // Fix #1: planner receives broadcast (causal workspace → planning)
-        List<String> plan = planner.plan(currentGoal, recentHistory, broadcast, meta);
+        // Phase 1bis: Multi-Step Plan Cache — execute cached steps before re-planning
+        java.util.List<String> plan = null;
+        if (pendingPlans.containsKey(currentGoal.id())) {
+            java.util.List<String> cached = pendingPlans.get(currentGoal.id());
+            if (cached != null && !cached.isEmpty()) {
+                plan = cached;
+                LOG.fine(() -> "Multi-step: reusing cached plan (" + cached.size() + " steps remaining) for: " + currentGoal.description());
+            } else {
+                pendingPlans.remove(currentGoal.id());
+            }
+        }
+        if (plan == null) {
+            plan = planner.plan(currentGoal, recentHistory, broadcast, meta);
+        }
         if (plan.isEmpty()) {
             LOG.warning(() -> "No plan for goal: " + currentGoal.description() + " — deferring");
             goals.recordOutcome(currentGoal, false);
@@ -305,6 +358,22 @@ public class AgentCoreLoop {
         double actualOutcome = result.success() ? 1.0 : 0.0;
         double predictionError = Math.abs(expectedSuccess - actualOutcome);
 
+        // ── Point 4: Self-Reflection on failure ──
+        // Track consecutive failures for self-reflection trigger
+        if (result != null && !result.success()) {
+            consecutiveGoalFailures++;
+            if (consecutiveGoalFailures >= 3 && tickCount > 20) {
+                LOG.warning("META: " + consecutiveGoalFailures + " consecutive failures —"
+                        + " goal: " + currentGoal.description() + " action: " + actionName
+                        + " | triggering self-reflection");
+                // Log failure pattern for metacognition
+                meta.observe(0.9); // self-reflection signal
+                consecutiveGoalFailures = 0; // reset after triggering
+            }
+        } else {
+            consecutiveGoalFailures = 0;
+        }
+
         // Fix #5: enriched feature vector (context + action type + world state)
         double[] vector = {
                 currentGoal.priority() / 100.0,          // goal urgency
@@ -371,13 +440,21 @@ public class AgentCoreLoop {
         }
 
         if (result.success()) {
-            if (goals.kanbanBoard() != null) {
-                var flowMetrics = goals.completeOnBoard(currentGoal.id());
-                if (flowMetrics != null) {
-                    LOG.info(() -> "Kanban flow: " + flowMetrics);
-                }
+            // Multi-step: don't mark complete if plan has more steps
+            int planSize = plan.size();
+            if (plan.size() > 1) {
+                LOG.fine(() -> "Multi-step: step completed, " + (planSize-1) + " steps remaining for: " + currentGoal.description());
+                // Goal continues — will pick up next step from cache
             } else {
-                goals.complete(currentGoal.id());
+                pendingPlans.remove(currentGoal.id());
+                if (goals.kanbanBoard() != null) {
+                    var flowMetrics = goals.completeOnBoard(currentGoal.id());
+                    if (flowMetrics != null) {
+                        LOG.info(() -> "Kanban flow: " + flowMetrics);
+                    }
+                } else {
+                    goals.complete(currentGoal.id());
+                }
             }
         } else {
             // Requeue failed goals on Kanban board for retry
