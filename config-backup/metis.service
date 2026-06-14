@@ -12,12 +12,9 @@ RuntimeDirectoryMode=0755
 EnvironmentFile=-/run/metis/version.env
 ExecStartPre=/usr/local/bin/metis-version-helper.sh
 Environment=JAVA_HOME=/opt/zing25-jdk
-Environment="OLLAMA_MAX_LOADED_MODELS=3"
-Environment="OLLAMA_KEEP_ALIVE=-1"
-Environment="OLLAMA_NUM_PARALLEL=1"
 Environment="HSA_OVERRIDE_GFX_VERSION=11.0.0"
 ExecStart=/opt/zing25-jdk/bin/java \
-    -Xmx4g -Dmetis.version=${METIS_VERSION} \
+    -Xmx24g -Dvosk.model.path=/data/prometheus/vosk-model-de-current -Dmetis.version=${METIS_VERSION} \
             --enable-native-access=ALL-UNNAMED \
     -jar /home/prometheus/metis/metis-agent.jar \
     --api-port 11735 \
