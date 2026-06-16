@@ -180,20 +180,26 @@ URL: http://<host>:11735
 | `/api/board` | Kanban-Board Live-View (Spalten, WIP, Flow-Metriken) |
 | `/api/hierarchy` | Long-Horizon-Goals (Phase 9): id, horizon, status, progress, deadline, owner |
 
-## Modell-Strategie (Live-Konfiguration 07.06.2026)
+## Modell-Strategie (Live-Konfiguration 16.06.2026)
 
-| Rolle | Modell | Größe | Status |
-|-------|--------|-------|--------|
-| Planning | `mistral-small3.1:24b` | 15 GB | 100% Erfolg, 0 Fallbacks |
-| Mutation | `phi4-agent` | ~8 GB | aktiv (compiler-feedback-loop) |
-| Embedding | `nomic-embed-text` | 0.3 GB | keep_alive=-1 |
+| Rolle | Modell | Größe | GPU |
+|-------|--------|-------|-----|
+| Planning (primary) | `qwen3_6-35b-agent` (temp=0, stable) | 23 GB | GPU 1 — R9700 (32 GB) |
+| Mutation | `granite-mini-agent` (3.4B) | 2.1 GB | CPU (entlastet GPU) |
+| Embedding | `nomic-embed-text` | 0.3 GB | GPU 0 — 7900 XTX |
 | Vision (Kameras) | `minicpm-v:latest` | 5.5 GB | keep_alive=0 |
-| LLM-Judge | `phi4-mini:latest` | 2.5 GB | Score 0.92 (fixed from nemotron-mini) |
-| SelfReflector | `phi4-mini:latest` | 2.5 GB | CPU, temp=0.7 |
-| Bootstrap | `granite4.1:3b` | 2.1 GB | — |
-| Fallback-Chain | mistral-small3.1 → phi4-mini → granite4.1:3b | — | 0 Fallbacks im Betrieb |
+| LLM-Judge | `mistral-agent` | 15 GB | Fallback-Kette |
+| SelfReflector | `phi4-mini` | 2.5 GB | CPU, temp=0.7 |
+| Fallback 1 | `mistral-agent` (24B) | 15 GB | — |
+| Fallback 2 | `phi4-mini-agent` (3.8B) | 2.5 GB | — |
+| Fallback 3 | `qwen3_6-27b-agent` (36B MoE) | 23 GB | — |
 
-**VRAM-Strategie (2 GPUs: RX 7900 XTX 24GB + Radeon AI PRO R9700 32GB):** Planner (15 GB) auf GPU 0, Mutation (phi4-agent) auf GPU 1, Embedding (0.3 GB) auf GPU 0. Vision/Judge/Reflector via keep_alive=0 sofort entladen.
+**GPU-Strategie:**
+- **GPU 1 — Radeon AI PRO R9700 (32 GB):** Planning primary, 62% VRAM belegt
+- **GPU 0 — RX 7900 XTX (24 GB):** Embeddings, kleines Backup, 9% VRAM
+- Mutation auf CPU → GPU 1 voll für Planning
+- Fallback-Chain: mistral-agent → phi4-mini-agent → qwen3_6-27b-agent
+- Alle Modelle teilen `num_ctx=131072`
 
 ## Hardware
 
@@ -201,7 +207,8 @@ URL: http://<host>:11735
 |---|---|
 | CPU | AMD Ryzen 7 5700G (8C/16T) |
 | RAM | 62 GB DDR4 |
-| GPU | Radeon RX 7900 XTX (24 GB VRAM) |
+| GPU 0 | Radeon RX 7900 XTX (24 GB VRAM, RDNA 3/GFX1100) |
+| GPU 1 | Radeon AI PRO R9700 (32 GB VRAM, RDNA 4/GFX1201) |
 | OS | Ubuntu 24.04 LTS |
 | Java | Zulu 25.0.2 (LTS) |
 | Inferenz | Ollama (22+ Modelle) |

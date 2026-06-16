@@ -201,7 +201,7 @@ public class OllamaPlanner implements Planner {
      */
     public OllamaPlanner() {
         this("http://192.168.22.204:11434/api/generate",
-             "nemotron-cascade-2:30b",
+             "qwen3_6-35b-agent",
              Duration.ofSeconds(60));
         initABTesting();
         initFlywheel();
@@ -218,11 +218,11 @@ public class OllamaPlanner implements Planner {
         this.ollamaUrl = ollamaUrl;
         this.modelProvider = () -> model;
         this.timeout = timeout;
-        // Default fallback chain: mistral-small3.1 → nemotron → qwen3.6
+        // Default fallback chain: mistral-agent → phi4-mini-agent → qwen3_6-27b-agent
         this.fallbackModels.addAll(List.of(
-            "mistral-small3.1:24b",
-            "nemotron-cascade-2:30b",
-            "qwen3.6:27b-q4_K_M"
+            "mistral-agent",
+            "phi4-mini-agent",
+            "qwen3_6-27b-agent"
         ));
         initABTesting();
         initFlywheel();
@@ -236,11 +236,11 @@ public class OllamaPlanner implements Planner {
         this.ollamaUrl = ollamaUrl;
         this.modelProvider = registry::planningModel;
         this.timeout = timeout;
-        // Default fallback chain: mistral-small3.1 → nemotron → qwen3.6
+        // Default fallback chain: mistral-agent → phi4-mini-agent → qwen3_6-27b-agent
         this.fallbackModels.addAll(List.of(
-            "mistral-small3.1:24b",
-            "nemotron-cascade-2:30b",
-            "qwen3.6:27b-q4_K_M"
+            "mistral-agent",
+            "phi4-mini-agent",
+            "qwen3_6-27b-agent"
         ));
         initABTesting();
     }
