@@ -34,7 +34,10 @@ public class CuriosityEngine {
     private final List<String> explorationDomains = List.of(
             "shell", "http", "filesystem", "webscrape", "linux-explore",
             "api-explore", "hw-profile", "deepnetts", "tornadovm",
-            "wikipedia-learn"
+            "wikipedia-learn",
+            // Swarm-Projekt-Wissen (18.06.)
+            "speculative-decoding", "llama-cpp", "java-jni",
+            "websocket-protocol", "protobuf"
     );
     private final Random random = new Random();
 
