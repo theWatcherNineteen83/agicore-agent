@@ -2,6 +2,7 @@ package de.metis.modules;
 
 import de.metis.kernel.goal.Goal;
 import de.metis.kernel.meta.MetaCognition;
+import de.metis.kernel.world.HypothesisGenerator;
 import de.metis.kernel.world.WorldModel;
 import de.metis.kernel.metrics.FitnessSignal;
 
@@ -27,6 +28,7 @@ public class CuriosityEngine {
     private final MetaCognition metacognition;
     private final WorldModel worldModel;
     private final FitnessSignal fitnessSignal;
+    private final HypothesisGenerator hypothesisGenerator;
 
     private final Map<String, Integer> domainVisits = new HashMap<>();
     private final List<String> explorationDomains = List.of(
@@ -37,10 +39,17 @@ public class CuriosityEngine {
     private final Random random = new Random();
 
     public CuriosityEngine(MetaCognition metacognition, WorldModel worldModel,
-                           FitnessSignal fitnessSignal) {
+                           FitnessSignal fitnessSignal,
+                           HypothesisGenerator hypothesisGenerator) {
         this.metacognition = metacognition;
         this.worldModel = worldModel;
         this.fitnessSignal = fitnessSignal;
+        this.hypothesisGenerator = hypothesisGenerator;
+    }
+
+    public CuriosityEngine(MetaCognition metacognition, WorldModel worldModel,
+                           FitnessSignal fitnessSignal) {
+        this(metacognition, worldModel, fitnessSignal, null);
     }
 
     /**
@@ -56,12 +65,46 @@ public class CuriosityEngine {
         double target = fitnessSignal.targetSurprise();
 
         if (surprise > target * HIGH_SURPRISE) {
+            // Phase 10: auch kausale Hypothese aus dem Surprise-Event ableiten
+            generateCausalHypothesis();
             return exploreSurprisingDomain();
         } else if (surprise < target * LOW_SURPRISE) {
             return exploreLeastVisitedDomain();
         } else {
             return balancedExploration();
         }
+    }
+
+    /**
+     * Phase 10: Bei hohem Surprise eine kausale Hypothese ableiten.
+     * Ruft HypothesisGenerator.propose() mit der aktuellen Metacognition auf.
+     */
+    private void generateCausalHypothesis() {
+        if (hypothesisGenerator == null) return;
+        double surprise = metacognition.errorStdDev();
+        // Finde die Belief-Domäne mit der höchsten Unsicherheit
+        var beliefs = worldModel.all();
+        String worstDomain = "";
+        double worstConfidence = 1.0;
+        for (var b : beliefs) {
+            String stmt = b.statement();
+            for (String domain : explorationDomains) {
+                if (stmt.toLowerCase().contains(domain) && b.confidence() < worstConfidence) {
+                    worstConfidence = b.confidence();
+                    worstDomain = domain;
+                }
+            }
+        }
+        if (worstDomain.isEmpty() && !explorationDomains.isEmpty()) {
+            worstDomain = explorationDomains.get(0);
+        }
+        String cause = "high_surprise:" + worstDomain;
+        String condition = "surprise=" + String.format(java.util.Locale.ROOT, "%.2f", surprise);
+        String effect = "reduced_surprise";
+        String rationale = "CuriosityEngine: Surprise " + String.format(java.util.Locale.ROOT, "%.2f", surprise)
+                + " > threshold in domain '" + worstDomain
+                + "' — Erkundung sollte Surprise senken";
+        hypothesisGenerator.propose(cause, condition, effect, rationale);
     }
 
     /** Explore the domain with highest surprise. */

@@ -1522,6 +1522,7 @@ public final class AgentMain {
         var systemPromptBuilder = new SystemPromptBuilder(
                 personalityAnchor, selfNarrative, moodSignal, episodicMemory);
         systemPromptBuilder.setGoalHierarchy(goalHierarchy);
+        systemPromptBuilder.setHypothesisStore(hypothesisStore);
         LOG.info("Phase 8 wired — episodes=" + episodicMemory.size()
                 + ", anchor=" + (personalityAnchor.isTampered() ? "TAMPERED" : "verified")
                 + ", next dream in " + initialDreamDelaySec + "s");
@@ -1646,8 +1647,8 @@ public final class AgentMain {
         // ── Phase 10.5 — CausalDreamer: Kausalhypothesen im Leerlauf ──
         var casualDreamer = new de.metis.modules.self.CausalDreamer(
                 agent.memory(), agent.core().goals().kanbanBoard(),
-                hypothesisGenerator, hypothesisStore, selfNarrative,
-                interventionRunner);        var dreamerScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+                hypothesisGenerator, hypothesisStore, causalModel,
+                selfNarrative, interventionRunner);        var dreamerScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
             var t = new Thread(r, "causal-dreamer");
             t.setDaemon(true);
             return t;

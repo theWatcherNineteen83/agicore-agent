@@ -1307,6 +1307,19 @@ sb.append("  Or single-action format: {\"thought\":\"...\",\"action\":\"<name>\"
             planningSuccess.merge(key, 1, Integer::sum);
         } else {
             actionErrorCount.merge(action, 1, Integer::sum);
+            // Phase 10: Counterfactual-Reasoning bei Goal-Failure
+            if (counterfactual != null && plan.size() > 1) {
+                String altAction = plan.size() > 1 ? plan.get(1) : null;
+                var answer = counterfactual.query(
+                        action,
+                        "goal:" + goal.description(),
+                        "success");
+                if (answer != null && answer.evidence() > 0) {
+                    LOG.fine("Counterfactual: " + action + " failed — "
+                            + answer.explanation()
+                            + (altAction != null ? " next step was: " + altAction : ""));
+                }
+            }
         }
     }
 

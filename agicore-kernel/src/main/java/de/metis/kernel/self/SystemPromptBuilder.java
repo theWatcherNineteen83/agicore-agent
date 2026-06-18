@@ -3,6 +3,7 @@ package de.metis.kernel.self;
 import de.metis.kernel.goal.GoalHierarchy;
 import de.metis.kernel.goal.GoalHorizon;
 import de.metis.kernel.goal.LongHorizonGoal;
+import de.metis.kernel.world.*;
 
 import java.util.Locale;
 
@@ -37,6 +38,7 @@ public class SystemPromptBuilder {
     private GoalHierarchy hierarchy;  // Phase 9 — optional
     private de.metis.kernel.person.PersonStore personStore;   // Phase 11 — optional
     private de.metis.kernel.person.EmpathySignal empathy;     // Phase 11 — optional
+    private HypothesisStore hypothesisStore;                   // Phase 10 — optional
     private volatile String currentPersonId;                  // wer spricht gerade
 
     public SystemPromptBuilder(PersonalityAnchor anchor,
@@ -63,6 +65,9 @@ public class SystemPromptBuilder {
         this.personStore = s;
         this.empathy = e;
     }
+
+    /** Phase 10: inject the hypothesis store for causal awareness in prompts. */
+    public void setHypothesisStore(HypothesisStore store) { this.hypothesisStore = store; }
 
     /** Phase 11: set who Metis is currently talking to (person id), or null. */
     public void setCurrentPerson(String personId) { this.currentPersonId = personId; }
@@ -167,6 +172,30 @@ public class SystemPromptBuilder {
                       .append(String.join(", ", p.bannedTopics())).append('\n');
                 }
             });
+        }
+
+        // Phase 10 — Aktive kausale Hypothesen
+        if (hypothesisStore != null && hypothesisStore.size() > 0) {
+            var confirmed = hypothesisStore.all().stream()
+                    .filter(h -> h.status() == CausalHypothesis.Status.CONFIRMED)
+                    .toList();
+            var testing = hypothesisStore.open().stream()
+                    .filter(h -> h.status() == CausalHypothesis.Status.TESTING)
+                    .toList();
+            if (!confirmed.isEmpty() || !testing.isEmpty()) {
+                sb.append("\n=== KAUSALES WISSEN ===\n");
+                for (CausalHypothesis h : confirmed) {
+                    sb.append("GESICHERT: ").append(h.cause())
+                      .append(" → ").append(h.effect())
+                      .append(" (")
+                      .append(String.format(Locale.ROOT, "%.2f", h.observedMagnitude()))
+                      .append(")").append('\n');
+                }
+                for (CausalHypothesis h : testing) {
+                    sb.append("PRÜFE: ").append(h.cause())
+                      .append(" → ").append(h.effect()).append('\n');
+                }
+            }
         }
 
         if (narrative != null) {
