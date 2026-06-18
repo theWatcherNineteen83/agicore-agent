@@ -21,6 +21,7 @@ import de.metis.kernel.goal.GoalFlowMetrics;
 import de.metis.kernel.goal.KanbanBoard;
 import de.metis.modules.persona.Persona;
 import de.metis.modules.multiagent.AgentCoordinator;
+import de.metis.modules.eval.EvalRunner;
 import de.metis.modules.eval.SafetyScorer;
 import de.metis.kernel.self.SystemPromptBuilder;
 import de.metis.kernel.goal.GoalHierarchy;
@@ -63,6 +64,7 @@ public class MetisHttpServer {
     private SystemPromptBuilder systemPromptBuilder;  // Phase 8.6
     private GoalHierarchy goalHierarchy;  // Phase 9
     private HypothesisStore hypothesisStore;  // Phase 10
+    private EvalRunner evalRunner;  // Phase 6 (trigger-eval endpoint)
     private BugTracker bugTracker;  // Phase 12a
     private de.metis.kernel.person.PersonStore personStore;        // Phase 11
     private de.metis.kernel.person.EmpathySignal empathySignal;    // Phase 11
@@ -125,6 +127,7 @@ public class MetisHttpServer {
     public void setSystemPromptBuilder(SystemPromptBuilder spb) { this.systemPromptBuilder = spb; }
     public void setGoalHierarchy(GoalHierarchy gh) { this.goalHierarchy = gh; }
     public void setHypothesisStore(HypothesisStore hs) { this.hypothesisStore = hs; }
+    public void setEvalRunner(EvalRunner er) { this.evalRunner = er; }
     public void setBugTracker(BugTracker bt) { this.bugTracker = bt; }
     /** Sprint #3-Followup (08.06.): hot-path Ethics gate fuer /api/chat. */
     public void setEthicsCore(de.metis.kernel.safety.EthicsCore ec) {
@@ -1098,6 +1101,39 @@ public class MetisHttpServer {
                 LOG.info("PRUNE executed: " + model);
             } else {
                 sendJson(exchange, 400, "{\"ok\":false,\"error\":\"Invalid model or registry unavailable\"}");
+            }
+        } catch (Exception e) {
+            sendJson(exchange, 500, "{\"ok\":false,\"error\":\"" + e.getMessage() + "\"}");
+        }
+    }
+
+    // ── /api/admin/trigger-eval ────────────────────────────────────
+    private void handleTriggerEval(HttpExchange exchange) throws IOException {
+        if (!"POST".equals(exchange.getRequestMethod())) {
+            sendJson(exchange, 405, "{\"error\":\"Method not allowed\"}");
+            return;
+        }
+        try {
+            if (evalRunner == null) {
+                sendJson(exchange, 500, "{\"ok\":false,\"error\":\"EvalRunner not available\"}");
+                return;
+            }
+            String body = new String(exchange.getRequestBody().readAllBytes());
+            String tier = extractJsonString(body, "tier");
+            if (tier == null || tier.isBlank()) tier = "SMOKE";
+            LOG.info("Triggering " + tier + " eval...");
+            var report = evalRunner.run(tier);
+            if (report != null) {
+                String gate = report.gate().ok() ? "PASS" : "FAIL";
+                int taskCount = report.results().values().stream()
+                    .mapToInt(r -> r.metrics().size()).sum();
+                String json = "{\"ok\":true,\"tier\":\"" + tier + "\",\"gate\":\"" + gate
+                    + "\",\"tasks\":" + taskCount
+                    + ",\"regressions\":" + report.regressions().size() + "}";
+                sendJson(exchange, 200, json);
+                LOG.info("Eval " + tier + " complete: gate=" + gate);
+            } else {
+                sendJson(exchange, 500, "{\"ok\":false,\"error\":\"EvalRunner returned null\"}");
             }
         } catch (Exception e) {
             sendJson(exchange, 500, "{\"ok\":false,\"error\":\"" + e.getMessage() + "\"}");

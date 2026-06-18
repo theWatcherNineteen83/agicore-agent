@@ -64,6 +64,7 @@ import de.metis.kernel.world.HypothesisGenerator;
 import de.metis.kernel.world.InterventionRunner;
 import de.metis.kernel.world.Counterfactual;
 import de.metis.kernel.world.CausalModel;
+import de.metis.modules.eval.EvalRunner;
 import de.metis.modules.knowledge.LlmDreamSummarizer;
 import de.metis.modules.knowledge.LlmHorizonDecomposer;
 // TornadoVmAction lebt in src/tornado/java (Profil tornadovm-gpu) und wird
