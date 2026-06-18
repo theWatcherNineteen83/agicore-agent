@@ -6,39 +6,26 @@ Sie denkt in kognitiven Zyklen (Perceive → Plan → Execute → Observe → Le
 
 ## Status
 
-**Stand: 10.06.2026 12:45 · **Tests: 134 grün (112 Kernel + 22 Modules)** · **CI:** Kernel + Watchdog (GitHub Actions, Zulu 25)
-**Live:** `fix/ram-selector-resilience` → `master` merge (Heap-Selbstschutz + VRAM-Orchestrator + Safety-Fix)
-**JVM:** Zing 26.04 C4 GenPauseless (27% schneller als Zulu ZGC) · **Benchmark:** `bench-zing-vs-zulu-20260603` · **Empfehlung:** Zing für Produktion
-
-**Safety:** SafetyScorer bereinigt (religion/glaube/gott raus) · **Wissen:** 441 buddhistische Beliefs (Dhammapada, Metta Sutta, Sigalovada) in SQLite-DB · **Ethik:** SelfReflector auf phi4-mini:latest CPU (0 VRAM, Temp 0.7, keep_alive=5m) + ethisches Goal in AgentMain
-**Chat:** Option B — OpenClaw beantwortet Telegram-Chats direkt, Metis macht Agent-Arbeit (Kanban-Integration fuer eingehende Nachrichten)
-**Buecher:** BookIngestionService — PDF/EPUB→Text→Chunks→Beliefs→Kanban-Goals (--book-dir)
-**Chat:** Option B — OpenClaw beantwortet Telegram-Chats direkt, Metis macht Agent-Arbeit (Kanban-Integration für eingehende Nachrichten)
-**Mobile:** Phase 3.5 S9-Sensor-Array — Samsung Galaxy S9 als mobiler Sensor-Knoten (16+ Sensoren, Madgwick-Fusion, OGG-Audio) · **Bücher:** BookIngestionService — PDF/EPUB→Text→Chunks→Beliefs→Kanban-Goals (--book-dir)
-**Resource:** MemoryPressureGuard + ResourceAutoTuner — Heap-Selbstschutz (RED/ORANGE/GREEN) + VRAM-Orchestrator (keep_alive=0 unload, idle preload) · **Safety:** Wortgrenzen-Fix ("cultural" triggert nicht mehr "cult")
+**Stand: 18.06.2026 19:45 · Tests: 134 grün (112 Kernel + 22 Modules) · CI: Kernel + Watchdog (GitHub Actions, Zulu 25)
+**GPU-Duo:** GPU 1 (R9700, 32 GB) → qwen3_6-35b-agent für Metis + OpenClaw · GPU 0 (7900 XTX, 24 GB) → gemma4-26b + phi4-mini + nomic-embed für OpenWebUI
+**Phase 9.7 🎉:** Erstes STRATEGIC Goal erfolgreich abgeschlossen (Zulu JDK 25 + Maven)
+**Phase 10:** CausalDreamer mit Intervention→Observe→Update-Loop + Counterfactual-Reasoning + CausalScorer
+**Safety:** SafetyScorer bereinigt · Wissen: 98.229 Beliefs · Ethik: SelfReflector auf phi4-mini (CPU)
+**Mobile:** Phase 3.5 S9-Sensor-Array — Samsung Galaxy S9 (16+ Sensoren, Madgwick-Fusion, OGG-Audio)
+**Resource:** MemoryPressureGuard + ResourceAutoTuner + Embedding-Circuit-Breaker
 
 | Phase | Status | Key Facts |
 |-------|--------|-----------|
-| 1-7+ | ✅ 100% | Stabiler autonomer Agent |
-| 8 | ✅ 100% | SelfReflector + PersonalityTripwire |
-| 9 | ✅ 100% | Long-Horizon-Planung + CommitmentGuard |
-| 10 | ✅ 100% | CausalModel + Counterfactual + InterventionRunner |
-| 11 | ✅ 100% | PersonModel + TrustLevel + EmpathySignal |
-| 12a | ✅ 100% | BugTracker + SelfFixAction + Watchdog + AutoRevert + EvalReportGenerator |
-| 12b | ✅ 100% | GapAnalyzer + RiskGate + FeatureGenAction + FeatureFlag |
-| 12c | ✅ 100% | MetricTimeSeries + PatternDetector + AutoABTest |
-| Gov | ✅ 100% | FeatureBranchManager + 3-Stufen-RiskGate (ALLOW/PR_REQUIRED/DENY) |
+| 1-7+ | ✅ 100% | Stabiler autonomer Agent (BUILT + VERIFIED) |
+| 8 | ✅ 100% | SelfReflector + PersonalityTripwire · VERIFIED ⬜ |
+| 9 | ✅ 100% | Long-Horizon-Planung + **1. STRATEGIC Goal DONE** 🎉 |
+| 10 | 🟡 75% | CausalDreamer + Intervention→Observe→Update + Counterfactual · CAUSAL-Eval-Tasks fehlen |
+| 11 | 🟡 55% | PersonModel + TrustLevel + EmpathySignal · TrustLevel-Automation fehlt |
+| 12 | ⬜ 0% | Blockiert bis Phasen 10-11 verifiziert |
+→ Details: **[AGI_EDI_ROADMAP.md](AGI_EDI_ROADMAP.md)**
 → Details: **[FEATURES.md](FEATURES.md)** · **[AGI_EDI_ROADMAP.md](AGI_EDI_ROADMAP.md)** · **[RUNBOOK.md](RUNBOOK.md)**
 
-### 🔬 Zing vs Zulu Benchmark (03.06.2026)
-| Metrik | Zulu ZGC | Zing C4 |
-|--------|---------|---------|
-| 500 Ticks (60+ min) | 77 min | **62 min** |
-| s/Tick | 9,3s | **7,5s** |
-| Max GC-Pause | 461ms | **0,57ms** |
-| Success Rate | 100% | 100% |
 
-Zing 27% schneller, C4 pauslos. Monitoring via `-XX:+PrintCPUUtilization -XX:+UseZingMXBeans`.
 
 ### 🔧 Embedding-Resilienz (04.06.)
 - Circuit-Toleranz: 5→20 consecutive 503s, Cooldown 60s→120s
@@ -46,40 +33,7 @@ Zing 27% schneller, C4 pauslos. Monitoring via `-XX:+PrintCPUUtilization -XX:+Us
 - nomic-embed-text mit `keep_alive=-1` vorgeladen
 - JLama 3-Stufen-Fallback (multilingual-e5→bge-small→Ollama) — Code steht, blockiert auf JLama 0.8.4 (Issue #202)
 
-### 📋 Nächster Sprint: [Modell-Optimierung](#🔧-Modell-Optimierungs-Sprint-04062026)
 
-### Tag-Linie (30./31.05.2026, chronologisch)
-| Tag | Inhalt | Tests bei Tag |
-|---|---|---|
-| `v0.11.21-night-final` | Phasen 1–7 abgeschlossen | 1 |
-| `v0.2.1-hardened` | CI + Embedding-LRU + Java 25 + Input-Guard | 21 |
-| `v0.3.0-agi-push` | Multi-Modal-Memory + Loom-Vision + Subprocess-Isolation + Audit-Anchor | 23 |
-| `v0.3.1-observability` | Locale-Fix + Wiki-Persistence + git-cwd-Fix + Wiki-Loom | 25 |
-| `v0.3.2-feed-hardening` | WAL-Mode + atomic State + Lock-Retry + Wiki-Backup auf GitHub | 25 |
-| `v0.3.3-defense-in-depth` | Telegram-Loom + Telegram Input/Output-Safety-Guards | 27 |
-| `v0.4.0-phase8-foundation` | EpisodicMemory + SelfNarrative + MoodSignal + PersonalityAnchor + DreamConsolidation | — |
-| `v0.4.1-phase8-complete` | SystemPromptBuilder + LlmDreamSummarizer + Phase-12-Outlook | — |
-| `v0.5.0-phase9-long-horizon` | GoalHierarchy + HorizonPlanner + CommitmentRegister + GoalRevisionEngine | — |
-| `v0.5.1-phase9-complete` | LLM-Decomposer + Horizon→Kanban-Bridge | — |
-| `v0.6.0-phase10-causal` | Active Causal Hypotheses Foundation (Record + Store + Generator + Intervention + Counterfactual) | **73** (lokal) |
-| `v0.6.1-honesty-audit` | Honesty-Audit + CI-Konfig (Kernel+Watchdog) + Maven-Profil miniedi | **73** (lokal) |
-| `6b5fb44` (post-v0.6.1) | WIP-aware LLM-as-Judge (`KanbanBoard.tryAcquireAdHocSlot`) — Judge-Calls ins INFERENCE-Bookkeeping | **80** (Kernel) |
-| `v0.7.0-cognitive-selfreflector` | SelfReflector (granite4.1:3b, 120s-Loop), CommitmentGuard, Phase 9.5 HARD-Commitment-Wächter | **105** |
-| `v0.7.1-phase11-personmodel` | Phase 11 PersonModel: Person/PersonStore/TrustLevel/RelationshipMemory/EmpathySignal | **105** |
-| `v0.8.2-phase10-hotpath` | Phase 10 Hot-Path: CausalHypotheses im Planning-Prompt, 44 Hypothesen | **134** |
-| `v0.8.3-phase10-11-finish` | Phase 10+11 abgeschlossen: CAUSAL/RELATIONSHIP Eval-Kategorien, Roadmap konsolidiert | **134** |
-| `v0.7.2-phase11-wired` | SystemPromptBuilder (Gesprächspartner-Block), Approval-Gate (TrustLevel→maxAutoApproval), HTTP+Telegram PersonStore-Pflege | **112** |
-| `v0.7.3-prompt-tightening` | System-Prompt-Tightening (CAPS, 1-Satz, genaue Action-Namen, OK/NO-OK statt vage) | **112** |
-| `v0.7.4-personality-tripwire` | PersonalityTripwire: Drift-Detection alle 5 min, SHA-256-Pin vs Live-Anchor, ROLE_VIOLATION/TONE_SHIFT/CORE_ERASURE | **112** |
-| `v0.7.5-causal-dreamer` | CausalDreamer: Idle-Guard (WIP<2), Overflow-Schutz, zufällige Experience → Hypothese, SelfNarrative-CausalDream-Eintrag | **134** (112 K + 22 M) |
-| `v0.7.6-embedding-backoff` | 503-Fix: Embedding-Backoff (1s/2s/4s), NUM_PARALLEL 4→8, embedding503s-Metrik in /api/status | **134** (112 K + 22 M) |
-| `v0.7.7` | VideoAnalysisAction + HTTP-Resilienz + 5 Coburg-Webcams (Videoframes), SafetyScrub, Buddhist-Beliefs (441) | **134** (112 K + 22 M) |
-| `v0.7.8` | GermanLanguageGuard (Code-Switching, Umlaute, Anrede, Anglizismen), Ethic-SelfReflector (phi4-mini CPU, Ethik-Goal Prio 90, Few-Shot), CPU-Idle-Erkennung | **134** (112 K + 22 M) |
-| `v0.8.0` | **Option B Chat-Architektur + BookIngestionService**: TelegramBot→Kanban+ACK, OpenClaw antwortet, PDF/EPUB→Beliefs, Ollama-GPU-Analyse | **134** (112 K + 22 M) |
-| `v0.7.9` | **Embedding-Circuit-Breaker**: 5×503 → 60s Cooldown (verhindert Queue-Überflutung). Neue Metriken: embeddingCircuitOpen/Trips/Consecutive503s/RequestsSkipped | **134** (112 K + 22 M) |
-| `v0.11.21-night-final` | **fix/ram-selector-resilience**: HttpClient-Resilienz (Retry/Timeout), Belief-Lazy-Load, Workspace-Log-Rotation, MemoryPressureGuard (Heap-Selbstschutz JMX), ResourceAutoTuner (VRAM-Orch. rocm-smi+Ollama), SafetyScorer Wortgrenzen-Fix, Goal-Hierarchie-Cleanup (39 BLOCKED→0) | **134** (112 K + 22 M) |
-
-> Die früheren Test-Zahlen sind aus den jeweiligen Commits übernommen und nicht rückwirkend nachgemessen. Aktuell, gegen Master per `mvn test`: **112 Kernel + 22 Modules = 134 Tests grün**.
 
 ## Architektur
 
@@ -180,26 +134,21 @@ URL: http://<host>:11735
 | `/api/board` | Kanban-Board Live-View (Spalten, WIP, Flow-Metriken) |
 | `/api/hierarchy` | Long-Horizon-Goals (Phase 9): id, horizon, status, progress, deadline, owner |
 
-## Modell-Strategie (Live-Konfiguration 16.06.2026)
+## Modell-Strategie (Live-Konfiguration 18.06.2026)
 
-| Rolle | Modell | Größe | GPU |
-|-------|--------|-------|-----|
-| Planning (primary) | `qwen3_6-35b-agent` (temp=0, stable) | 23 GB | GPU 1 — R9700 (32 GB) |
-| Mutation | `granite-mini-agent` (3.4B) | 2.1 GB | CPU (entlastet GPU) |
-| Embedding | `nomic-embed-text` | 0.3 GB | GPU 0 — 7900 XTX |
-| Vision (Kameras) | `minicpm-v:latest` | 5.5 GB | keep_alive=0 |
-| LLM-Judge | `mistral-agent` | 15 GB | Fallback-Kette |
-| SelfReflector | `phi4-mini` | 2.5 GB | CPU, temp=0.7 |
-| Fallback 1 | `mistral-agent` (24B) | 15 GB | — |
-| Fallback 2 | `phi4-mini-agent` (3.8B) | 2.5 GB | — |
-| Fallback 3 | `qwen3_6-27b-agent` (36B MoE) | 23 GB | — |
+### GPU-Duo-Setup (zwei separate Ollama-Instanzen)
 
-**GPU-Strategie:**
-- **GPU 1 — Radeon AI PRO R9700 (32 GB):** Planning primary, 62% VRAM belegt
-- **GPU 0 — RX 7900 XTX (24 GB):** Embeddings, kleines Backup, 9% VRAM
-- Mutation auf CPU → GPU 1 voll für Planning
+| GPU | Service | Port | Modelle | VRAM |
+|-----|---------|------|---------|------|
+| **GPU 1 — R9700 (32 GB)** | `ollama-gpu1.service` | **11434** | qwen3_6-35b-agent (Planning primary) | 23.7 GB (73%) |
+| **GPU 0 — 7900 XTX (24 GB)** | `ollama-gpu0.service` | **11436** | gemma4-26b + phi4-mini + nomic-embed | 24.4 GB (99%) |
+| **CPU** (62 GB RAM) | — | — | granite-mini-agent (Mutation), mistral (Fallback) | — |
+
+**Strategie:**
+- **GPU 1 (R9700):** qwen3_6-35b-agent exklusiv für Metis + OpenClaw (gleiches Modell = 1× VRAM)
+- **GPU 0 (7900 XTX):** gemma4-26b (Context=8192) + phi4-mini-Fallback + nomic-Embeddings + OpenWebUI
+- **CPU:** Mutation (granite-mini), Fallback-Chain, SelfReflector (phi4-mini)
 - Fallback-Chain: mistral-agent → phi4-mini-agent → qwen3_6-27b-agent
-- Alle Modelle teilen `num_ctx=131072`
 
 ## Hardware
 
@@ -207,11 +156,11 @@ URL: http://<host>:11735
 |---|---|
 | CPU | AMD Ryzen 7 5700G (8C/16T) |
 | RAM | 62 GB DDR4 |
-| GPU 0 | Radeon RX 7900 XTX (24 GB VRAM, RDNA 3/GFX1100) |
-| GPU 1 | Radeon AI PRO R9700 (32 GB VRAM, RDNA 4/GFX1201) |
+| GPU 0 | Radeon RX 7900 XTX (24 GB VRAM, RDNA 3/GFX1100) — gemma4 + Embeddings |
+| GPU 1 | Radeon AI PRO R9700 (32 GB VRAM, RDNA 4/GFX1201) — qwen Planning |
 | OS | Ubuntu 24.04 LTS |
 | Java | Zulu 25.0.2 (LTS) |
-| Inferenz | Ollama (22+ Modelle) |
+| Inferenz | Ollama (2 Instanzen: Port 11434 + 11436) |
 
 ## Deployment
 
@@ -248,5 +197,17 @@ bash /home/prometheus/metis/backup-config.sh
 - **Tests:** GitHub Actions CI erkennt Kernel-Tests + Watchdog-Build (`mvn -pl agicore-kernel -am clean test` + `mvn -pl agicore-watchdog -am -DskipTests package`). Modules nur lokal testbar (MaryTTS-JARs, TornadoVM-GPU nicht auf CI verfügbar).
 - **Runbook:** [RUNBOOK.md](RUNBOOK.md) — 6 Failure-Modi + Deployment + Health-Check
 
-## EDI-Distanz
-Phasen 1-7+ sind 100% autonomer Agent. Phase 8 (narratives Selbstmodell, SelfReflector + PersonalityTripwire) und Phase 9 (Long-Horizon-Planung) sind 100% deployed. Phase 10 | 🟢 100% | CausalModel ✅ Counterfactual ✅ InterventionRunner ✅
+## Capability-Board (live)
+```
+Capability          Status
+──────────────────────────────────
+goal_completion     🟢 PASS 
+causal_inference    🔴 FAIL 
+memory_continuity   🔴 FAIL 
+planning_quality    🟡 SOFT 
+code_generation     🔴 FAIL 
+conversation        🟡 SOFT 
+ethical_alignment   🟢 PASS 
+──────────────────────────────────
+VERIFIED: 2/7 | Veraltete Infos siehe [AGI_EDI_ROADMAP.md](AGI_EDI_ROADMAP.md)
+```
