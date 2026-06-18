@@ -429,6 +429,7 @@ public class OllamaPlanner implements Planner {
                 - mcp-bridge: connect to MCP (Model Context Protocol) tool servers — discovers and invokes external tools like filesystem, browser, database, Slack, etc.
                 - javasandbox: execute safe, sandboxed Java code experiments
                 - prompt-chain: decompose complex multi-step goals into sequential sub-goals, execute each with context from previous results, and synthesize final answer (Pattern: Decompose→Execute→Aggregate)
+sb.append("- git-feature-branch: scan the Git repo for TODOs, generate optimisations via LLM, create a feature branch, compile-check, and push to origin. Best for automated code improvement tasks.\n");
                 """;
     }
 
@@ -754,6 +755,7 @@ public class OllamaPlanner implements Planner {
         sb.append("- mcp-bridge: connect to MCP tool servers (filesystem, browser, database, Slack, etc.) — discovers tools automatically via MCP protocol, then invokes them\\n");
         sb.append("- webcrawl: recursive multi-page web crawler — explores websites with configurable depth, ideal for knowledge acquisition from documentation, wikis, blogs\n");
         sb.append("- prompt-chain: decompose complex multi-step goals into sequential sub-goals, execute each with context from previous results, and synthesize final answer (Pattern: Decompose→Execute→Aggregate)\n\n");
+sb.append("- git-feature-branch: scan the Git repo for TODOs, generate optimisations via LLM, create a feature branch, compile-check, and push to origin. Best for automated code improvement tasks.\n");
 
         // ── Rich Few-Shot examples with thought (ReAct format) ──
         sb.append("FEW-SHOT EXAMPLES:\n");
@@ -774,7 +776,8 @@ public class OllamaPlanner implements Planner {
         sb.append("Goal: Explore what this documentation site contains → {\"thought\":\"Multi-page exploration needs recursive crawling, not just single-page scraping\",\"action\":\"webcrawl\",\"reasoning\":\"recursive web crawler for exploring linked documentation pages\",\"confidence\":0.85}\n");
         sb.append("Goal: Take a screenshot of a website → {\"thought\":\"Need browser automation, MCP bridge can connect to Playwright server\",\"action\":\"mcp-bridge\",\"reasoning\":\"MCP bridge connects to Playwright MCP server for browser screenshots\",\"confidence\":0.85}\n");
         sb.append("Goal: Research a topic and create a structured report → {\"thought\":\"Complex multi-step task needs decomposition — web research, extract, structure, save\",\"action\":\"prompt-chain\",\"reasoning\":\"multi-step research task best handled by prompt chaining\",\"confidence\":0.85}\n");
-        sb.append("Goal: Investigate system security and generate audit report → {\"thought\":\"System audit requires multiple steps — probe, analyze, aggregate, report\",\"action\":\"prompt-chain\",\"reasoning\":\"systematic audit via chained sub-goals\",\"confidence\":0.85}\n\n");
+        sb.append("Goal: Investigate system security and generate audit report → {\"thought\":\"System audit requires multiple steps — probe, analyze, aggregate, report\",\"action\":\"prompt-chain\",\"reasoning\":\"systematic audit via chained sub-goals\",\"confidence\":0.85}\n");
+        sb.append("Goal: Scan the AGI repo for TODOs and create an optimisation feature branch → {\"thought\":\"Code optimisation needs repo analysis via git commands, LLM-based fix generation, and git branch creation\",\"action\":\"git-feature-branch\",\"reasoning\":\"git-feature-branch scans, generates, compiles and pushes optimisations as a feature branch\",\"confidence\":0.85}\n\n");
 
         // ── Goal context ──
         sb.append("CURRENT GOAL:\n");
