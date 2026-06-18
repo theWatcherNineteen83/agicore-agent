@@ -1,5 +1,7 @@
 # Metis AGI — Feature-Katalog
 
+**Stand: 18.06.2026 19:40 (+Phase 10 Hot-Path: Intervention→Observe→Update-Loop, Counterfactual-Reasoning, CausalScorer) · Phase 9.7: Erstes STRATEGIC Goal DONE 🎉**
+
 **Stand: 06.06.2026 21:30 (+Phase 3.5 S9-Mobile-Sensor-Array) · Repo-Tag v0.11.11-governance · 330 Tests (gruen) · CI: Kernel+Watchdog (GitHub Actions)**
 
 ---
