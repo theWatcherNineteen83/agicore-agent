@@ -120,9 +120,14 @@ public class GitFeatureBranchAction implements Action {
             boolean compiled = runMvnCompile();
             if (!compiled) {
                 compileErrors = 1;
+                // Lektion gelernt (18.06.): nicht-loeschen, sondern stashen —
+                // Aenderungen bleiben erhalten fuer spaetere Analyse
+                exec("git", "add", "-A");
+                exec("git", "stash");
                 exec("git", "checkout", "master");
-                exec("git", "branch", "-D", branchName);
-                return ActionResult.fail(name(), "Optimization did not compile — branch deleted", start);
+                String stashNote = "failed-compile-" + branchName.replace('/', '-');
+                exec("git", "stash", "pop");
+                return ActionResult.fail(name(), "Optimization did not compile — changes stashed for review", start);
             }
 
             // 9. Commit + Push
