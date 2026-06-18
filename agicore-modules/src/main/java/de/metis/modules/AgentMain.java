@@ -1588,6 +1588,12 @@ public final class AgentMain {
         agent.core().executor().register(featureGenAction);
         LOG.info("Phase 12b: FeatureGenAction registered");
 
+        var gitFeatureBranchAction = new de.metis.modules.action.GitFeatureBranchAction(
+                "http://192.168.22.204:11434", "qwen3_6-35b-agent",
+                "/home/prometheus/metis-agent-repo");
+        agent.core().executor().register(gitFeatureBranchAction);
+        LOG.info("Phase 12b: GitFeatureBranchAction registered (repo=/home/prometheus/metis-agent-repo)");
+
         // Phase 12b: GapAnalyzer
         var gapAnalyzer = new de.metis.modules.evolution.GapAnalyzer();
         var metricSeries = new de.metis.modules.evolution.MetricTimeSeries();
