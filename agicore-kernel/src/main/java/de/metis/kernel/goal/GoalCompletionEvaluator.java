@@ -86,12 +86,25 @@ public class GoalCompletionEvaluator {
                 notes.add("DONE: " + truncate(g.title(), 60) + " (postconditions all met)");
                 LOG.info("GoalCompletionEvaluator: DONE \"" + g.title()
                         + "\" (" + conds.size() + " postconditions met)");
+                // Phase 9.7b: Propagate upward when a goal becomes DONE
+                if (g.parentId() != null) {
+                    hierarchy.rollupProgress(g.parentId());
+                }
             } else if (Math.abs(targetProgress - g.progress()) > 0.001) {
                 hierarchy.upsert(g.withProgress(targetProgress));
                 progressed++;
                 notes.add("progress \u2192 " + String.format(java.util.Locale.ROOT, "%.2f", targetProgress)
                         + ": " + truncate(g.title(), 60));
             }
+        }
+
+        // Phase 9.7b: Second pass — propagate all completions upward
+        // for parents whose children changed status
+        for (var g : hierarchy.all()) {
+            if (g.status() != LongHorizonGoal.Status.ACTIVE
+                    && g.status() != LongHorizonGoal.Status.PROPOSED) continue;
+            if (g.parentId() == null) continue;
+            hierarchy.rollupProgress(g.parentId());
         }
 
         return new Report(evaluated, progressed, completed, notes);

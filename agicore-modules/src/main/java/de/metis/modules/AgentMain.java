@@ -1447,7 +1447,8 @@ public final class AgentMain {
                     var open = goalHierarchy.openByHorizon(horizon);
                     for (var g : open) {
                         if (!horizon.canBeDecomposed()) continue;
-                        if (g.childIds() != null && !g.childIds().isEmpty()) continue;
+                        // Fix: echte Children prüfen, nicht nur childIds-Liste (oder-phan UUIDs in DONE-Goals blockierten sonst die Decomposition)
+                        if (goalHierarchy.children(g.id()) != null && !goalHierarchy.children(g.id()).isEmpty()) continue;
                         var newChildren = horizonPlanner.decompose(g);
                         if (!newChildren.isEmpty()) {
                             decomposed++;

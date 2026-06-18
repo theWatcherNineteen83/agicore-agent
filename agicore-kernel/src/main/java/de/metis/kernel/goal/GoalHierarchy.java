@@ -127,19 +127,30 @@ public class GoalHierarchy {
      * Recompute parent.progress as the mean of children.progress.
      * Idempotent and cheap; can be called on every tick.
      */
+    /**
+     * Propagate child progress upward and cascade to grandparent.
+     * If a goal becomes DONE, also rolls up its parent (recursive cascade).
+     */
     public synchronized void rollupProgress(UUID parentId) {
         LongHorizonGoal parent = byId.get(parentId);
         if (parent == null) return;
         List<LongHorizonGoal> kids = children(parentId);
         if (kids.isEmpty()) return;
         double mean = kids.stream().mapToDouble(LongHorizonGoal::progress).average().orElse(0.0);
+        boolean changed = false;
         if (Math.abs(parent.progress() - mean) > 0.005) {
             upsert(parent.withProgress(mean));
+            changed = true;
         }
         boolean allDone = kids.stream()
                 .allMatch(k -> k.status() == LongHorizonGoal.Status.DONE);
         if (allDone && parent.status() != LongHorizonGoal.Status.DONE) {
             upsert(parent.withStatus(LongHorizonGoal.Status.DONE));
+            changed = true;
+        }
+        // Cascade upward: if this parent changed, update its parent too
+        if (changed && parent.parentId() != null) {
+            rollupProgress(parent.parentId());
         }
     }
 

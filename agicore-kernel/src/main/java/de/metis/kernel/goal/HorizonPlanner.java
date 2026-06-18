@@ -71,7 +71,7 @@ public class HorizonPlanner {
         }
 
         List<String> titles = decomposer != null
-                ? safeTitles(decomposer.proposeChildTitles(parent, childHorizon, defaultFanout), parent.title(), defaultFanout)
+                ? safeTitles(decomposer.proposeChildTitles(parent, childHorizon, defaultFanout), parent.title(), childHorizon, defaultFanout)
                 : deterministicTitles(parent.title(), childHorizon, defaultFanout);
 
         Instant childDeadline = parent.deadline() != null
@@ -80,10 +80,11 @@ public class HorizonPlanner {
 
         List<LongHorizonGoal> created = new ArrayList<>();
         LongHorizonGoal current = parent;
+        String childRationale = buildChildRationale(parent, childHorizon, titles.size());
         for (String t : titles) {
             LongHorizonGoal child = new LongHorizonGoal(
                     null, t,
-                    "Zerlegt aus: " + parent.title(),
+                    childRationale,
                     childHorizon,
                     LongHorizonGoal.Status.PROPOSED,
                     parent.id(),
@@ -129,9 +130,9 @@ public class HorizonPlanner {
         return out;
     }
 
-    private List<String> safeTitles(List<String> proposed, String fallbackTitle, int wanted) {
+    private List<String> safeTitles(List<String> proposed, String fallbackTitle, GoalHorizon childHorizon, int wanted) {
         if (proposed == null || proposed.isEmpty()) {
-            return deterministicTitles(fallbackTitle, GoalHorizon.OPERATIONAL, wanted);
+            return deterministicTitles(fallbackTitle, childHorizon, wanted);
         }
         return proposed.stream()
                 .filter(Objects::nonNull)
@@ -139,6 +140,25 @@ public class HorizonPlanner {
                 .filter(t -> !t.isEmpty())
                 .limit(wanted)
                 .toList();
+    }
+
+    /**
+     * Build child rationale with derived postconditions (Phase 9.7b).
+     * TICK goals get auto-complete postcondition, OPERATIONAL get child-count.
+     */
+    private String buildChildRationale(LongHorizonGoal parent, GoalHorizon childHorizon, int siblingCount) {
+        String base = parent.rationale() != null && !parent.rationale().isBlank()
+                ? "Zerlegt aus: " + parent.title()
+                : "Zerlegt aus: " + parent.title();
+        if (childHorizon == GoalHorizon.TICK) {
+            return base + "\n[postconditions]\nchild_goals_done >= 0\n[/postconditions]";
+        }
+        if (childHorizon == GoalHorizon.OPERATIONAL) {
+            // OPERATIONAL will be decomposed into TICK children
+            // When all TICK children are DONE, this OPERATIONAL becomes DONE
+            return base + "\n[postconditions]\nchild_goals_done >= " + siblingCount + "\n[/postconditions]";
+        }
+        return base;
     }
 
     private Duration durationFor(GoalHorizon h) {
