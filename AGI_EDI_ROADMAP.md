@@ -1,6 +1,6 @@
 # 🧠 AGI EDI - Roadmap
 
-**Stand: 18.06.2026 19:40 (Phase 10 Intervention→Observe→Update-Loop + Counterfactual-Reasoning + CausalScorer)**
+**Stand: 22.06.2026 19:22 (Phase 13 — Lusseyran Voice Analysis designed)**
 
 ---
 
@@ -69,6 +69,26 @@ Ohne kausales Denken und Personenverständnis wäre Self-Modification blindes Tr
 
 ---
 
+### 🎙️ Phase 13 — Lusseyran Voice Analysis 🟡 DESIGNED · BUILT 0% · VERIFIED ⬜
+
+> **Inspiration:** Jacques Lusseyran, *Das wiedergefundene Licht* (1963).
+> Metis lernt Menschen anhand der Stimme zu analysieren — Tonhöhe, Rhythmus, Energie, Timbre
+> → LLM-Evaluator interpretiert nach Lusseyran-Prinzipien → Sprecherprofil.
+> **Design-Doc:** `lusseyran-voice-analysis.md` im Workspace.
+
+**Abhängigkeit:** Phase 11 (PersonModel) — SpeakerProfile wird im PersonModel gespeichert.
+
+| Sub-Phase | BUILT | Inhalt |
+|-----------|-------|--------|
+| Ph 13a — VoiceFeatureExtractor | 0% | Python-Modul (librosa/parselmouth): 20+ paralinguistische Features aus WAV |
+| Ph 13b — LusseyranEvaluator | 0% | Java-Modul: Prompt-Template → nemotron-mini:4b → strukturiertes Sprecherprofil |
+| Ph 13c — PersonModel-Integration | 0% | speakerProfile-Feld, TrustLevel-Adjustment via voiceSincerity, EmpathySignal-Fusion |
+| Ph 13d — Eval & Verifikation | 0% | 20-Clip-Gold-Datensatz, 6 Eval-Tasks, A/B-Test Lusseyran-Prompt vs. Standard |
+
+**Ressourcen:** nemotron-mini:4b (GPU 0, ~1s/Analyse), CPU für Feature-Extraction (~2s/60s Audio).
+
+---
+
 ### 🚧 Phase 11.5 — Initiative-Policy ⬜ BUILT 0% · VERIFIED ⬜
 
 EDI spricht ungefragt an. Metis hat Bausteine (proaktive MQTT/Wetter→Telegram), aber keine Policy.
@@ -100,6 +120,8 @@ EDI spricht ungefragt an. Metis hat Bausteine (proaktive MQTT/Wetter→Telegram)
 | **2.** | Phase 11 TrustLevel-Automation + EmpathySignal-Hot-Path | 11 | 2-3 Tage | ⬜ |
 | **3.** | Continuity-Soak-Test (7 Tage) für memory_continuity | 8 | passiv | ⬜ |
 | **4.** | Initiative-Policy v1 (InitiativeLevel + TrustLevel-Mapping) | 11.5 | 1-2 Tage | ⬜ |
+| **5.** | Phase 13a VoiceFeatureExtractor (Python/librosa) — Vorarbeit für Voice Analysis | 13 | 1-2 Tage | ⬜ |
+| **6.** | Phase 13b+c LusseyranEvaluator + PersonModel-Integration | 13 | 2-3 Tage | ⬜ |
 
 ---
 
