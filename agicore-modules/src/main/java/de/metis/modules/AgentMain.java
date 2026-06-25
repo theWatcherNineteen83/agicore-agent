@@ -1078,6 +1078,9 @@ public final class AgentMain {
                 + knowledgeStore.experienceCount() + " experiences, "
                 + knowledgeStore.mappingCount() + " mappings from DB");
 
+        // ── Phase 10: HypothesisStore (needed for eval + OllamaPlanner hot-path) ──
+        var hypothesisStore = new de.metis.kernel.world.HypothesisStore();
+
         // Inject Ollama mutation service if evolution enabled
         if (evolution) {
             var ollama = new OllamaMutationService(modelRegistry);
@@ -1115,7 +1118,7 @@ public final class AgentMain {
                     "http://192.168.22.204:11735",
                     "http://192.168.22.204:11434",
                     modelRegistry);
-            var evalRunner = new de.metis.modules.eval.EvalRunner(evalInvoker, knowledgeStore, evalReportDir);
+            var evalRunner = new de.metis.modules.eval.EvalRunner(evalInvoker, knowledgeStore, hypothesisStore, evalReportDir);
             // Run initial SMOKE test after startup (use daemon thread for delayed execution)
             var evalScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
                 var t = new Thread(r, "eval-smoke");
@@ -1406,8 +1409,7 @@ public final class AgentMain {
 
         LOG.info("Phase 9 wired — hierarchy=" + goalHierarchy.size() + " goals");
 
-        // ── Phase 10: Aktive kausale Hypothesen ──────────────────────
-        var hypothesisStore = new HypothesisStore();
+        // ── Phase 10: Aktive kausale Hypothesen (store created above for eval) ──
         var hypothesisGenerator = new HypothesisGenerator(hypothesisStore);
         var causalModel = new CausalModel();
         var interventionRunner = new InterventionRunner(hypothesisStore, causalModel);

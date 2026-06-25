@@ -16,7 +16,7 @@ import java.util.logging.Logger;
  *   <li>{@code open >= 0} — offene Hypothesen (nicht negativ)</li>
  * </ul>
  */
-public class CausalScorer {
+public class CausalScorer implements Scorer {
 
     private static final Logger LOG = Logger.getLogger(CausalScorer.class.getName());
 

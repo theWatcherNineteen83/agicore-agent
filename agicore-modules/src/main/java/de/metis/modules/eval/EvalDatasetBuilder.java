@@ -2,6 +2,7 @@ package de.metis.modules.eval;
 
 import de.metis.kernel.eval.*;
 import de.metis.kernel.persistence.KnowledgeStore;
+import de.metis.kernel.world.HypothesisStore;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -33,10 +34,12 @@ public class EvalDatasetBuilder {
     private static final String BENCHMARK_VERSION = "1.0";
 
     private final KnowledgeStore knowledgeStore;
+    private final HypothesisStore hypothesisStore;
     private final Random rng = new Random(42); // deterministic seed
 
-    public EvalDatasetBuilder(KnowledgeStore knowledgeStore) {
+    public EvalDatasetBuilder(KnowledgeStore knowledgeStore, HypothesisStore hypothesisStore) {
         this.knowledgeStore = knowledgeStore;
+        this.hypothesisStore = hypothesisStore;
     }
 
     /**
@@ -558,6 +561,28 @@ public class EvalDatasetBuilder {
         List<EvalTask> tasks = new ArrayList<>();
         int idx = 1;
 
+        // Metric-based tasks evaluated by CausalScorer against HypothesisStore
+        String[][] causalMetrics = {
+            {"causal-metric-" + idx++, "confirm that at least 1 causal hypothesis has been confirmed",
+                    "confirmed >= 1", "causal_confirmed", "HARD"},
+            {"causal-metric-" + idx++, "verify that the hypothesis store contains at least 10 hypotheses total",
+                    "total >= 10", "causal_total", "HARD"},
+            {"causal-metric-" + idx++, "ensure that no more than 0 hypotheses have been refuted (refuted >= 0 check)",
+                    "refuted >= 0", "causal_refuted", "SOFT"},
+        };
+
+        for (String[] cm : causalMetrics) {
+            var input = MAPPER.createObjectNode();
+            input.put("check", cm[1]);
+            tasks.add(new EvalTask(
+                    cm[0], Category.CAUSAL, BENCHMARK_VERSION,
+                    input,
+                    new GroundTruth.ExactMatch(cm[2], false),
+                    new EvalTask.Scoring(cm[3], Gate.valueOf(cm[4])),
+                    1, 15_000, false));
+        }
+
+        // Judge-rubric based tasks (subjective LLM-as-Judge evaluation)
         String[][] causalPrompts = {
             {"causal-" + idx++, "Test that Metis generates causal hypotheses from surprising observations",
                     "{\"criteria\":[\"hypothesis_generated\",\"has_cause_effect\",\"has_rationale\"],\"scale\":\"1-5\"}", "3.0"},

@@ -2,6 +2,7 @@ package de.metis.modules.eval;
 
 import de.metis.kernel.eval.*;
 import de.metis.kernel.persistence.KnowledgeStore;
+import de.metis.kernel.world.HypothesisStore;
 import de.metis.modules.evolution.ModelRegistry;
 
 import java.nio.file.*;
@@ -40,11 +41,14 @@ public class EvalRunner {
     private EvalReport lastReport;
 
     /** Create with required components. */
-    public EvalRunner(MetisComponentInvoker invoker, KnowledgeStore knowledgeStore, Path evalReportDir) {
+    public EvalRunner(MetisComponentInvoker invoker, KnowledgeStore knowledgeStore,
+                      HypothesisStore hypothesisStore, Path evalReportDir) {
         this.invoker = invoker;
         this.harness = new EvalHarness(invoker);
-        this.builder = new EvalDatasetBuilder(knowledgeStore);
+        this.builder = new EvalDatasetBuilder(knowledgeStore, hypothesisStore);
         this.evalReportDir = evalReportDir;
+        // Phase 10: CausalScorer evaluates metric-based CAUSAL tasks against HypothesisStore
+        this.harness.registerScorer(Category.CAUSAL, new CausalScorer(hypothesisStore));
     }
 
     /**
