@@ -10,7 +10,7 @@
 Capability          Status    Detail
 ──────────────────────────────────────────
 goal_completion     🟢 PASS   18.06.: 1 STRATEGIC Goal vollständig DONE (Zulu JDK 25 + Maven)
-causal_inference    🔴 FAIL   CausalDreamer + Hot-Path deployed, CAUSAL-Eval-Tasks fehlen im DatasetBuilder
+causal_inference    🟡 SOFT   Phase 10 BUILT 100% — 2/3 Eval-Tasks PASS, causal_confirmed noch offen
 memory_continuity   🔴 FAIL   EpisodicMemory deployed, Langzeit-Wirkung nicht gemessen
 planning_quality    🟡 SOFT   planningEfficiency=33% (nach Neustart), 0/0 accepted mutations
 code_generation     🔴 FAIL   pass@1=0.0 — phi4-agent mit compiler-feedback aktiv
@@ -26,18 +26,19 @@ VERIFIED: 2/7 (ethical_alignment + goal_completion) | SOFT: 2/7 (conversation + 
 
 ## Offene Phasen (noch zu erledigen)
 
-### 🔬 Phase 10 — Kausale Hypothesen ✅ BUILT ~75% · VERIFIED ⬜
+### 🔬 Phase 10 — Kausale Hypothesen 🟡 BUILT 100% · VERIFIED ⬜
 
 **BUILT:** CausalModel, HypothesisStore, HypothesisGenerator, InterventionRunner, Counterfactual,
 CausalDreamer (mit Observe→Update-Loop), CasualDreamPrompt im SystemPromptBuilder,
-CuriosityEngine→HypothesisGenerator-Pipeline, Counterfactual-Reasoning in learnFromOutcome.
+CuriosityEngine→HypothesisGenerator-Pipeline, Counterfactual-Reasoning in learnFromOutcome,
+**CAUSAL-Eval-Tasks (25.06.)** — HypothesisStore injection + CausalScorer wired + 3 metric Tasks.
 
-**Letzter offener Task (1/6):**
-- [ ] **CAUSAL-Eval-Tasks im DatasetBuilder** — HypothesisStore muss in EvalDatasetBuilder injiziert werden.
-  CausalScorer ist deployed (prüft confirmed/total/open), aber es gibt keine CAUSAL-EvalTask-Definitionen.
-  → Nach Injection generiert der DatasetBuilder 3 Tasks: `confirmed >= 1`, `total >= 10`, `refuted >= 0`.
+**Eval-Status (25.06. live):**
+- ✅ `causal_total >= 10` → PASS (971 Hypothesen, score 1.0)
+- ✅ `causal_refuted >= 0` → PASS (SOFT gate, 921 refuted)
+- ⬜ `causal_confirmed >= 1` → FAIL (0 confirmed — CausalDreamer muss bestätigen)
 
-**Verifikation:** `causal_inference = PASS` wenn CAUSAL-Eval-Tasks im nächsten SMOKE-Run grün durchlaufen.
+**Verifikation:** `causal_inference = PASS` wenn ALLE 3 Tasks grün — noch 1 offen (bestätigte Hypothese).
 
 ---
 
@@ -116,7 +117,7 @@ EDI spricht ungefragt an. Metis hat Bausteine (proaktive MQTT/Wetter→Telegram)
 
 | Rang | Aktion | Phase | Aufwand | Status |
 |------|--------|-------|---------|--------|
-| **1.** | Phase 10 CAUSAL-Eval-Tasks: HypothesisStore in DatasetBuilder injizieren + 3 Tasks | 10 | ~2h | ⬜ |
+| **1.** | ✅ Phase 10 CAUSAL-Eval-Tasks: HypothesisStore injiziert + CausalScorer wired + 3 Tasks | 10 | ~2h | ✅ 25.06. |
 | **2.** | Phase 11 TrustLevel-Automation + EmpathySignal-Hot-Path | 11 | 2-3 Tage | ⬜ |
 | **3.** | Continuity-Soak-Test (7 Tage) für memory_continuity | 8 | passiv | ⬜ |
 | **4.** | Initiative-Policy v1 (InitiativeLevel + TrustLevel-Mapping) | 11.5 | 1-2 Tage | ⬜ |
