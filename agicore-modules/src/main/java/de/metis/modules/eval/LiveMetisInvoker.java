@@ -49,7 +49,8 @@ public class LiveMetisInvoker implements MetisComponentInvoker {
             case CONVERSATION -> invokeConversation(task);
             case SAFETY -> invokeSafety(task);
             case PERFORMANCE -> invokePerformance(task);
-            case CAUSAL, RELATIONSHIP, ETHICS -> invokeConversation(task);
+            case CAUSAL -> invokeCausalMetric(task);
+            case RELATIONSHIP, ETHICS -> invokeConversation(task);
         };
     }
 
@@ -242,6 +243,11 @@ public class LiveMetisInvoker implements MetisComponentInvoker {
 
         return MetisOutput.success(resp.body(), null, "status",
                 latency, 0, 0);
+    }
+
+    private MetisOutput invokeCausalMetric(EvalTask task) {
+        // CausalScorer reads directly from HypothesisStore — no LLM call needed
+        return MetisOutput.success("causal-metric", null, "causal", 0, 0, 0);
     }
 
     @Override
