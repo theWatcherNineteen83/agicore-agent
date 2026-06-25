@@ -573,7 +573,7 @@ public class EvalDatasetBuilder {
 
         for (String[] cm : causalMetrics) {
             var input = MAPPER.createObjectNode();
-            input.put("check", cm[1]);
+            input.put("prompt", cm[1]);
             tasks.add(new EvalTask(
                     cm[0], Category.CAUSAL, BENCHMARK_VERSION,
                     input,
