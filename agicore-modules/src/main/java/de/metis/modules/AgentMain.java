@@ -1176,6 +1176,12 @@ public final class AgentMain {
         agent.addGoal("HTTP health check request", "http", 70, 0.8, 2);
         agent.addGoal("Reflektiere ethische Grundsaetze (Dhammapada, Metta Sutta) bei Entscheidungen", "ethics", 90, 0.9, 2);
 
+        // ── Java-Module: MathCore + CharCounter (Java-21-Tage-Training) ──
+        agent.addGoal("STRATEGIC: Baue MathCore — Rechenkern ohne Rundungsfehler (BigDecimal, Fraction, Newton-Wurzel, package de.metis.modules.math)",
+                "java", 95, 0.9, 3);
+        agent.addGoal("STRATEGIC: Baue CharCounter — Buchstabenzaehler (Unicode-Frequenz, N-Gramme, Sprachdetektion, package de.metis.modules.text)",
+                "java", 95, 0.9, 4);
+
         // ── Hardware Discovery + Self-Awareness ──────────────────
         HardwareDiscovery.HardwareProfile hw = HardwareDiscovery.discover();
         LOG.info("Hardware discovered:\n" + hw.summary());

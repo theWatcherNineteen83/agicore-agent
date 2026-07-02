@@ -60,11 +60,11 @@ class SystemPromptBuilderTest {
         Instant t0 = Instant.now();
         em.append(new Episode("e1", t0, t0.plusSeconds(60),
                 "Tag A", "body A",
-                List.of(), List.of(), List.of(), List.of(), Map.of(),
+                List.of(), List.of(), List.of(), List.of(), "", Map.of(),
                 100, 25, 5, 1, null, null));
         em.append(new Episode("e2", t0.plusSeconds(60), t0.plusSeconds(120),
                 "Tag B", "body B",
-                List.of(), List.of(), List.of(), List.of(), Map.of(),
+                List.of(), List.of(), List.of(), List.of(), "", Map.of(),
                 200, 50, 10, 2, null, null));
         SystemPromptBuilder b = new SystemPromptBuilder(null, null, null, em);
         String header = b.buildPromptHeader();

@@ -18,18 +18,18 @@ class Phase8NarrativeSelfTest {
         Instant t0 = Instant.now();
         Instant t1 = t0.plusSeconds(60);
         Episode ok = new Episode("e1", t0, t1, "x", "y",
-                List.of(), List.of(), List.of(), List.of(), Map.of(),
+                List.of(), List.of(), List.of(), List.of(), "", Map.of(),
                 10, 5, 3, 1, null, null);
         assertEquals("e1", ok.id());
         assertEquals("GENESIS", ok.previousHash());
 
         assertThrows(IllegalArgumentException.class,
                 () -> new Episode(null, t0, t1, "x", "y",
-                        List.of(), List.of(), List.of(), List.of(), Map.of(),
+                        List.of(), List.of(), List.of(), List.of(), "", Map.of(),
                         1, 0, 0, 0, "G", "h"));
         assertThrows(IllegalArgumentException.class,
                 () -> new Episode("e1", t1, t0, "x", "y",
-                        List.of(), List.of(), List.of(), List.of(), Map.of(),
+                        List.of(), List.of(), List.of(), List.of(), "", Map.of(),
                         1, 0, 0, 0, "G", "h"));
     }
 
@@ -57,7 +57,7 @@ class Phase8NarrativeSelfTest {
     private static Episode makeEp(String id, Instant start, Instant end) {
         return new Episode(id, start, end, id + " title", id + " body",
                 List.of("event"), List.of("insight"), List.of("question"),
-                List.of("Georg"), Map.of("satisfaction", 0.8),
+                List.of("Georg"), "265324594", Map.of("satisfaction", 0.8),
                 10, 5, 3, 1, null, null);
     }
 
