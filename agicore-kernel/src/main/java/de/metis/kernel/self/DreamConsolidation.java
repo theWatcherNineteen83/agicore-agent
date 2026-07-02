@@ -92,6 +92,7 @@ public class DreamConsolidation {
                 deriveInsights(stats),
                 safe(stats.openQuestions()),
                 safe(stats.peopleSeen()),
+                "",
                 moodSnapshot,
                 stats.ticksCovered(),
                 stats.beliefsLearned(),

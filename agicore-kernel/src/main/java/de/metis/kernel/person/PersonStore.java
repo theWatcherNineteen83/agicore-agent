@@ -85,6 +85,62 @@ public class PersonStore {
     }
 
     /**
+     * Phase 11.2 — Automatische TrustLevel-Evaluation.
+     *
+     * <p>Regeln (nicht-OWNER-Personen):
+     * <ul>
+     *   <li>STRANGER mit ≥5 Interaktionen → GUEST (erste Hürde)</li>
+     *   <li>GUEST mit ≥25 Interaktionen → KNOWN (wiederkehrender Nutzer)</li>
+     *   <li>KNOWN mit ≥50 Interaktionen + ≥7 Tage seit firstSeen → TRUSTED</li>
+     *   <li>OWNER wird NIE automatisch hoch- oder runtergestuft</li>
+     * </ul>
+     *
+     * @return der (ggf. neue) TrustLevel
+     */
+    public synchronized TrustLevel evaluateTrustLevel(Person p) {
+        if (p == null || p.trustLevel() == TrustLevel.OWNER) {
+            return p != null ? p.trustLevel() : TrustLevel.STRANGER;
+        }
+        long interactions = p.interactionCount();
+        TrustLevel current = p.trustLevel();
+        long daysSinceFirst = java.time.Duration.between(
+                p.firstSeenAt(), java.time.Instant.now()).toDays();
+
+        TrustLevel proposed = current;
+        if (current.rank() < TrustLevel.GUEST.rank() && interactions >= 5) {
+            proposed = TrustLevel.GUEST;
+        }
+        if (current.rank() < TrustLevel.KNOWN.rank() && interactions >= 25) {
+            proposed = TrustLevel.KNOWN;
+        }
+        if (current.rank() < TrustLevel.TRUSTED.rank()
+                && interactions >= 50 && daysSinceFirst >= 7) {
+            proposed = TrustLevel.TRUSTED;
+        }
+        return proposed;
+    }
+
+    /**
+     * Phase 11.2 — Person nach Interaktion aktualisieren (inkl. Trust-Automation).
+     * Convenience-Methode: withInteraction() + evaluateTrustLevel() + upsert().
+     */
+    public synchronized Person recordInteraction(String personId) {
+        return get(personId).map(p -> {
+            Person updated = p.withInteraction();
+            TrustLevel newTrust = evaluateTrustLevel(updated);
+            if (newTrust != updated.trustLevel()) {
+                updated = updated.withTrust(newTrust);
+                LOG.info("PersonStore: " + updated.name() + " (" + personId
+                        + ") upgraded " + p.trustLevel() + " → " + newTrust
+                        + " (" + updated.interactionCount() + " interactions, "
+                        + java.time.Duration.between(updated.firstSeenAt(),
+                            java.time.Instant.now()).toDays() + " days)");
+            }
+            return upsert(updated);
+        }).orElse(null);
+    }
+
+    /**
      * Bootstrap Georg (Owner) wenn noch nicht vorhanden.
      */
     public synchronized Person ensureOwner(String id, String name) {

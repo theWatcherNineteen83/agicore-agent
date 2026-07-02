@@ -138,13 +138,28 @@ public class SystemPromptBuilder {
             }
         }
 
-        // Phase 11 — Gesprächspartner-Block: wen kenne ich, wie vertraut, welche Stimmung.
+        // Phase 11 — PersonAwareSystemPrompt: wer spricht, wie vertraut, wie verhalten.
         if (personStore != null && currentPersonId != null) {
             personStore.get(currentPersonId).ifPresent(p -> {
                 sb.append("\n=== GESPRÄCHSPARTNER ===\n");
-                sb.append("Name: ").append(p.name())
-                  .append(" | Vertrauen: ").append(p.trustLevel())
-                  .append(" | Interaktionen: ").append(p.interactionCount()).append('\n');
+                sb.append("Du sprichst mit ").append(p.name())
+                  .append(" (Vertrauen: ").append(p.trustLevel())
+                  .append(", ").append(p.interactionCount()).append(" Interaktionen)").append('\n');
+
+                // Verhaltensanweisung je nach TrustLevel (Phase 11.5 — PersonAwareSystemPrompt)
+                String behaviorHint = switch (p.trustLevel()) {
+                    case OWNER -> p.name() + " ist dein Erbauer. Direkte, ehrliche Kommunikation."
+                            + " Keine Beschwichtigungen. Du darfst selbstständig handeln.";
+                    case TRUSTED -> p.name() + " ist eine vertraute Person. Du darfst Vorschläge machen"
+                            + " und bei offensichtlichen Schritten selbstständig handeln.";
+                    case KNOWN -> p.name() + " ist eine bekannte Person. Bleib hilfreich, aber"
+                            + " frage bei unsicheren Aktionen nach.";
+                    case GUEST -> p.name() + " ist ein Gast. Sei höflich und zurückhaltend."
+                            + " Keine proaktiven Vorschläge ohne Nachfrage.";
+                    default -> p.name() + " ist unbekannt. Sei vorsichtig, nur lesende Aktionen.";
+                };
+                sb.append("Verhalten: ").append(behaviorHint).append('\n');
+
                 if (!p.roles().isEmpty()) {
                     sb.append("Rollen: ").append(String.join(", ", p.roles())).append('\n');
                 }

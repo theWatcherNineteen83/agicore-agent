@@ -1654,10 +1654,25 @@ public final class AgentMain {
         LOG.info("Phase 8.7 wired — PersonalityTripwire every 5 min");
 
         // ── Phase 10.5 — CausalDreamer: Kausalhypothesen im Leerlauf ──
+        // Metrics-Supplier: Live-Werte (beliefCount, successRate, plannerLlmCalls)
+        // normalisiert auf [0,1] für den CausalDreamer.
+        java.util.function.Supplier<java.util.Map<String, Double>> liveMetrics = () -> {
+            java.util.Map<String, Double> m = new java.util.LinkedHashMap<>();
+            try {
+                double bc = agent.worldModel().beliefCount();
+                m.put("beliefCount_norm", Math.min(1.0, bc / 200_000.0));
+                m.put("successRate", agent.metrics().goalSuccessRate());
+                m.put("planningEfficiency", agent.metrics().planningEfficiency());
+                double conf = agent.meta().confidence();
+                m.put("confidence", Double.isNaN(conf) ? 0.5 : conf);
+            } catch (Exception ignored) { /* best-effort */ }
+            return m;
+        };
         var casualDreamer = new de.metis.modules.self.CausalDreamer(
                 agent.memory(), agent.core().goals().kanbanBoard(),
                 hypothesisGenerator, hypothesisStore, causalModel,
-                selfNarrative, interventionRunner);        var dreamerScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+                selfNarrative, interventionRunner, liveMetrics);
+        var dreamerScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
             var t = new Thread(r, "causal-dreamer");
             t.setDaemon(true);
             return t;

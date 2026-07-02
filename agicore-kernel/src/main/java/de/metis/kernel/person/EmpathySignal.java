@@ -30,6 +30,10 @@ public class EmpathySignal {
 
     public record Sample(String label, double score) {}
 
+    /**
+     * Phase 11.4 — Sentiment-Analyse mit Keyword-Heuristik, Satzlänge,
+     * Tageszeit-Kontext und Frage-Anteil (Hot-Path, kein LLM).
+     */
     public Person.SentimentSample analyze(String text) {
         if (text == null || text.isBlank()) {
             return new Person.SentimentSample("neutral", 0.0, Instant.now());
@@ -38,16 +42,45 @@ public class EmpathySignal {
         int pos = 0, neg = 0;
         for (String tok : POS_TOKENS) if (t.contains(tok)) pos++;
         for (String tok : NEG_TOKENS) if (t.contains(tok)) neg++;
-        int exclamations = 0;
-        for (int i = 0; i < text.length(); i++) if (text.charAt(i) == '!') exclamations++;
+
+        // Satzlängen-Analyse: sehr kurze Sätze (<15 Zeichen) deuten auf Anspannung
+        int exclamations = 0, questions = 0;
+        int shortSentences = 0, totalSentences = 0;
+        for (String sentence : text.split("[.!?]+")) {
+            String s = sentence.trim();
+            if (s.isEmpty()) continue;
+            totalSentences++;
+            if (s.length() < 15) shortSentences++;
+        }
+        for (int i = 0; i < text.length(); i++) {
+            if (text.charAt(i) == '!') exclamations++;
+            if (text.charAt(i) == '?') questions++;
+        }
         int capsWords = 0;
         for (String w : text.split("\\s+")) {
             if (w.length() >= 3 && w.equals(w.toUpperCase())
                     && w.chars().anyMatch(Character::isLetter)) capsWords++;
         }
+
         double signal = pos - neg;
         if (signal > 0 && exclamations > 0) signal += 0.3;
         if (signal < 0 && (exclamations > 0 || capsWords > 1)) signal -= 0.3;
+
+        // Tageszeit-Kontext: 22:00–06:00 leicht negativer Bias (Müdigkeit)
+        int hour = Instant.now().atZone(java.time.ZoneId.of("Europe/Berlin")).getHour();
+        if (hour >= 22 || hour < 6) signal -= 0.15;
+
+        // Kurze-Sätze-Signal: >50% kurze Sätze → leichte Anspannung
+        if (totalSentences > 0 && (double) shortSentences / totalSentences > 0.5) {
+            signal -= 0.2;
+        }
+
+        // Viele Fragen → engagiert/neugierig (leicht positiv)
+        if (questions > 0 && totalSentences > 0
+                && (double) questions / totalSentences > 0.3) {
+            signal += 0.2;
+        }
+
         double score = Math.max(-1.0, Math.min(1.0, signal / 3.0));
         String label = score > 0.2 ? "positiv" : score < -0.2 ? "negativ" : "neutral";
         return new Person.SentimentSample(label, round(score), Instant.now());

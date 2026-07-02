@@ -37,6 +37,7 @@ public record Episode(
         List<String> insights,
         List<String> openQuestions,
         List<String> people,
+        String personId,
         Map<String, Double> moodAtClose,
         long ticksCovered,
         int beliefsLearned,
@@ -56,8 +57,14 @@ public record Episode(
         if (insights == null) insights = List.of();
         if (openQuestions == null) openQuestions = List.of();
         if (people == null) people = List.of();
+        if (personId == null || personId.isBlank()) personId = "";
         if (moodAtClose == null) moodAtClose = Map.of();
         if (previousHash == null) previousHash = "GENESIS";
         if (hash == null) hash = "";
+    }
+
+    /** Filter episodes by person (Phase 11 — Multi-Person-Memory). */
+    public boolean involvesPerson(String pid) {
+        return pid != null && (pid.equals(personId) || people.contains(pid));
     }
 }

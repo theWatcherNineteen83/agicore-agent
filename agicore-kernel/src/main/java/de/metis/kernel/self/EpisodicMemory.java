@@ -79,13 +79,14 @@ public class EpisodicMemory {
     public synchronized Episode append(Episode candidate) {
         String prev = chainHead;
         String payload = prev + "|" + candidate.id() + "|" + candidate.start()
-                + "|" + candidate.end() + "|" + candidate.title() + "|" + candidate.body();
+                + "|" + candidate.end() + "|" + candidate.title() + "|"
+                + candidate.body() + "|" + candidate.personId();
         String h = sha256(payload);
         Episode finalEp = new Episode(
                 candidate.id(), candidate.start(), candidate.end(),
                 candidate.title(), candidate.body(),
                 candidate.events(), candidate.insights(), candidate.openQuestions(),
-                candidate.people(), candidate.moodAtClose(),
+                candidate.people(), candidate.personId(), candidate.moodAtClose(),
                 candidate.ticksCovered(), candidate.beliefsLearned(),
                 candidate.goalsCompleted(), candidate.goalsFailed(),
                 prev, h
@@ -112,6 +113,15 @@ public class EpisodicMemory {
         return List.copyOf(cache.subList(from, cache.size()));
     }
 
+    /** Phase 11 — Episoden einer bestimmten Person abrufen. */
+    public synchronized List<Episode> byPerson(String personId, int max) {
+        return cache.stream()
+                .filter(e -> e.involvesPerson(personId))
+                .sorted((a, b) -> b.end().compareTo(a.end()))
+                .limit(max)
+                .toList();
+    }
+
     public synchronized int size() { return cache.size(); }
     public synchronized String chainHead() { return chainHead; }
     public Path file() { return file; }
@@ -125,7 +135,8 @@ public class EpisodicMemory {
                 return false;
             }
             String payload = ep.previousHash() + "|" + ep.id() + "|" + ep.start()
-                    + "|" + ep.end() + "|" + ep.title() + "|" + ep.body();
+                    + "|" + ep.end() + "|" + ep.title() + "|"
+                    + ep.body() + "|" + ep.personId();
             if (!sha256(payload).equals(ep.hash())) {
                 LOG.warning("EpisodicMemory: tamper at " + ep.id());
                 return false;
@@ -158,6 +169,9 @@ public class EpisodicMemory {
         n.put("beliefsLearned", ep.beliefsLearned());
         n.put("goalsCompleted", ep.goalsCompleted());
         n.put("goalsFailed", ep.goalsFailed());
+        if (ep.personId() != null && !ep.personId().isBlank()) {
+            n.put("personId", ep.personId());
+        }
         n.put("previousHash", ep.previousHash());
         n.put("hash", ep.hash());
         return n;
@@ -183,7 +197,9 @@ public class EpisodicMemory {
                     Instant.parse(n.path("end").asText()),
                     n.path("title").asText(""),
                     n.path("body").asText(""),
-                    events, insights, openQ, people, mood,
+                    events, insights, openQ, people,
+                    n.path("personId").asText(""),
+                    mood,
                     n.path("ticksCovered").asLong(),
                     n.path("beliefsLearned").asInt(),
                     n.path("goalsCompleted").asInt(),

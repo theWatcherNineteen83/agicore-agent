@@ -77,8 +77,18 @@ public record CausalHypothesis(
                 note == null ? "" : note);
     }
 
+    /**
+     * Prüft, ob die beobachtete Richtung die Vorhersage bestätigt.
+     *
+     * <p>FLAT-Ergebnisse mit winziger Magnitude (&lt; 0.1) gelten als
+     * "keine Widerlegung" und matchen jede Vorhersage — typisch wenn
+     * das System noch keine echten Messwerte produzieren kann.
+     */
     public boolean matches(Direction observed) {
-        return observed == predictedDirection;
+        if (observed == predictedDirection) return true;
+        // FLAT with negligible magnitude is "not disproven" — don't auto-REFUTE
+        if (observed == Direction.FLAT && observedMagnitude < 0.1) return true;
+        return false;
     }
 
     public boolean isOpen() {

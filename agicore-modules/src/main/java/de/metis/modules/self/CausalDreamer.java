@@ -15,6 +15,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.Supplier;
 import java.util.logging.Logger;
 
 /**
@@ -46,6 +47,10 @@ public final class CausalDreamer {
     /** UUID → vergangene Ticks seit Testing-Start. */
     private final Map<UUID, Long> testingSince = new ConcurrentHashMap<>();
 
+    /** Optionale Live-Metriken (beliefCount, successRate etc.) für echte Messwerte.
+     *  Wenn null → Fallback auf CausalModel-Predictions (Standard). */
+    private final Supplier<Map<String, Double>> metricsSupplier;
+
     private final int lookback;
     private final int maxOpenHypotheses;
 
@@ -61,7 +66,18 @@ public final class CausalDreamer {
                          SelfNarrative narrative,
                          InterventionRunner interventionRunner) {
         this(memory, kanbanBoard, hypothesisGenerator, hypothesisStore,
-                causalModel, narrative, interventionRunner, 30, 50);
+                causalModel, narrative, interventionRunner, null, 30, 50);
+    }
+
+    public CausalDreamer(MemoryConsolidator memory, KanbanBoard kanbanBoard,
+                         HypothesisGenerator hypothesisGenerator,
+                         HypothesisStore hypothesisStore,
+                         CausalModel causalModel,
+                         SelfNarrative narrative,
+                         InterventionRunner interventionRunner,
+                         Supplier<Map<String, Double>> metricsSupplier) {
+        this(memory, kanbanBoard, hypothesisGenerator, hypothesisStore,
+                causalModel, narrative, interventionRunner, metricsSupplier, 30, 50);
     }
 
     public CausalDreamer(MemoryConsolidator memory, KanbanBoard kanbanBoard,
@@ -71,6 +87,18 @@ public final class CausalDreamer {
                          SelfNarrative narrative,
                          InterventionRunner interventionRunner,
                          int lookback, int maxOpenHypotheses) {
+        this(memory, kanbanBoard, hypothesisGenerator, hypothesisStore,
+                causalModel, narrative, interventionRunner, null, lookback, maxOpenHypotheses);
+    }
+
+    public CausalDreamer(MemoryConsolidator memory, KanbanBoard kanbanBoard,
+                         HypothesisGenerator hypothesisGenerator,
+                         HypothesisStore hypothesisStore,
+                         CausalModel causalModel,
+                         SelfNarrative narrative,
+                         InterventionRunner interventionRunner,
+                         Supplier<Map<String, Double>> metricsSupplier,
+                         int lookback, int maxOpenHypotheses) {
         this.memory = memory;
         this.kanbanBoard = kanbanBoard;
         this.hypothesisGenerator = hypothesisGenerator;
@@ -78,6 +106,7 @@ public final class CausalDreamer {
         this.causalModel = causalModel;
         this.narrative = narrative;
         this.interventionRunner = interventionRunner;
+        this.metricsSupplier = metricsSupplier;
         this.lookback = Math.max(5, lookback);
         this.maxOpenHypotheses = Math.max(1, maxOpenHypotheses);
     }
@@ -119,13 +148,26 @@ public final class CausalDreamer {
                 if (ticks >= TEST_OBSERVATION_TICKS) {
                     var opt = hypothesisStore.get(entry.getKey());
                     if (opt.isPresent() && opt.get().status() == CausalHypothesis.Status.TESTING) {
-                        // Messung: CausalModel-Konfidenz für den Cause-Effect-Link
+                        // Messung: live Metrics (wenn vorhanden) oder CausalModel-Predictions
                         double pre = 0.5;
                         double post = 0.5;
                         if (causalModel != null) {
                             var preds = causalModel.predict(opt.get().cause(), opt.get().condition(), 1);
                             if (!preds.isEmpty()) {
                                 post = preds.get(0).confidence();
+                            }
+                        }
+                        // Live-Metriken (beliefCount, successRate etc.) überschreiben den CausalModel-Wert
+                        if (metricsSupplier != null) {
+                            var live = metricsSupplier.get();
+                            if (live != null && !live.isEmpty()) {
+                                // Nutze den Mittelwert aller Live-Metriken als Indikator
+                                double liveAvg = live.values().stream()
+                                        .mapToDouble(Double::doubleValue).average().orElse(0.5);
+                                // Wenn CausalModel noch keine Daten hat, nutze live-Werte
+                                if (Math.abs(post - 0.5) < 0.001) {
+                                    post = 0.5 + (liveAvg - 0.5) * 0.3; // leichte Modulation
+                                }
                             }
                         }
                         CausalHypothesis concluded = interventionRunner.conclude(opt.get(), pre, post);
