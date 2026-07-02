@@ -1201,6 +1201,12 @@ public final class AgentMain {
         LOG.info("Hardware beliefs seeded: " + hw.cpu().model() + ", "
                 + hw.totalRamMb() + " MB RAM, " + hw.gpus().size() + " GPU(s)");
 
+        // ── Java-Wissen aus "Java in 21 Tagen" importieren ─────────────────
+        int javaFactsLoaded = loadJavaFacts(agent, "/home/prometheus/metis/java-facts.json");
+        if (javaFactsLoaded > 0) {
+            LOG.info("Java 21-Tage-Wissen: " + javaFactsLoaded + " Fakten importiert");
+        }
+
         // Register hardware profiling + Deep Netts AI actions
         var hwAction = new HardwareProfileAction(agent);
         agent.core().executor().register(hwAction);
@@ -2202,6 +2208,36 @@ public final class AgentMain {
         } catch (Exception e) {
             LOG.warning("SpeechLoop error: " + e.getMessage());
             return wikiKnowledge.learnOneArticle(); // fallback
+        }
+    }
+
+    /**
+     * Importiert Java-Fakten aus einer JSON-Datei ("Java in 21 Tagen").
+     * Erwartet [{ "statement": "...", "confidence": 0.8, "source": "..." }, ...].
+     */
+    private static int loadJavaFacts(Agent agent, String path) {
+        try {
+            var file = java.nio.file.Path.of(path);
+            if (!java.nio.file.Files.exists(file)) {
+                LOG.fine("Keine Java-Fakten-Datei: " + path);
+                return 0;
+            }
+            var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            var tree = mapper.readTree(file.toFile());
+            int count = 0;
+            for (var node : tree) {
+                String statement = node.path("statement").asText();
+                double confidence = node.path("confidence").asDouble(0.8);
+                String source = node.path("source").asText("java-21-tage");
+                if (!statement.isBlank()) {
+                    agent.worldModel().update(statement, confidence, source, true);
+                    count++;
+                }
+            }
+            return count;
+        } catch (Exception e) {
+            LOG.warning("Java facts import failed: " + e.getMessage());
+            return 0;
         }
     }
 }
