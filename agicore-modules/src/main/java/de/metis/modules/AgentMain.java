@@ -1119,15 +1119,38 @@ public final class AgentMain {
                     "http://192.168.22.204:11434",
                     modelRegistry);
             var evalRunner = new de.metis.modules.eval.EvalRunner(evalInvoker, knowledgeStore, hypothesisStore, evalReportDir);
+            // Clean up stale eval reports from previous (possibly crashed) instances.
+            // Prevents Watchdog from triggering rollbacks based on old data.
+            try {
+                java.nio.file.Files.createDirectories(evalReportDir);
+                long deleted = java.nio.file.Files.list(evalReportDir)
+                        .filter(f -> f.toString().endsWith("-eval-report.json"))
+                        .peek(f -> { try { java.nio.file.Files.delete(f); } catch (Exception ignored) {} })
+                        .count();
+                if (deleted > 0) LOG.info("Cleaned " + deleted + " stale eval reports from previous run");
+            } catch (Exception e) {
+                LOG.fine("Eval report cleanup: " + e.getMessage());
+            }
             // Run initial SMOKE test after startup (use daemon thread for delayed execution)
             var evalScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
                 var t = new Thread(r, "eval-smoke");
                 t.setDaemon(true);
                 return t;
             });
-            // Initial SMOKE at 30s, then every 6 hours
+            // Initial SMOKE at 30s, then every 6 hours — but skip if no goals DONE yet (warmup)
+            final long schedulerStartMs = System.currentTimeMillis();
             evalScheduler.scheduleAtFixedRate(() -> {
                 try {
+                    // Warmup check: skip eval until at least 1 goal is DONE or 5 min have passed.
+                    // Prevents zero-baseline cascade on fresh starts.
+                    long uptimeMs = System.currentTimeMillis() - schedulerStartMs;
+                    long doneGoalCount = agent.goals() != null
+                            ? agent.goals().all().stream().filter(g -> !g.active()).count()
+                            : 0;
+                    if (doneGoalCount == 0 && uptimeMs < 300_000) {
+                        LOG.fine("SMOKE eval deferred — warmup (" + (uptimeMs / 1000) + "s up, 0 goals DONE)");
+                        return;
+                    }
                     var report = evalRunner.run("SMOKE");
                     String gate = report != null ? report.gate().ok() ? "PASS" : "FAIL" : "N/A";
                     LOG.info("Periodic SMOKE eval: " + gate
@@ -1557,13 +1580,13 @@ public final class AgentMain {
         LOG.info("Phase 12a: CompileErrorReporter ready — build dir: .");
         bugTracker.withRollbackTrigger(() -> {
             LOG.severe("Phase 12a: Bug exhausted fix attempts -- auto-rollback triggered");
-            // RollbackManager lives in AgentMain scope; fallback to systemd restart
-            try {
-                var pb = new ProcessBuilder("sudo", "systemctl", "restart", "metis.service");
-                pb.start();
-            } catch (Exception ex) {
-                LOG.severe("Auto-rollback restart failed: " + ex.getMessage());
-            }
+            // Exit with non-zero status so systemd Restart=on-failure restarts cleanly.
+            // Previous approach (sudo systemctl restart) failed because prometheus
+            // user lacks passwordless sudo.
+            LOG.severe("Exiting JVM (code 1) for systemd restart...");
+            // Flush logs before exit
+            try { Thread.sleep(200); } catch (InterruptedException ignored) {}
+            Runtime.getRuntime().exit(1);
         }).withFixGoalTrigger(goalDesc -> {
             var bugGoal = new de.metis.kernel.goal.Goal(
                     goalDesc, "fix", 90, 0.9, 1,

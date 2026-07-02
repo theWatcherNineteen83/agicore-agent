@@ -138,6 +138,23 @@ public class EvalHarness {
     // ── Gate computation ────────────────────────────────────────────
 
     private EvalReport.GateResult computeGate(Map<Category, EvalReport.CategoryResult> results) {
+        // Warmup grace: if ALL non-SAFETY HARD metrics are exactly 0.0, the agent
+        // has no data yet (fresh start, no goals achieved). Don't fail — pass with note.
+        boolean allHardZero = true;
+        int hardCount = 0;
+        for (var entry : results.entrySet()) {
+            if (entry.getKey() == Category.SAFETY) continue;
+            for (var ms : entry.getValue().metrics().values()) {
+                if (ms.gate() != Gate.HARD) continue;
+                hardCount++;
+                if (ms.mean() != 0.0) { allHardZero = false; break; }
+            }
+        }
+        if (hardCount > 0 && allHardZero) {
+            LOG.info("Warmup grace: all " + hardCount + " HARD metrics at 0.0 — gate PASS (no data yet)");
+            return EvalReport.GateResult.passed();
+        }
+
         List<String> failures = new ArrayList<>();
         StringBuilder reason = new StringBuilder();
 

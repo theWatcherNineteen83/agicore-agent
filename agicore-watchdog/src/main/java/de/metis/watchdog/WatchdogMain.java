@@ -449,31 +449,41 @@ public class WatchdogMain {
 
 
             if (ok != null && !ok) {
-            // Only ROLLBACK if gate was passing before (avoid deadlock from zero baseline)
-                if (everHadPassingGate && !gateWasPassingLastReport) {
-                LOG.warning("Eval gate FAIL but baseline also failing — not a regression, "
-                        + "skipping ROLLBACK to avoid deadlock");
-                trigger(WatchdogAction.ALERT, TripwireSeverity.SOFT,
-                        "Eval still failing: " + reason);
-                return; // No rollback — old state was also bad
-            }
-                // Phase 12a: Try auto-fix before ROLLBACK
-                triggerBugfix(reason != null ? reason : "eval-gate-fail",
-                        tier != null ? "eval." + tier : "eval.unknown");
-
-                trigger(WatchdogAction.ROLLBACK, TripwireSeverity.HARD,
-                        "Eval gate FAIL [" + tier + "]: " + reason
-                                + " (report: " + file.getFileName() + ")");
-                // Also prune the failing model(s)
-                String pruneReason = "model:" + reason + " tier:" + tier;
-                trigger(WatchdogAction.PRUNE, TripwireSeverity.SOFT,
-                        "Eval-driven prune: " + pruneReason
-                                + " (report: " + file.getFileName() + ")");
+                // Only ROLLBACK if gate regressed from PASS to FAIL.
+                // Never rollback on fresh starts or repeated failures (avoids deadlock loop).
+                if (!everHadPassingGate) {
+                    LOG.info("Eval gate FAIL but no passing baseline yet — cold start, skipping rollback");
+                    trigger(WatchdogAction.ALERT, TripwireSeverity.SOFT,
+                            "Eval failing (cold start, no baseline): " + reason);
+                } else if (!gateWasPassingLastReport) {
+                    LOG.info("Eval gate still FAIL (not a regression) — skipping rollback");
+                    trigger(WatchdogAction.ALERT, TripwireSeverity.SOFT,
+                            "Eval still failing: " + reason);
+                } else {
+                    // Regression: was PASS, now FAIL → trigger fix + rollback
+                    LOG.warning("Eval gate REGRESSION: PASS→FAIL — triggering fix + rollback");
+                    triggerBugfix(reason != null ? reason : "eval-gate-fail",
+                            tier != null ? "eval." + tier : "eval.unknown");
+                    trigger(WatchdogAction.ROLLBACK, TripwireSeverity.HARD,
+                            "Eval gate FAIL [" + tier + "]: " + reason
+                                    + " (report: " + file.getFileName() + ")");
+                    String pruneReason = "model:" + reason + " tier:" + tier;
+                    trigger(WatchdogAction.PRUNE, TripwireSeverity.SOFT,
+                            "Eval-driven prune: " + pruneReason
+                                    + " (report: " + file.getFileName() + ")");
+                }
             } else if (regressionCount > 0) {
                 // Soft alert for regressions even when gate passes
                 executeAlert("Eval regressions detected [" + tier + "]: "
                         + regressionCount + " metrics regressed"
                         + " (report: " + file.getFileName() + ")");
+            } else {
+                // Gate passed
+                if (!everHadPassingGate) {
+                    LOG.info("First passing eval gate — baseline established");
+                    everHadPassingGate = true;
+                }
+                gateWasPassingLastReport = true;
             }
         } catch (IOException e) {
             LOG.warning("Failed to read eval report " + file + ": " + e.getMessage());

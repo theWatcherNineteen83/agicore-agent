@@ -66,6 +66,8 @@ public class MetisHttpServer {
     private HypothesisStore hypothesisStore;  // Phase 10
     private EvalRunner evalRunner;  // Phase 6 (trigger-eval endpoint)
     private BugTracker bugTracker;  // Phase 12a
+    private final java.util.concurrent.ConcurrentHashMap<String, Long> recentBugfixSignatures = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final long BUGFIX_DEDUP_MS = 30_000;  // 30s dedup window
     private de.metis.kernel.person.PersonStore personStore;        // Phase 11
     private de.metis.kernel.person.EmpathySignal empathySignal;    // Phase 11
     private de.metis.kernel.safety.EthicsCore ethicsCore;          // Phase 11.5 (Sprint #3, 08.06.)
@@ -915,6 +917,20 @@ public class MetisHttpServer {
             sendJson(exchange, 400, "{\"error\":\"Missing 'error' field\"}");
             return;
         }
+
+        // Dedup: skip duplicate bugfix POSTs within 30s window
+        String sig = (source != null ? source : "unknown") + "|" + errorInfo;
+        long now = System.currentTimeMillis();
+        Long lastSeen = recentBugfixSignatures.get(sig);
+        if (lastSeen != null && (now - lastSeen) < BUGFIX_DEDUP_MS) {
+            LOG.info("Bugfix dedup: skipping duplicate " + sig.substring(0, Math.min(sig.length(), 80))
+                    + " (last seen " + (now - lastSeen) + "ms ago)");
+            sendJson(exchange, 200, "{\"status\":\"dedup\",\"message\":\"duplicate bugfix skipped\"}");
+            return;
+        }
+        recentBugfixSignatures.put(sig, now);
+        // Cleanup old entries opportunistically
+        recentBugfixSignatures.entrySet().removeIf(e -> (now - e.getValue()) > BUGFIX_DEDUP_MS * 2);
 
         // Create BugFix goal
         String goalDesc = "fix: " + (source != null ? source + " " : "")
