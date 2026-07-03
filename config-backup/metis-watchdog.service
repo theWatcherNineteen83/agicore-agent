@@ -1,0 +1,22 @@
+[Unit]
+Description=Metis Watchdog — External Safety Process
+After=network-online.target
+# Note: metis.service is system-level, cannot cross-reference from user unit
+# Watchdog has 30s startup delay to allow Metis bootstrap to complete
+
+[Service]
+Type=simple
+WorkingDirectory=%h/metis/watchdog
+ExecStart=/usr/bin/java \
+    -Xmx128m \
+    -XX:+UseSerialGC \
+    -jar %h/metis/watchdog/agicore-watchdog.jar
+ExecStartPre=/bin/sleep 30
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=metis-watchdog
+
+[Install]
+WantedBy=default.target

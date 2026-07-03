@@ -1,0 +1,7 @@
+timestamp=2026-07-03T06:00:01Z
+-rw-rw-r-- 1 prometheus prometheus 219738112 Jul  3 05:57 /home/prometheus/metis/metis-knowledge.db
+beliefs_total= 111702
+wikipedia_dump= 55388
+experiences= 341148
+conversation_messages= 8092
+journal_mode= wal
