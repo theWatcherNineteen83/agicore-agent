@@ -11,6 +11,7 @@ RuntimeDirectory=metis
 RuntimeDirectoryMode=0755
 EnvironmentFile=-/run/metis/version.env
 ExecStartPre=/usr/local/bin/metis-version-helper.sh
+Environment=OLLAMA_HOST=http://localhost:11436
 Environment=JAVA_HOME=/opt/zing25-jdk
 Environment="HSA_OVERRIDE_GFX_VERSION=11.0.0"
 ExecStart=/opt/zing25-jdk/bin/java \
@@ -18,7 +19,7 @@ ExecStart=/opt/zing25-jdk/bin/java \
             --enable-native-access=ALL-UNNAMED \
     -jar /home/prometheus/metis/metis-agent.jar \
     --api-port 11735 \
-    --planning-model qwen3_6-35b-agent \
+    --planning-model qwen3.6:35b-a3b-q4_K_M \
     --mutation-model granite-mini-agent \
     --telegram-token 8334147633:AAEoXX7LS8pDe_gWXO8mUav8i0SGmEPnVLU \
     --weather-api-key 0352c669d7d0422d92c669d7d0522d9a \
