@@ -790,6 +790,8 @@ public final class AgentMain {
         String planningModel = null;
         String mutationModel = null;
         String embeddingModel = null;
+        String embeddingUrl = null;
+        String mutationUrl = null;
         String bootstrapModel = null;
         String bootstrapModels = null;  // comma-separated multi-model
         String telegramToken = null;
@@ -811,6 +813,8 @@ public final class AgentMain {
                 case "--planning-model" -> planningModel = args[++i];
                 case "--mutation-model" -> mutationModel = args[++i];
                 case "--embedding-model" -> embeddingModel = args[++i];
+                case "--embedding-url" -> embeddingUrl = args[++i];
+                case "--mutation-url" -> mutationUrl = args[++i];
                 case "--bootstrap-model" -> bootstrapModel = args[++i];
                 case "--bootstrap-models" -> bootstrapModels = args[++i];
                 case "--telegram-token" -> telegramToken = args[++i];
@@ -1067,7 +1071,9 @@ public final class AgentMain {
 
         // Embedding: Ollama nomic-embed-text CPU-only (num_gpu=0, circuit-tolerant)
         // JLama multi-model embedding targeted for JLama >= 0.9.x
-        var ollamaEmbedSvc = new OllamaEmbeddingService();
+        var ollamaEmbedSvc = embeddingUrl != null
+                ? new OllamaEmbeddingService(embeddingUrl, embeddingModel)
+                : new OllamaEmbeddingService();
         agent.worldModel().setEmbeddingProvider(ollamaEmbedSvc::embed);
 
         // Enable RAG Advanced: persistent embeddings + hybrid keyword/semantic search

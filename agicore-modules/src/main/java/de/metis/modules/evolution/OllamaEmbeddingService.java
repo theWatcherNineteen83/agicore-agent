@@ -26,8 +26,9 @@ public class OllamaEmbeddingService {
 
     private static final Logger LOG = Logger.getLogger(OllamaEmbeddingService.class.getName());
 
-    private static final String OLLAMA_URL = "http://192.168.22.204:11436/api/embeddings";
+    private static final String DEFAULT_OLLAMA_URL = "http://192.168.22.204:11438/api/embeddings";
     private static final String DEFAULT_MODEL = "nomic-embed-text"; // 768-dim, preferred
+    private final String ollamaUrl;
     private static final String FALLBACK_MODEL = "llama3.2:3b";     // 3072-dim, legacy
     private static final Duration TIMEOUT = Duration.ofSeconds(30);
     private static final int DEFAULT_CACHE_SIZE = 4096;
@@ -90,10 +91,19 @@ public class OllamaEmbeddingService {
     }
 
     public OllamaEmbeddingService(String model) {
-        this(model, DEFAULT_CACHE_SIZE);
+        this(DEFAULT_OLLAMA_URL, model, DEFAULT_CACHE_SIZE);
+    }
+
+    public OllamaEmbeddingService(String ollamaUrl, String model) {
+        this(ollamaUrl, model, DEFAULT_CACHE_SIZE);
     }
 
     public OllamaEmbeddingService(String model, int cacheCapacity) {
+        this(DEFAULT_OLLAMA_URL, model, cacheCapacity);
+    }
+
+    public OllamaEmbeddingService(String ollamaUrl, String model, int cacheCapacity) {
+        this.ollamaUrl = ollamaUrl.endsWith("/") ? ollamaUrl.substring(0, ollamaUrl.length() - 1) : ollamaUrl;
         this.model = model != null ? model : DEFAULT_MODEL;
         this.cacheCapacity = Math.max(64, cacheCapacity);
         this.cache = Collections.synchronizedMap(new LinkedHashMap<>(this.cacheCapacity, 0.75f, true) {
@@ -158,7 +168,7 @@ public class OllamaEmbeddingService {
                     """, model, escapeJson(apiInput));
 
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(OLLAMA_URL))
+                    .uri(URI.create(ollamaUrl))
                     .timeout(TIMEOUT)
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
