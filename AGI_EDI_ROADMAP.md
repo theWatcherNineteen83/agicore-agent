@@ -126,13 +126,14 @@ EDI spricht ungefragt an. Metis hat Bausteine (proaktive MQTT/Wetter→Telegram)
 
 ---
 
-## 🖥 GPU-Setup (seit 18.06.)
+## 🖥 GPU-Setup (seit 03.07.)
 
-| GPU | Modell(e) | VRAM | Port |
-|-----|-----------|------|------|
-| GPU 1 — R9700 (32 GB) | qwen3_6-35b-agent | 23.7 GB (73%) | 11434 |
-| GPU 0 — 7900 XTX (24 GB) | gemma4-26b + phi4-mini + nomic-embed | 24.4 GB (99%) | 11436 |
-| CPU — Ryzen 7 5700G (62 GB RAM) | granite-mini-agent (Metis Mutation) | — | — |
+| Instanz | Modell(e) | VRAM | Port | Service |
+|--------|-----------|------|------|---------|
+| GPU 1 — R9700 (32 GB) | qwen3.6:35b-a3b-q4_K_M (Planung) | 22.3 GB (70%) | 11434 | `ollama-gpu1.service` |
+| GPU 0 — 7900 XTX (24 GB) | gemma4-26b + phi4-mini (OpenWebUI) | optional | 11436 | `ollama-gpu0.service` |
+| CPU — Embeddings | nomic-embed-text (768-dim) | 308 MB RAM | **11438** | `ollama-cpu.service` |
+| CPU — Mutation | granite-mini-agent | — | — | — |
 
-**Zwei Ollama-Instanzen:** `ollama-gpu0.service` (7900 XTX) + `ollama-gpu1.service` (R9700).
-OpenWebUI auf Port 11436. Metis + Standard-Clients auf Port 11434.
+**Drei Ollama-Instanzen:** GPU1 (Planung), CPU (Embeddings), GPU0 (OpenWebUI, optional).
+Embedding- und Mutation-URL per CLI parametrisierbar (`--embedding-url`, `--mutation-url`).

@@ -7,7 +7,7 @@ Sie denkt in kognitiven Zyklen (Perceive → Plan → Execute → Observe → Le
 ## Status
 
 **Stand: 18.06.2026 19:45 · Tests: 134 grün (112 Kernel + 22 Modules) · CI: Kernel + Watchdog (GitHub Actions, Zulu 25)
-**GPU-Duo:** GPU 1 (R9700, 32 GB) → qwen3_6-35b-agent für Metis + OpenClaw · GPU 0 (7900 XTX, 24 GB) → gemma4-26b + phi4-mini + nomic-embed für OpenWebUI
+**GPU-Duo:** GPU 1 (R9700, 32 GB) → qwen3.6:35b (Planung) · CPU → nomic-embed (Embeddings) · GPU 0 (7900 XTX, 24 GB) → optional
 **Phase 9.7 🎉:** Erstes STRATEGIC Goal erfolgreich abgeschlossen (Zulu JDK 25 + Maven)
 **Phase 10:** CausalDreamer mit Intervention→Observe→Update-Loop + Counterfactual-Reasoning + CausalScorer
 **Safety:** SafetyScorer bereinigt · Wissen: 98.229 Beliefs · Ethik: SelfReflector auf phi4-mini (CPU)
@@ -105,7 +105,9 @@ URL: http://<host>:11735
 | `--bootstrap-models A,B` | Consensus-Bootstrap-Modelle |
 | `--planning-model M` | Planungs-Modell überschreiben |
 | `--mutation-model M` | Mutations-Modell überschreiben |
+| `--mutation-url URL` | Ollama-URL für Mutation (default: 11434) |
 | `--embedding-model M` | Embedding-Modell überschreiben |
+| `--embedding-url URL` | Ollama-URL für Embeddings (default: CPU 11438) |
 | `--persist PATH` | Agent-Status als JSON speichern |
 | `--telegram-token T` | Telegram-Bot-Token |
 
@@ -136,19 +138,22 @@ URL: http://<host>:11735
 
 ## Modell-Strategie (Live-Konfiguration 18.06.2026)
 
-### GPU-Duo-Setup (zwei separate Ollama-Instanzen)
+### Drei-Ollama-Setup (GPU + CPU)
 
-| GPU | Service | Port | Modelle | VRAM |
-|-----|---------|------|---------|------|
-| **GPU 1 — R9700 (32 GB)** | `ollama-gpu1.service` | **11434** | qwen3_6-35b-agent (Planning primary) | 23.7 GB (73%) |
-| **GPU 0 — 7900 XTX (24 GB)** | `ollama-gpu0.service` | **11436** | gemma4-26b + phi4-mini + nomic-embed | 24.4 GB (99%) |
-| **CPU** (62 GB RAM) | — | — | granite-mini-agent (Mutation), mistral (Fallback) | — |
+| Instanz | Service | Port | Modelle | VRAM |
+|--------|---------|------|---------|------|
+| **GPU 1 — R9700 (32 GB)** | `ollama-gpu1.service` | **11434** | qwen3.6:35b-a3b-q4_K_M (Planung) | 22.3 GB (70%) |
+| **GPU 0 — 7900 XTX (24 GB)** | `ollama-gpu0.service` | **11436** | gemma4-26b + phi4-mini + OpenWebUI | optional |
+| **CPU — Embeddings** | `ollama-cpu.service` | **11438** | nomic-embed-text (768-dim) | 308 MB RAM |
+| **CPU** (62 GB RAM) | — | — | granite-mini-agent (Mutation) | — |
 
 **Strategie:**
-- **GPU 1 (R9700):** qwen3_6-35b-agent exklusiv für Metis + OpenClaw (gleiches Modell = 1× VRAM)
-- **GPU 0 (7900 XTX):** gemma4-26b (Context=8192) + phi4-mini-Fallback + nomic-Embeddings + OpenWebUI
-- **CPU:** Mutation (granite-mini), Fallback-Chain, SelfReflector (phi4-mini)
+- **GPU 1 (R9700):** qwen3.6:35b exklusiv für Metis-Planung (8.6 GB Headroom → keine Evakuierung)
+- **GPU 0 (7900 XTX):** optional, aktuell für OpenWebUI (Metis nutzt sie nicht direkt)
+- **CPU (11438):** nomic-embed-text für Embeddings (circuit-breaker-tolerant, 60m keep-alive)
+- **CPU:** Mutation (granite-mini), Fallback-Chain
 - Fallback-Chain: mistral-agent → phi4-mini-agent → qwen3_6-27b-agent
+- URLs per CLI parametrisierbar: `--embedding-url`, `--mutation-url`
 
 ## Hardware
 
