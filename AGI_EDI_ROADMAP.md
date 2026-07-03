@@ -1,6 +1,6 @@
 # 🧠 AGI EDI - Roadmap
 
-**Stand: 22.06.2026 19:22 (Phase 13 — Lusseyran Voice Analysis designed)**
+**Stand: 03.07.2026 20:50 (Phase 13 — Drei-Instanz-Ollama, CPU-Embeddings, URLs parametrisierbar)**
 
 ---
 
