@@ -31,7 +31,7 @@ ExecStart=/opt/zing25-jdk/bin/java \
     \
     --evolution --kanban
 ExecStop=/bin/kill -SIGTERM $MAINPID
-Restart=on-failure
+Restart=always
 RestartSec=10
 StandardOutput=journal
 StandardError=journal
