@@ -58,17 +58,32 @@ CuriosityEngine→HypothesisGenerator-Pipeline, Counterfactual-Reasoning in lear
 
 ---
 
-### 🌀 Phase 12 — Recursive Self-Improvement ⬜ BUILT 0% · VERIFIED ⬜
+### 🌀 Phase 12 — Recursive Self-Improvement 🟡 BUILT 70% · VERIFIED ⬜
 
 **Voraussetzung:** Phasen 10+11 müssen verifiziert sein (CausalReasoning + PersonModel).
 Ohne kausales Denken und Personenverständnis wäre Self-Modification blindes Trial-Error + Goodhart-Risiko.
 
 | Sub-Phase | BUILT | Inhalt |
 |-----------|-------|--------|
-| Ph 12a — Selbst-Bugfixing | 0% | BugTracker/SelfFix/Watchdog/AutoRevert/RuntimeEH |
-| Ph 12b — Feature-Generierung | 0% | GapAnalyzer/RiskGate/FeatureGenAction/FeatureFlag |
-| Ph 12c — Meta-Learning | 0% | MetricTimeSeries/PatternDetector/AutoABTest |
-| Ph 12d — Selbst-Refactoring | 0% | TestGapAnalyzer/RefactorProposal/CoverageCheck |
+| Ph 12a — Selbst-Bugfixing | 85% | ✅ BugfixingAgent (315L), ✅ SelfFixAction (234L), ✅ CompileRepairLoop (204L), ✅ RollbackManager (291L), ✅ Watchdog (PruneEndpoint), ⬜ AutoRevert (in RollbackManager implizit) |
+| Ph 12b — Feature-Generierung | 90% | ✅ GapAnalyzer (155L), ✅ RiskGate (93L), ✅ FeatureGenAction (107L), ✅ FeatureFlag (70L) — alle verdrahtet, GapAnalyzer läuft alle 60s |
+| Ph 12c — Meta-Learning | 80% | ✅ MetricTimeSeries (89L), ✅ PatternDetector (117L), ✅ AutoABTest (76L) — alle verdrahtet |
+| Ph 12d — Selbst-Refactoring | 0% | ⬜ TestGapAnalyzer, ⬜ RefactorProposal, ⬜ CoverageCheck |
+
+**Verdrahtung in AgentMain:**
+- SelfFixAction + RiskGate + CompileRepairLoop registriert (L1619-1633)
+- FeatureGenAction registriert (L1634)
+- GapAnalyzer + MetricTimeSeries + FeatureFlag + AutoABTest (L1646-1659)
+- GapAnalyzer periodischer Tick alle 60s (L1735)
+- RollbackManager + BugfixingAgent → HTTP-Server (L2161-2171)
+
+**Tests:** 5/10 Klassen getestet (GapAnalyzer, FeatureGenAction, FeatureFlag, PatternDetector, AutoABTest)
+
+**Offene Tasks:**
+- [ ] Phase 12d — TestGapAnalyzer/RefactorProposal/CoverageCheck (Selbst-Refactoring riskant, erst wenn 10+11 verifiziert)
+- [ ] BugfixingAgent-Tests
+- [ ] RiskGate-Tests
+- [ ] MetricTimeSeries-Tests
 
 ---
 

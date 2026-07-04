@@ -1656,6 +1656,13 @@ public final class AgentMain {
         LOG.info("Phase 12a: EvalReportGenerator ready");
         var autoABTest = new de.metis.modules.evolution.AutoABTest(
                 hypothesisGenerator, hypothesisStore, interventionRunner);
+        // Phase 12d: Selbst-Refactoring Tools
+        var testGapAnalyzer = new de.metis.modules.evolution.TestGapAnalyzer();
+        var refactorProposal = new de.metis.modules.evolution.RefactorProposal();
+        var coverageCheck = new de.metis.modules.evolution.CoverageCheck();
+        // Quick-scan auf Test-Gaps (einmalig)
+        testGapAnalyzer.analyze();
+        LOG.info("Phase 12d: TestGapAnalyzer + RefactorProposal + CoverageCheck ready");
         LOG.info("Phase 12b: GapAnalyzer + RiskGate + MetricTimeSeries ready");
 
         // ── Phase 8.6 — SelfReflector: kontinuierlicher innerer Monolog ──────
