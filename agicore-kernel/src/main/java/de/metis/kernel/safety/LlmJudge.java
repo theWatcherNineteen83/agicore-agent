@@ -72,11 +72,19 @@ public class LlmJudge {
     // ── Constructors ─────────────────────────────────────────────
 
     /**
-     * Default: miniedi Ollama with a small, fast judge model.
+     * Default: miniedi CPU-Ollama-Instanz (Port 11438) mit kleinem, schnellem
+     * Judge-Modell. Bewusst NICHT auf GPU1 (11434, Planner+Mutation, oft 100%
+     * ausgelastet) oder GPU0 (11436, oft VRAM-voll) — sonst konkurriert der
+     * Judge um GPU-Slots und faellt staendig mit HTTP 503 aus (siehe 04.07.2026:
+     * mistral-small3.1:24b auf 11434 permanent "server busy").
+     * nemotron-mini-agent (4.2B) laeuft nachweislich auf der CPU-Instanz.
+     * WICHTIG: die CPU-Ollama-Instanz bindet nur auf 127.0.0.1:11438 (nicht
+     * auf die externe IP) — da Metis auf demselben Host (miniedi) laeuft,
+     * muss hier 127.0.0.1 verwendet werden, sonst Connection-Refused/Timeout.
      */
     public LlmJudge() {
-        this("http://192.168.22.204:11434/api/generate",
-             "mistral-small3.1:24b",
+        this("http://127.0.0.1:11438/api/generate",
+             "nemotron-mini-agent",
              Duration.ofSeconds(120));
     }
 

@@ -127,6 +127,11 @@ EDI spricht ungefragt an. Metis hat Bausteine (proaktive MQTT/Wetter→Telegram)
 4. **Prompt-Bloat-Tripwire** — `tokensPerCall` als Capability-Board-Metrik, Alarm bei >5000 (akt. 744 nach Neustart).
 5. **Action-Diversity-Tripwire** — Watchdog-Alert wenn >70% Action-Usage auf eine Action.
 6. **Goal-Source-Diversity-Metrik** — Welche Quelle erzeugt Goals? Wenn 95% aus einer → blinder Fleck.
+7. **[BEHOBEN 04.07.2026] LlmJudge-Modell tot** — `mistral-small3.1:24b` war hartkodiert auf GPU1 (Port 11434, Planner+Mutation, dauerhaft 100% ausgelastet) → jede Judge-Anfrage HTTP 503, degradierte lautlos auf Pass-Through (Score 0.5, `llmJudgeAvgScore=0.00` seit Tagen unbemerkt). Fix: Judge läuft jetzt auf CPU-Instanz (Port 11438) mit `nemotron-mini-agent`.
+8. **[BEHOBEN 04.07.2026] Watchdog-HALT ohne Auto-Restart** — `systemd Restart=on-failure` griff nicht, weil Watchdog den Metis-Prozess sauber per `pkill` beendet (kein Crash-Exit). Nach HALT am 03.07. 07:12 Uhr blieb Metis 21+ Stunden tot bis manueller Neustart. Fix: `metis.service` auf `Restart=always` gestellt.
+9. **GPU0-Belegung volatil** — GPU0 (Port 11436) läuft nicht mehr statisch gemma4/phi4 wie früher dokumentiert, sondern dynamisch nachgeladene Modelle (aktuell nemotron-cascade-2:30b). Dazu ein bisher undokumentierter Python-Router auf Port 11437 (generate/chat→GPU1, embed→GPU0). TOOLS.md/MEMORY.md am 04.07.2026 korrigiert.
+10. **Action-Dominance chronisch CRITICAL** — PlannerHealthGuard meldet wiederholt action-dominance≥88% (Schwelle 85%), weil GPU1 (Planner qwen3.6:35b) dauerhaft ausgelastet ist und die Fallback-Kette (mistral-agent→phi4-mini-agent→qwen3_6-27b-agent) staendig greift. Ungelöst — braucht entweder kleineres Primary-Modell oder mehr Ollama-Parallelität auf GPU1.
+11. **Eval-Reports werden bei jedem Neustart gelöscht** (`AgentMain`: Cleanup verhindert Rollback auf Basis alter Daten) — nach Neustarts bleibt der Watchdog ohne Baseline ("cold start"). Kein Archiv, nur Löschung.
 
 ---
 
