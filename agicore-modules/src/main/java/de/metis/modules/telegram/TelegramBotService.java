@@ -399,17 +399,28 @@ public class TelegramBotService {
 
         // ── Phase 11: Person-aware interaction ────────────────────
         if (personStore != null && empathySignal != null) {
-            personStore.ensureOwner("265324594", "Georg");
+            personStore.ensureOwner(sessionId, userName);  // sessionId = "telegram:265324594"
             var sp = empathySignal.analyze(text);
-            var updated = personStore.get(sessionId)
-                    .orElse(new de.metis.kernel.person.Person(sessionId, userName,
-                            java.util.List.of(), de.metis.kernel.person.TrustLevel.GUEST,
-                            java.util.Map.of(), java.util.List.of(), java.util.List.of(),
-                            java.time.Instant.now(), null, 0, java.util.List.of()))
-                    .withInteraction()
-                    .withSentiment(sp);
-            personStore.upsert(updated);
-            agent.core().setMaxAutoApprovalLevel(updated.trustLevel().maxAutoApproval());
+            var person = personStore.get(sessionId).orElse(null);
+            if (person == null) {
+                // First interaction — create with sentiment
+                person = new de.metis.kernel.person.Person(sessionId, userName,
+                        java.util.List.of(), de.metis.kernel.person.TrustLevel.GUEST,
+                        java.util.Map.of(), java.util.List.of(), java.util.List.of(),
+                        java.time.Instant.now(), null, 0, java.util.List.of());
+                person = person.withInteraction().withSentiment(sp);
+                personStore.upsert(person);
+            } else {
+                // Returning user — record interaction (triggers trust automation!)
+                person = personStore.recordInteraction(sessionId);
+                if (person != null) {
+                    person = person.withSentiment(sp);
+                    personStore.upsert(person);
+                }
+            }
+            if (person != null) {
+                agent.core().setMaxAutoApprovalLevel(person.trustLevel().maxAutoApproval());
+            }
             if (systemPromptBuilder != null) {
                 systemPromptBuilder.setCurrentPerson(sessionId);
             }

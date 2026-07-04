@@ -1574,12 +1574,17 @@ public final class AgentMain {
         // ── Phase 11: PersonModel + Verdrahtung ─────────────────────
         var empathySignal = new de.metis.kernel.person.EmpathySignal();
         var personStore = new de.metis.kernel.person.PersonStore();
+        var relationshipMemory = new de.metis.kernel.person.RelationshipMemory();
         // Bootstrap Georg as Owner
         personStore.ensureOwner("265324594", "Georg");
+        relationshipMemory.append("265324594", "System-Bootstrap",
+                "Metis wurde gestartet. Georg ist der Owner und Erbauer.");
         // Wire into SystemPromptBuilder (Partner-Block im Prompt)
         systemPromptBuilder.setPersonStore(personStore, empathySignal);
+        systemPromptBuilder.setRelationshipMemory(relationshipMemory);
         LOG.info("Phase 11 wired — PersonStore=" + personStore.size()
-                + " persons, trust-to-approval mapping active");
+                + " persons, RelationshipMemory=" + relationshipMemory.size()
+                + " notes, trust-to-approval mapping active");
         // ── Phase 12a: BugTracker — Self-healing exception handler ──
         var bugTracker = new de.metis.kernel.self.BugTracker();
         var compileReporter = new de.metis.modules.self.CompileErrorReporter(".");

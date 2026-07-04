@@ -103,7 +103,12 @@ public class OllamaEmbeddingService {
     }
 
     public OllamaEmbeddingService(String ollamaUrl, String model, int cacheCapacity) {
-        this.ollamaUrl = ollamaUrl.endsWith("/") ? ollamaUrl.substring(0, ollamaUrl.length() - 1) : ollamaUrl;
+        String url = ollamaUrl.endsWith("/") ? ollamaUrl.substring(0, ollamaUrl.length() - 1) : ollamaUrl;
+        // Auto-append /api/embeddings if the URL is just a base (no path component)
+        if (!url.contains("/api/")) {
+            url = url + "/api/embeddings";
+        }
+        this.ollamaUrl = url;
         this.model = model != null ? model : DEFAULT_MODEL;
         this.cacheCapacity = Math.max(64, cacheCapacity);
         this.cache = Collections.synchronizedMap(new LinkedHashMap<>(this.cacheCapacity, 0.75f, true) {

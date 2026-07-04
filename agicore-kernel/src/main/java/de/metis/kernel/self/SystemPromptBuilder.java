@@ -38,6 +38,7 @@ public class SystemPromptBuilder {
     private GoalHierarchy hierarchy;  // Phase 9 — optional
     private de.metis.kernel.person.PersonStore personStore;   // Phase 11 — optional
     private de.metis.kernel.person.EmpathySignal empathy;     // Phase 11 — optional
+    private de.metis.kernel.person.RelationshipMemory relationshipMemory; // Phase 11 — optional
     private HypothesisStore hypothesisStore;                   // Phase 10 — optional
     private volatile String currentPersonId;                  // wer spricht gerade
 
@@ -64,6 +65,11 @@ public class SystemPromptBuilder {
                                de.metis.kernel.person.EmpathySignal e) {
         this.personStore = s;
         this.empathy = e;
+    }
+
+    /** Phase 11: inject relationship memory for shared history in prompts. */
+    public void setRelationshipMemory(de.metis.kernel.person.RelationshipMemory rm) {
+        this.relationshipMemory = rm;
     }
 
     /** Phase 10: inject the hypothesis store for causal awareness in prompts. */
@@ -185,6 +191,23 @@ public class SystemPromptBuilder {
                 if (p.bannedTopics() != null && !p.bannedTopics().isEmpty()) {
                     sb.append("Gesperrte Themen: ")
                       .append(String.join(", ", p.bannedTopics())).append('\n');
+                }
+                // Phase 11.3 — Multi-Person-Memory: gemeinsame Geschichte
+                if (relationshipMemory != null) {
+                    var notes = relationshipMemory.recentFor(currentPersonId, 3);
+                    if (!notes.isEmpty()) {
+                        sb.append("Gemeinsame Erinnerungen:\n");
+                        for (var note : notes) {
+                            sb.append("  - ").append(note.title());
+                            if (note.body() != null && !note.body().isBlank()) {
+                                String shortBody = note.body().length() > 120
+                                        ? note.body().substring(0, 120) + "..."
+                                        : note.body();
+                                sb.append(": ").append(shortBody);
+                            }
+                            sb.append('\n');
+                        }
+                    }
                 }
             });
         }

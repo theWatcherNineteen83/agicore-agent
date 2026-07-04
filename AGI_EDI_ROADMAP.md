@@ -42,17 +42,19 @@ CuriosityEngine→HypothesisGenerator-Pipeline, Counterfactual-Reasoning in lear
 
 ---
 
-### 👥 Phase 11 — Beziehungs-Modell 🟡 BUILT 55% · VERIFIED ⬜
+### 👥 Phase 11 — Beziehungs-Modell 🟢 BUILT 100% · VERIFIED ⬜
 
-**BUILT:** PersonModel/PersonStore/TrustLevel/RelationshipMemory/EmpathySignal (kernel),
-Approval-Gate-Integration (TrustLevel→Auto/NOTIFY/CONFIRM/FORBIDDEN),
-SystemPromptBuilder-Integration (Person-Block im Prompt), Hot-Path in Telegram+HTTP.
+**Status (04.07.2026):** Alle 9 Tasks gebaut, verdrahtet und getestet.
 
-**Offene Tasks (4/9):**
-- [ ] **TrustLevel-Automation** — UNKNOWN→RECOGNIZED nach 5 Interaktionen, RECOGNIZED→TRUSTED nach 50+ positiven Interaktionen + 7 Tagen
-- [ ] **EmpathySignal-Hot-Path** — Sentiment-Erkennung aus User-Text via Keyword-Heuristik + Satzlänge + Tageszeit-Kontext
-- [ ] **PersonAwareSystemPrompt** — "You are talking to Georg (OWNER, prefers direct communication)" vs "You are talking to Unbekannt (UNKNOWN, be cautious)"
-- [ ] **Multi-Person-Memory** — EpisodicMemory-Einträge mit personId verknüpfen
+**BUILT & WIRED:**
+- ✅ **Person/PersonStore/TrustLevel** — Record mit id, name, roles, trust, preferences, knownFacts, sentimentHistory
+- ✅ **TrustLevel-Automation** — STRANGER→GUEST (≥5), GUEST→KNOWN (≥25), KNOWN→TRUSTED (≥50 + 7d); per `recordInteraction()` in Telegram+HTTP eingebunden
+- ✅ **EmpathySignal-Hot-Path** — Keyword-Heuristik (de/en) + Satzlänge + Tageszeit-Kontext + Frage-Anteil + Großbuchstaben; kein LLM
+- ✅ **PersonAwareSystemPrompt** — SystemPromptBuilder generiert verhaltensanweisungen pro TrustLevel, zeigt Rollen/Präferenzen/Fakten/Stimmung/gesperrte Themen
+- ✅ **Multi-Person-Memory** — RelationshipMemory (JSONL, per-personId) in SystemPromptBuilder eingebunden; Episode.personId + involvesPerson()
+- ✅ **Approval-Gate-Integration** — TrustLevel→maxAutoApproval (OWNER→CONFIRM, TRUSTED/KNOWN→NOTIFY, GUEST/STRANGER→AUTO)
+- ✅ **Unit-Tests** — Phase11PersonModelTest: 6 Tests (person/trust/empathy/relationship/persistence)
+- ✅ **Embedding-URL-Fix** — Auto-Append `/api/embeddings` in OllamaEmbeddingService (04.07.)
 
 ---
 
@@ -118,7 +120,7 @@ EDI spricht ungefragt an. Metis hat Bausteine (proaktive MQTT/Wetter→Telegram)
 | Rang | Aktion | Phase | Aufwand | Status |
 |------|--------|-------|---------|--------|
 | **1.** | ✅ Phase 10 CAUSAL-Eval-Tasks: HypothesisStore injiziert + CausalScorer wired + 3 Tasks | 10 | ~2h | ✅ 25.06. |
-| **2.** | Phase 11 TrustLevel-Automation + EmpathySignal-Hot-Path | 11 | 2-3 Tage | ⬜ |
+| **2.** | ✅ Phase 11 PersonModel (100%): Trust-Automation + EmpathySignal + PersonAwareSystemPrompt + MultiPersonMemory + RelationshipMemory | 11 | 2-3 Tage | ✅ 04.07. |
 | **3.** | Continuity-Soak-Test (7 Tage) für memory_continuity | 8 | passiv | ⬜ |
 | **4.** | Initiative-Policy v1 (InitiativeLevel + TrustLevel-Mapping) | 11.5 | 1-2 Tage | ⬜ |
 | **5.** | Phase 13a VoiceFeatureExtractor (Python/librosa) — Vorarbeit für Voice Analysis | 13 | 1-2 Tage | ⬜ |
