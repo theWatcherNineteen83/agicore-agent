@@ -6,11 +6,13 @@ Sie denkt in kognitiven Zyklen (Perceive → Plan → Execute → Observe → Le
 
 ## Status
 
-**Stand: 18.06.2026 19:45 · Tests: 134 grün (112 Kernel + 22 Modules) · CI: Kernel + Watchdog (GitHub Actions, Zulu 25)
-**GPU-Duo:** GPU 1 (R9700, 32 GB) → qwen3.6:35b (Planung) · CPU → nomic-embed (Embeddings) · GPU 0 (7900 XTX, 24 GB) → optional
-**Phase 9.7 🎉:** Erstes STRATEGIC Goal erfolgreich abgeschlossen (Zulu JDK 25 + Maven)
+**Stand: 04.07.2026 15:40 · v0.11.21-night-final-77-ge78f361-dirty**
+**Drei-Instanz-Ollama:** GPU 1 (R9700, 32 GB) → qwen3.6:35b-a3b (Planung + Mutation) · GPU 0 (7900 XTX, 24 GB) → dynamisch nachgeladen (aktuell nemotron-cascade-2:30b) · CPU → nomic-embed (Embeddings) + nemotron-mini-agent (LLM-Judge, seit 04.07. hier) · zusätzlich **Router** (Port 11437, Python) verteilt generate/chat→GPU1, embed→GPU0
+**Phase 9.7 🎉:** Long-Horizon-Kanban läuft produktiv (231+ Goals, >99% DONE)
 **Phase 10:** CausalDreamer mit Intervention→Observe→Update-Loop + Counterfactual-Reasoning + CausalScorer
-**Safety:** SafetyScorer bereinigt · Wissen: 98.229 Beliefs · Ethik: SelfReflector auf phi4-mini (CPU)
+**Phase 12d:** Selbst-Refactoring (TestGapAnalyzer, RefactorProposal, CoverageCheck) — neu seit 04.07.
+**Safety:** LLM-Judge **repariert 04.07.2026** (lief tot auf ausgelastetem GPU1-Modell, jetzt CPU/nemotron-mini-agent, liefert wieder echte Scores + Blocks) · Wissen: ~113.800 Beliefs · Ethik: SelfReflector auf phi4-mini (CPU)
+**Watchdog:** `metis.service` seit 04.07. auf `Restart=always` (war `on-failure`) — vorher blieb Metis nach einem Watchdog-HALT bis zu 21h tot, weil ein sauberer `pkill` von systemd nicht als Failure gewertet wurde
 **Mobile:** Phase 3.5 S9-Sensor-Array — Samsung Galaxy S9 (16+ Sensoren, Madgwick-Fusion, OGG-Audio)
 **Resource:** MemoryPressureGuard + ResourceAutoTuner + Embedding-Circuit-Breaker
 
@@ -18,12 +20,11 @@ Sie denkt in kognitiven Zyklen (Perceive → Plan → Execute → Observe → Le
 |-------|--------|-----------|
 | 1-7+ | ✅ 100% | Stabiler autonomer Agent (BUILT + VERIFIED) |
 | 8 | ✅ 100% | SelfReflector + PersonalityTripwire · VERIFIED ⬜ |
-| 9 | ✅ 100% | Long-Horizon-Planung + **1. STRATEGIC Goal DONE** 🎉 |
+| 9 | ✅ 100% | Long-Horizon-Planung + Kanban produktiv |
 | 10 | 🟡 75% | CausalDreamer + Intervention→Observe→Update + Counterfactual · CAUSAL-Eval-Tasks fehlen |
-| 11 | 🟡 55% | PersonModel + TrustLevel + EmpathySignal · TrustLevel-Automation fehlt |
-| 12 | ⬜ 0% | Blockiert bis Phasen 10-11 verifiziert |
-→ Details: **[AGI_EDI_ROADMAP.md](AGI_EDI_ROADMAP.md)**
-→ Details: **[FEATURES.md](FEATURES.md)** · **[AGI_EDI_ROADMAP.md](AGI_EDI_ROADMAP.md)** · **[RUNBOOK.md](RUNBOOK.md)**
+| 11 | ✅ 100% | PersonModel + TrustLevel-Automation + PersonAwareSystemPrompt + RelationshipMemory |
+| 12 | 🟡 teilweise | Phase 12d Selbst-Refactoring gebaut (TestGapAnalyzer/RefactorProposal/CoverageCheck) |
+→ Details: **[AGI_EDI_ROADMAP.md](AGI_EDI_ROADMAP.md)** · **[FEATURES.md](FEATURES.md)** · **[RUNBOOK.md](RUNBOOK.md)**
 
 
 
@@ -65,7 +66,7 @@ Sie denkt in kognitiven Zyklen (Perceive → Plan → Execute → Observe → Le
 - **Global Workspace Theory** nach Baars: Attention-Bottleneck (Miller's Law), CompetitiveSelector
 - **OllamaPlanner:** CoT 4-Schritt (ANALYZE→MATCH→CHECK→DECIDE), 10 Few-Shot, 3-Tier-Fallback
 - **WorldModel:** Belief-Store mit HybridSearch (BM25+Cosinus), PersistentVectorIndex, WAL-Mode. Aktueller Stand über `/api/status -> beliefCount` (Snapshot 31.05. 02:00: 32.897).
-- **Eval-Harness:** 6 Kategorien (Planning, Retrieval, Codegen, Conversation, Safety, Performance), 3-Tier (SMOKE/FULL/EXTENDED). **Ehrlicher Live-Status:** `llmJudgeLastReasoning="judge model unavailable (non-blocking)"`, `llmJudgeAvgScore=0.00`. Die Gate-Logik läuft, die LLM-Judge-Pipeline antwortet aktuell nicht zuverlässig im Timeout — seit dem WIP-aware-Judge-Patch (31.05.) wird der Plan in dem Fall **durchgelassen statt geblockt**, sodass keine Hardware-Überlast mehr entsteht. Promotion hängt damit vor allem an deterministischen Smoke-Tests.
+- **Eval-Harness:** 6 Kategorien (Planning, Retrieval, Codegen, Conversation, Safety, Performance), 3-Tier (SMOKE/FULL/EXTENDED). **Live-Status (04.07.2026):** LLM-Judge wieder funktionsfähig — lief zuvor tot auf `mistral-small3.1:24b`@GPU1 (dauerhaft ausgelastet durch Planner, HTTP 503), degradierte lautlos auf Pass-Through-Score 0.5. Jetzt auf CPU-Instanz (`127.0.0.1:11438`, `nemotron-mini-agent`) umgestellt — liefert wieder echte Scores und blockt tatsächlich schlechte Pläne (`llmJudgeBlocks>0`). Fallback bleibt: bei Nicht-Erreichbarkeit wird der Plan weiterhin durchgelassen statt geblockt (non-blocking Design), sodass keine Hardware-Überlast entsteht.
 - **Watchdog:** Separate JVM, Heartbeat-Check (5s), SHA-256 Hash-Chain, stündliche externe Anchors
 - **Kanban Board:** 4 Columns (BACKLOG→READY→IN_PROGRESS→DONE), WIP-Limits pro ResourceType; seit 31.05. zusätzlich **Ad-hoc-Slots** (`tryAcquireAdHocSlot(ResourceType)`) für kurzlebige Inference-Konsumenten (z. B. LLM-as-Judge), die dasselbe WIP-Limit teilen — verhindert versteckte Hardware-Überlast jenseits der Goal-Buchhaltung
 - **Defense-in-Depth:** Input-Safety-Guard + Output-Safety-Guard auf HTTP- und Telegram-Pfad
@@ -136,23 +137,22 @@ URL: http://<host>:11735
 | `/api/board` | Kanban-Board Live-View (Spalten, WIP, Flow-Metriken) |
 | `/api/hierarchy` | Long-Horizon-Goals (Phase 9): id, horizon, status, progress, deadline, owner |
 
-## Modell-Strategie (Live-Konfiguration 18.06.2026)
+## Modell-Strategie (Live-Konfiguration 04.07.2026)
 
-### Drei-Ollama-Setup (GPU + CPU)
+### Drei-Ollama-Instanzen + Router
 
-| Instanz | Service | Port | Modelle | VRAM |
+| Instanz | Service | Port | Modelle | Rolle |
 |--------|---------|------|---------|------|
-| **GPU 1 — R9700 (32 GB)** | `ollama-gpu1.service` | **11434** | qwen3.6:35b-a3b-q4_K_M (Planung) | 22.3 GB (70%) |
-| **GPU 0 — 7900 XTX (24 GB)** | `ollama-gpu0.service` | **11436** | gemma4-26b + phi4-mini + OpenWebUI | optional |
-| **CPU — Embeddings** | `ollama-cpu.service` | **11438** | nomic-embed-text (768-dim) | 308 MB RAM |
-| **CPU** (62 GB RAM) | — | — | granite-mini-agent (Mutation) | — |
+| **GPU 1 — R9700 (32 GB)** | `ollama-gpu1.service` | **11434** | qwen3.6:35b-a3b-q4_K_M | Planung (Metis-Prozess-Flag `--planning-model`), teilt sich GPU mit Mutation (`granite-mini-agent` via `--mutation-url 11434`) — dauerhaft ~100% Auslastung |
+| **GPU 0 — 7900 XTX (24 GB)** | `ollama-gpu0.service` | **11436** | dynamisch (aktuell nemotron-cascade-2:30b) | Nicht von Metis direkt genutzt, wird vom Router für alles außer generate/chat angesprochen |
+| **CPU** (62 GB RAM) | `ollama-cpu.service` | **11438** | nomic-embed-text (Embeddings) + nemotron-mini-agent (**LLM-Judge**, seit 04.07.) | Bindet nur auf `127.0.0.1` |
+| **Router** | `ollama-router.service` (Python) | **11437** | — | Leitet `/api/generate`+`/api/chat` → GPU1 (11434), sonst → GPU0 (11436) |
 
 **Strategie:**
-- **GPU 1 (R9700):** qwen3.6:35b exklusiv für Metis-Planung (8.6 GB Headroom → keine Evakuierung)
-- **GPU 0 (7900 XTX):** optional, aktuell für OpenWebUI (Metis nutzt sie nicht direkt)
-- **CPU (11438):** nomic-embed-text für Embeddings (circuit-breaker-tolerant, 60m keep-alive)
-- **CPU:** Mutation (granite-mini), Fallback-Chain
-- Fallback-Chain: mistral-agent → phi4-mini-agent → qwen3_6-27b-agent
+- **GPU 1 (R9700):** qwen3.6:35b für Metis-Planung, teilt sich die Karte mit dem Mutation-Modell — dadurch **Action-Dominance-Warnungen (PlannerHealthGuard CRITICAL)**, ungelöst, siehe [AGI_EDI_ROADMAP.md](AGI_EDI_ROADMAP.md)
+- **GPU 0 (7900 XTX):** dynamisch nachgeladene Modelle, aktuell nemotron-cascade-2:30b
+- **CPU (11438):** nomic-embed-text für Embeddings + nemotron-mini-agent für den LLM-Judge (dorthin verlegt, weil GPU1 den Judge mit HTTP 503 blockierte). **Bekannter Bug:** gelegentlicher Cold-Start-Crash beim ersten Modell-Load (llama-server-Prozess terminiert, Race-Bedingung) — sobald warm (`keep_alive=30m`), stabil.
+- Fallback-Chain (Planner): mistral-agent → phi4-mini-agent → qwen3_6-27b-agent
 - URLs per CLI parametrisierbar: `--embedding-url`, `--mutation-url`
 
 ## Hardware
@@ -161,11 +161,11 @@ URL: http://<host>:11735
 |---|---|
 | CPU | AMD Ryzen 7 5700G (8C/16T) |
 | RAM | 62 GB DDR4 |
-| GPU 0 | Radeon RX 7900 XTX (24 GB VRAM, RDNA 3/GFX1100) — gemma4 + Embeddings |
-| GPU 1 | Radeon AI PRO R9700 (32 GB VRAM, RDNA 4/GFX1201) — qwen Planning |
+| GPU 0 | Radeon RX 7900 XTX (24 GB VRAM, RDNA 3/GFX1100) — dynamisch nachgeladene Modelle (aktuell nemotron-cascade-2:30b) |
+| GPU 1 | Radeon AI PRO R9700 (32 GB VRAM, RDNA 4/GFX1201) — qwen Planning + Mutation |
 | OS | Ubuntu 24.04 LTS |
 | Java | Zulu 25.0.2 (LTS) |
-| Inferenz | Ollama (2 Instanzen: Port 11434 + 11436) |
+| Inferenz | Ollama (3 Instanzen: Port 11434 + 11436 + 11438) + Router (11437) |
 
 ## Deployment
 
