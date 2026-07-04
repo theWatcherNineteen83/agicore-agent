@@ -19,7 +19,7 @@ ExecStart=/opt/zing25-jdk/bin/java \
     -jar /home/prometheus/metis/metis-agent.jar \
     --api-port 11735 \
     --planning-model qwen3.6:35b-a3b-q4_K_M \
-    --embedding-url http://127.0.0.1:11438 \
+    --embedding-url http://127.0.0.1:11438/api/embeddings \
     --mutation-url http://127.0.0.1:11434 --mutation-model granite-mini-agent \
     --telegram-token 8334147633:AAEoXX7LS8pDe_gWXO8mUav8i0SGmEPnVLU \
     --weather-api-key 0352c669d7d0422d92c669d7d0522d9a \
