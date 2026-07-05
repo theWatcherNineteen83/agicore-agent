@@ -1,0 +1,3 @@
+timestamp=2026-07-05T08:16:30.655130514Z
+entryCount=18593
+chainHead=92e6163c15468ae50cee7d9eb93cd6eb15cd7eed78f8c5f1cafcf6dfe78d7c09
