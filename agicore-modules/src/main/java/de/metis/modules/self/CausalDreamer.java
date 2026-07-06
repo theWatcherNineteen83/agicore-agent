@@ -124,6 +124,11 @@ public final class CausalDreamer {
                     return false;
                 }
             }
+            if (hypothesisStore.open().size() >= maxOpenHypotheses) {
+                LOG.fine("CausalDreamer: overflow " + hypothesisStore.open().size() + " >= " + maxOpenHypotheses + " — skipping");
+                return false;
+            }
+
             boolean didWork = false;
 
             // ── Schritt 1: Reife PROPOSED-Hypothesen in TESTING versetzen ──
@@ -203,6 +208,8 @@ public final class CausalDreamer {
                     CausalHypothesis h = hypothesisGenerator.propose(cause, condition, effect, rationale);
                     if (h != null) {
                         hypothesesCreated++;
+                        narrative.append("CausalDream", "Hypothesis: " + cause + " -> " + effect);
+                        didWork = true;
                         LOG.fine("CausalDreamer: new hypothesis #" + dreamsRun
                                 + " — " + cause + " -> " + effect);
                     }

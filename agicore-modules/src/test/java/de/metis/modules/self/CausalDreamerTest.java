@@ -46,7 +46,7 @@ class CausalDreamerTest {
         var hg = new HypothesisGenerator(hs);
         var sn = new SelfNarrative(dir.resolve("n.md"));
         var dreamer = new CausalDreamer(
-                m, kanban, hg, hs, sn, new InterventionRunner(hs, new CausalModel()), 10, 10);
+                m, kanban, hg, hs, new CausalModel(), sn, new InterventionRunner(hs, new CausalModel()), 10, 10);
         assertFalse(dreamer.dreamOnce(), "WIP ≥ 2 → kein Traum");
     }
 
@@ -60,7 +60,7 @@ class CausalDreamerTest {
         var hg = new HypothesisGenerator(hs);
         var sn = new SelfNarrative(dir.resolve("n.md"));
         var dreamer = new CausalDreamer(
-                m, kanban, hg, hs, sn, new InterventionRunner(hs, new CausalModel()), 10, 10);
+                m, kanban, hg, hs, new CausalModel(), sn, new InterventionRunner(hs, new CausalModel()), 10, 10);
         assertTrue(dreamer.dreamOnce());
         assertEquals(1, dreamer.hypothesesCreated());
         assertEquals(1, hs.all().size()); // 1 hypothesis (TESTING after intervention)
@@ -80,7 +80,7 @@ class CausalDreamerTest {
         }
         assertEquals(5, hs.open().size(), "pre-fill: 5 open hypotheses");
         var dreamer = new CausalDreamer(
-                m, kanban, hg, hs, sn, new InterventionRunner(hs, new CausalModel()), 10, 4);
+                m, kanban, hg, hs, new CausalModel(), sn, new InterventionRunner(hs, new CausalModel()), 10, 4);
         assertFalse(dreamer.dreamOnce(), "overflow: 5 >= 4 → skip");
         assertEquals(5, hs.open().size(), "no new hypothesis added");
     }
@@ -96,7 +96,7 @@ class CausalDreamerTest {
         var hg = new HypothesisGenerator(hs);
         var sn = new SelfNarrative(dir.resolve("n.md"));
         var dreamer = new CausalDreamer(
-                m, kanban, hg, hs, sn, new InterventionRunner(hs, new CausalModel()), 10, 10);
+                m, kanban, hg, hs, new CausalModel(), sn, new InterventionRunner(hs, new CausalModel()), 10, 10);
         assertTrue(dreamer.dreamOnce());
         assertTrue(sn.recentContext().contains("CausalDream"));
     }
@@ -109,7 +109,7 @@ class CausalDreamerTest {
         var hg = new HypothesisGenerator(hs);
         var sn = new SelfNarrative(dir.resolve("n.md"));
         var dreamer = new CausalDreamer(
-                m, kanban, hg, hs, sn, new InterventionRunner(hs, new CausalModel()), 10, 10);
+                m, kanban, hg, hs, new CausalModel(), sn, new InterventionRunner(hs, new CausalModel()), 10, 10);
         assertFalse(dreamer.dreamOnce(), "leeres Gedächtnis → kein Traum");
     }
 }
