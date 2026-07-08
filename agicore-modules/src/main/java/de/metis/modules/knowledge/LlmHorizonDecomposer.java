@@ -25,7 +25,7 @@ import java.util.logging.Logger;
 public class LlmHorizonDecomposer implements HorizonPlanner.DecomposeFunction {
 
     private static final Logger LOG = Logger.getLogger(LlmHorizonDecomposer.class.getName());
-    private static final Duration TIMEOUT = Duration.ofSeconds(45);
+    private static final Duration TIMEOUT = Duration.ofSeconds(120);
 
     private final String ollamaUrl;
     private final String model;
@@ -69,19 +69,28 @@ public class LlmHorizonDecomposer implements HorizonPlanner.DecomposeFunction {
 
     private static String buildPrompt(LongHorizonGoal parent, GoalHorizon childHorizon, int n) {
         String level = switch (childHorizon) {
-            case TACTICAL    -> "Tages-Ziele (jeweils 1 Tag groß)";
-            case OPERATIONAL -> "Arbeits-Blöcke (jeweils 2-4 Stunden)";
-            case TICK        -> "konkrete Tick-Schritte";
+            case TACTICAL    -> "Tagesziele (jeweils ~1 Tag Aufwand)";
+            case OPERATIONAL -> "Arbeitspakete (jeweils ~2-4 Stunden)";
+            case TICK        -> "konkrete Einzelschritte (jeweils ~30-60 Minuten)";
             default          -> "Schritte";
         };
         return """
-                Du bist Metis und planst dein langfristiges Vorhaben.
+                Du bist Metis, eine selbst-evolvierende Java-AGI. Du planst ein konkretes
+                Software-Vorhaben und zerlegst es in umsetzbare Einzelschritte.
+
+                WICHTIG: KEINE generischen Platzhalter-Titel wie "Tag-Schritt 1",
+                "Block 2" oder "Tick 3". Jeder Titel MUSS den konkreten Inhalt
+                beschreiben — was genau wird getan? Beispiel: stattdessen
+                "Tag-Schritt 1: X" schreibe "InitiativeLevel Enum mit 5 Stufen implementieren".
+                Antworte NUR auf Deutsch. KEIN Englisch. KEIN YAML. KEINE Code-Blöcke.
+                KEINE Einleitung, keine Zusammenfassung, keine Erklärung.
+
                 Zerlege das folgende Ober-Ziel in genau %d %s.
-                Antworte AUSSCHLIESSLICH als nummerierte Liste auf Deutsch:
-                1. ...
-                2. ...
-                3. ...
-                Jeder Eintrag max. 90 Zeichen, konkret, ohne Erklärung.
+                Antworte NUR als nummerierte Liste, ein konkreter Titel pro Zeile:
+                1. Konkrete Aktion mit Verb...
+                2. Konkrete Aktion mit Verb...
+                3. Konkrete Aktion mit Verb...
+                Jeder Titel: max. 100 Zeichen, beginnt mit einem VERB, NIE mit "Tag-" oder "Block".
 
                 Ober-Ziel: %s
                 Begründung: %s
@@ -94,10 +103,22 @@ public class LlmHorizonDecomposer implements HorizonPlanner.DecomposeFunction {
         for (String raw : text.split("\\r?\\n")) {
             String line = raw.strip();
             if (line.isEmpty()) continue;
-            // Strip leading numbering / bullet
+            // Skip code fences, YAML/JSON fragments, English preambles
+            if (line.startsWith("```") || line.startsWith("~~~")) continue;
+            if (line.startsWith("#")) continue;
+            if (line.startsWith("[") && (line.endsWith("]") || line.contains("postcondition"))) continue;
+            if (line.startsWith("child_") || line.startsWith("beliefs_")) continue;
+            // Skip English-only long preambles and YAML key:value lines
+            if (line.contains(": ") && line.length() < 80 && !line.matches("^[0-9a-zA-Z][.)].*")) {
+                if (line.matches("^[a-zA-Z_]+:.*") && !line.matches("(?i)^(erstelle|implementiere|definiere|baue|schreibe|entwickle|konfiguriere|teste|integriere|analysiere|dokumentiere|plane|recherchiere|optimier|migriere|validiere|erforsche|erweitere|passe|aktualisiere|erzeuge|erstelle|setze|richte).*")) continue;
+            }
+            // Strip leading numbering / bullet (also a. b. c.)
             line = line.replaceFirst("^[0-9]+[.)\\-:]\\s*", "");
+            line = line.replaceFirst("^[a-zA-Z][.)\\-:]\\s*", "");
             line = line.replaceFirst("^[\\-•*]\\s*", "");
             line = line.strip();
+            // Reject generic placeholder patterns
+            if (line.matches("(?i).*(tag-schritt|block\\s+[0-9]|tick\\s+[0-9]).*")) continue;
             if (line.length() < 5) continue;
             if (line.length() > 110) line = line.substring(0, 107) + "...";
             out.add(line);

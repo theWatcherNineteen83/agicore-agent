@@ -336,9 +336,9 @@ public class MetisHttpServer {
                 if (activeChatGoals > 0) {
                     LOG.fine("Skipping chat goal — already " + activeChatGoals + " in progress");
                 } else {
-                    // Use INFERENCE resource type for chat (LLM-only, no shell/filesystem)
+                    // Use CPU_HEAVY resource type for chat (shell/filesystem access via exec actions)
                     Goal chatGoal = new Goal(shortGoal, "chat", 85, 0.9, 1,
-                            Goal.ServiceClass.STANDARD, Goal.ResourceType.INFERENCE, null);
+                            Goal.ServiceClass.STANDARD, Goal.ResourceType.CPU_HEAVY, null);
                     agent.core().goals().add(chatGoal);
                 }
             } else {

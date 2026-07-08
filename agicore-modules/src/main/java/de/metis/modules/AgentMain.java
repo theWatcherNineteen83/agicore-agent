@@ -883,7 +883,7 @@ public final class AgentMain {
                 .registerHttpGet(URI.create("https://httpbin.org/get"))
                 .registerSensorBridge()
                 .registerAudioBridge()
-                .ollamaPlanner("http://192.168.22.204:11434/api/generate", modelRegistry, Duration.ofSeconds(60))
+                .ollamaPlanner("http://192.168.22.204:11436/api/generate", modelRegistry, Duration.ofSeconds(120))
                 .promptChainingService("http://192.168.22.204:11434/api/generate", "nemotron-cascade-2:30b", Duration.ofSeconds(90))
                 .workspaceCapacity(5)
                 .build();
@@ -1273,7 +1273,7 @@ public final class AgentMain {
                 .registerAudioBridge()
                 .registerShellCommand(List.of("uptime"))
                 .registerHttpGet(URI.create("https://httpbin.org/status/200"))
-                .ollamaPlanner("http://192.168.22.204:11434/api/generate", modelRegistry, Duration.ofSeconds(60))
+                .ollamaPlanner("http://192.168.22.204:11436/api/generate", modelRegistry, Duration.ofSeconds(120))
                 .workspaceCapacity(5)
                 .build();
         opsAgent.worldModel().update("I monitor system health and MQTT events", 0.95, "coordinator", true);
@@ -1300,10 +1300,10 @@ public final class AgentMain {
         var selfNarrative  = new SelfNarrative();
         var moodSignal     = new MoodSignal();
         var dreamConsolidation = new DreamConsolidation(episodicMemory, selfNarrative, moodSignal);
-        // 08.06.: gemma4:e4b ist nicht mehr in Ollama (HTTP 404). granite4.1:3b
-        // ist via SelfReflector bereits warm gehalten — kein zusätzlicher VRAM-Druck.
+        // 08.07.: granite4.1:3b auf GPU1 (11434) → CPU (127.0.0.1:11438) mit nemotron-mini-agent.
+        // CPU bindet nur an localhost, daher 127.0.0.1 statt 192.168.22.204.
         dreamConsolidation.setSummarizer(new LlmDreamSummarizer(
-                "http://192.168.22.204:11434", "granite4.1:3b"));
+                "http://127.0.0.1:11438", "nemotron-mini-agent:latest"));
 
         // Update mood every minute from current metrics (cheap, deterministic)
         var moodScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
@@ -1468,15 +1468,18 @@ public final class AgentMain {
         }
 
         // Phase 9.3b — LLM decomposer drop-in (falls Ollama down: deterministischer Fallback)
-        // 08.06.: von gemma4:e4b (404) auf granite4.1:3b umgestellt.
+        // 08.07.: Iteriert über granite4.1:3b, phi4-mini-agent, nemotron-mini-agent,
+        // nemotron-cascade-2-agent, mistral-agent. Alle timeouteten wegen GPU-Modell-
+        // Swapping. Stabilste Lösung: CPU-Instanz (127.0.0.1:11438) mit 120s Timeout.
+        // CPU ist langsam (~60-90s) aber verlässlich, Decomposition nur alle 10 Min.
         horizonPlanner.setDecomposer(new LlmHorizonDecomposer(
-                "http://192.168.22.204:11434", "granite4.1:3b"));
+                "http://127.0.0.1:11438", "nemotron-mini-agent:latest"));
 
         // ── Phase 9.7-Followup (Sprint #2, 08.06. 00:18): autonome Decomposition ──
         // Alle 10 min: jedes offene STRATEGIC/TACTICAL/OPERATIONAL-Goal ohne Children
-        // wird dekomponiert. LlmHorizonDecomposer ruft gemma4:e4b, bei Fehler nutzt
-        // HorizonPlanner deterministische Fallback-Titel. Idempotent: bereits
-        // dekomponierte Goals werden übersprungen.
+        // wird dekomponiert. LlmHorizonDecomposer ruft nemotron-cascade-2-agent auf
+        // GPU0 (bereits geladen), bei Fehler nutzt HorizonPlanner deterministischen
+        // Fallback. Idempotent: bereits dekomponierte Goals werden übersprungen.
         var decomposeScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
             var t = new Thread(r, "horizon-decompose");
             t.setDaemon(true);
