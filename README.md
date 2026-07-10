@@ -1,29 +1,40 @@
-# 🧠 Metis — Self-Evolving AGI
+# 🧠 Metis — Autonomous Agent Framework
 
-**Metis** ist eine selbst-evolvierende, lokal laufende Java-AGI auf JDK 25 (Zulu). Benannt nach der Titanin der Weisheit aus der griechischen Mythologie.
+**Metis** ist ein **autonomer Agent-Framework** in Java 25 (Zulu JDK), gebaut als Maven-Multi-Module-Projekt. Benannt nach der Titanin der Weisheit aus der griechischen Mythologie.
 
-Sie denkt in kognitiven Zyklen (Perceive → Plan → Execute → Observe → Learn), chattet via Telegram (@metis_agi_bot), sieht durch Kameras (minicpm-v), lernt aus Wikipedia (Curiosity-gesteuert + Bulk-Feed), und kann unter Eval-Gate + Watchdog-Approval beschränkt eigenen Code mutieren. Ein externer Watchdog läuft als separate JVM, schreibt ein SHA-256-Hash-Chain-Audit-Log (tamper-evident, **nicht** kryptografisch signiert) und kann ROLLBACK/HALT/ALERT/PRUNE auslösen.
+Es führt kognitive Zyklen aus (Perceive → Plan → Execute → Observe → Learn), chattet via Telegram (@metis_agi_bot), sieht durch Kameras (minicpm-v), lernt aus Wikipedia (Curiosity-gesteuert + Bulk-Feed), und kann unter Eval-Gate + Watchdog-Approval eigenen Code mutieren. Ein externer Watchdog läuft als separate JVM, schreibt ein SHA-256-Hash-Chain-Audit-Log (tamper-evident, **nicht** kryptografisch signiert) und kann ROLLBACK/HALT/ALERT/PRUNE auslösen.
+
+> ⚠️ **Reality Check (10.07.2026):** Dies ist **keine AGI**. Der Begriff "AGI" wurde aspirantisch verwendet. Das Capability-Board zeigt **2/7 VERIFIED** (ethical_alignment, goal_completion). Kausales Denken (0 confirmed hypotheses), Memory Continuity (kein 7-Tage-Soak), Code-Generation (pass@1=0.0), Self-Improvement (0 accepted mutations) sind **nicht verifiziert**. Siehe [AGI_EDI_ROADMAP.md](AGI_EDI_ROADMAP.md#-bekannte-echte-l%C3%BCcken) für die ehrliche Bestandsaufnahme.
 
 ## Status
 
-**Stand: 04.07.2026 15:40 · v0.11.21-night-final-77-ge78f361-dirty**
-**Drei-Instanz-Ollama:** GPU 1 (R9700, 32 GB) → qwen3.6:35b-a3b (Planung + Mutation) · GPU 0 (7900 XTX, 24 GB) → dynamisch nachgeladen (aktuell nemotron-cascade-2:30b) · CPU → nomic-embed (Embeddings) + nemotron-mini-agent (LLM-Judge, seit 04.07. hier) · zusätzlich **Router** (Port 11437, Python) verteilt generate/chat→GPU1, embed→GPU0
-**Phase 9.7 🎉:** Long-Horizon-Kanban läuft produktiv (231+ Goals, >99% DONE)
-**Phase 10:** CausalDreamer mit Intervention→Observe→Update-Loop + Counterfactual-Reasoning + CausalScorer
-**Phase 12d:** Selbst-Refactoring (TestGapAnalyzer, RefactorProposal, CoverageCheck) — neu seit 04.07.
-**Safety:** LLM-Judge **repariert 04.07.2026** (lief tot auf ausgelastetem GPU1-Modell, jetzt CPU/nemotron-mini-agent, liefert wieder echte Scores + Blocks) · Wissen: ~113.800 Beliefs · Ethik: SelfReflector auf phi4-mini (CPU)
-**Watchdog:** `metis.service` seit 04.07. auf `Restart=always` (war `on-failure`) — vorher blieb Metis nach einem Watchdog-HALT bis zu 21h tot, weil ein sauberer `pkill` von systemd nicht als Failure gewertet wurde
+**Stand: 10.07.2026 · v0.11.21-night-final-77-ge78f361-dirty**
+**Drei-Instanz-Ollama:** GPU 1 (R9700, 32 GB) → qwen3.6:35b-a3b (Planung + Mutation) · GPU 0 (7900 XTX, 24 GB) → dynamisch nachgeladen (aktuell nemotron-cascade-2:30b) · CPU → nomic-embed (Embeddings) + nemotron-mini-agent (LLM-Judge, seit 04.07.) · zusätzlich **Router** (Port 11437, Python) verteilt generate/chat→GPU1, embed→GPU0
+**Phase 9.7:** Long-Horizon-Kanban läuft produktiv (231+ Goals, >99% DONE)
+**Phase 10:** CausalDreamer mit Intervention→Observe→Update-Loop + Counterfactual-Reasoning + CausalScorer (**0 confirmed hypotheses** → Capability SOFT)
+**Phase 12d:** Selbst-Refactoring designed (TestGapAnalyzer, RefactorProposal, CoverageCheck) — **0% Built**, geblockt bis Phase 10+11 VERIFIED
+**Safety:** LLM-Judge **repariert 04.07.2026** (lief tot auf GPU1, jetzt CPU/nemotron-mini-agent, liefert echte Scores + Blocks) · Wissen: ~113.800 Beliefs · Ethik: SelfReflector auf phi4-mini (CPU)
+**Watchdog:** `metis.service` seit 04.07. `Restart=always` (war `on-failure`) — vorher 21h+ Totzeit nach HALT
 **Mobile:** Phase 3.5 S9-Sensor-Array — Samsung Galaxy S9 (16+ Sensoren, Madgwick-Fusion, OGG-Audio)
 **Resource:** MemoryPressureGuard + ResourceAutoTuner + Embedding-Circuit-Breaker
+
+### ⚠️ Bekannte Blocker (10.07.2026)
+- **Action-Dominance CRITICAL:** GPU1 (R9700) dauerhaft ~100% durch qwen3.6:35b + Mutation — Fallback-Kette feuert ständig
+- **Causal Inference:** 971 Hypothesen, 921 widerlegt, **0 bestätigt** — `causal_confirmed >= 1` FAIL
+- **Memory Continuity:** EpisodicMemory aktiv, aber **nie >7 Tage getestet**
+- **Self-Improvement:** 0 accepted mutations, `code_generation: pass@1=0.0`
+- **Single Point of Failure:** Alles läuft auf **einem** Host (miniedi) — kein HA, kein DR
+- **Eval-Reports:** Werden bei jedem Neustart gelöscht → Watchdog cold-start ohne Baseline
 
 | Phase | Status | Key Facts |
 |-------|--------|-----------|
 | 1-7+ | ✅ 100% | Stabiler autonomer Agent (BUILT + VERIFIED) |
 | 8 | ✅ 100% | SelfReflector + PersonalityTripwire · VERIFIED ⬜ |
-| 9 | ✅ 100% | Long-Horizon-Planung + Kanban produktiv |
-| 10 | 🟡 75% | CausalDreamer + Intervention→Observe→Update + Counterfactual · CAUSAL-Eval-Tasks fehlen |
-| 11 | ✅ 100% | PersonModel + TrustLevel-Automation + PersonAwareSystemPrompt + RelationshipMemory |
-| 12 | 🟡 teilweise | Phase 12d Selbst-Refactoring gebaut (TestGapAnalyzer/RefactorProposal/CoverageCheck) |
+| 9 | ✅ 100% | Long-Horizon-Planung + Kanban produktiv (231+ Goals, >99% DONE) |
+| 10 | 🟡 75% | CausalDreamer + Intervention→Observe→Update + Counterfactual **Built** — aber **0 confirmed hypotheses** (causal_confirmed FAIL) |
+| 11 | ✅ 100% | PersonModel + TrustLevel-Automation + PersonAwareSystemPrompt + RelationshipMemory (VERIFIED ⬜) |
+| 12 | 🟡 70% | 12a-12c Built & Wired (BugfixingAgent, GapAnalyzer, RiskGate, FeatureGenAction, PatternDetector, AutoABTest) — **Tests fehlen** — 12d (Refactoring) **0%, geblockt** |
+| 13 | 📋 0% | Lusseyran Voice Analysis — **Design-Doc only** (lusseyran-voice-analysis.md) |
 → Details: **[AGI_EDI_ROADMAP.md](AGI_EDI_ROADMAP.md)** · **[FEATURES.md](FEATURES.md)** · **[RUNBOOK.md](RUNBOOK.md)**
 
 

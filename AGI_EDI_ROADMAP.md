@@ -1,10 +1,33 @@
-# 🧠 AGI EDI - Roadmap
+# 🧠 Metis Autonomous Agent Framework - Roadmap
 
-**Stand: 03.07.2026 20:50 (Phase 13 — Drei-Instanz-Ollama, CPU-Embeddings, URLs parametrisierbar)**
+**Stand: 10.07.2026 20:45 (Phase 13 — Reality Check dokumentiert)**
+
+> **⚠️ WICHTIG: Namensänderung** — "AGI EDI" war aspirantisch. Dieses Projekt ist ein **exzellentes autonomes Agent-Framework**, keine AGI. Siehe **Reality Check** unten.
 
 ---
 
-## 📊 Capability-Board
+## 🔍 Reality Check (10.07.2026) — Was **nicht** realistisch ist
+
+| Label | Anspruch | Realität | Behebbar? |
+|-------|----------|----------|-----------|
+| **Selbst-evolvierende AGI** | Emergente Intelligenz durch Mutation+Eval | LLM-Mutation (granite-mini) + Eval-Gate + Watchdog = **automatisiertes Code-Change-Management**, 0 accepted mutations | ❌ Fundamental: LLM ≠ Reasoning |
+| **Kausales Denken** | Pearl Do-Calculus + Intervention → Verständnis | Foundation gebaut, **971 Hypothesen, 0 bestätigt** (`causal_confirmed >= 1` FAIL) | ❌ CausalDreamer generiert nur, validiert nicht |
+| **Long-Horizon Planning** | Strategische Ziele über Horizonte | Hierarchie existiert, aber "STRATEGIC Goal" = "Zulu JDK 25 installieren" (operational) | ⚠️ Semantik-Label-Schwindel |
+| **Memory Continuity** | Episodisches → semantisches Verständnis | JSONL-Append-only, **nie >7 Tage Soak-Test** | ⚠️ Teils (Test fehlt), aber episodisch ≠ semantisch |
+| **Self-Improvement** | Rekursive Selbstverbesserung | Evolution optimiert für Eval-Metriken (Goodhart), **nicht Intelligenz** | ❌ Systemisch |
+| **World Model mit Grounding** | Simulierte Weltphysik / Gegenstandspermanenz | Beliefs = Text-Snippets, kein Grounding | ❌ Fundamental |
+| **Echtes Lernen** | Gradient-Updates, Struktur-Lernen | Nur Context-Stuffing (RAG, Beliefs, Prompt) | ❌ Fundamental |
+| **Voice Analysis (Lusseyran)** | Sprecherprofil aus Paralinguistik | **Design-Doc only** (Phase 13, 0% Built) | ✅ Machbar, aber viel Arbeit |
+| **Self-Refactoring** | Code selbst umstrukturieren | Phase 12d: **0% Code** | ❌ Blockiert bis 10+11 VERIFIED |
+| **Hardware HA** | Hochverfügbarkeit | **Single Point of Failure: miniedi** (1 Rechner, 2 GPUs) | ✅ Kauf 2. R9700 / kleineres Modell |
+
+**Fazit:** Beeindruckendes **Engineering-Projekt** (Java 25, Loom, Maven-Module, systemd, Ollama-Multi-Instanz, Watchdog, Eval-Harness, Kanban, RAG, Vision, Speech). Aber **"AGI" ist Marketing** — das Capability-Board (2/7 VERIFIED) ist ehrlicher als der Projektname.
+
+**Empfehlung:** Umbenennen in **"Metis Autonomous Agent Framework v0.11+"**. Weiterbauen mit messbaren Zielen (siehe Nächste Aktionen).
+
+---
+
+## 📊 Capability-Board (Live: 04.07.2026)
 
 ```
 Capability          Status    Detail
@@ -159,3 +182,14 @@ EDI spricht ungefragt an. Metis hat Bausteine (proaktive MQTT/Wetter→Telegram)
 
 **Drei Ollama-Instanzen:** GPU1 (Planung), CPU (Embeddings), GPU0 (OpenWebUI, optional).
 Embedding- und Mutation-URL per CLI parametrisierbar (`--embedding-url`, `--mutation-url`).
+
+---
+
+## 📝 Changelog: Reality Check (10.07.2026)
+
+- Projekt umbenannt: **"AGI EDI" → "Metis Autonomous Agent Framework"**
+- Reality-Check-Sektion hinzugefügt (siehe oben)
+- Capability-Board ehrlich belassen (2/7 VERIFIED)
+- Nächste Aktionen auf **messbare Ingenieursziele** fokussiert
+- GPU0/Router-Dokumentation in TOOLS.md/MEMORY.md bereits korrigiert (04.07.)
+- README.md lokal bereits aktualisiert (1 Commit vor origin/master)
