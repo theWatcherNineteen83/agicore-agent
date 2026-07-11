@@ -1,13 +1,22 @@
 {
-  "timestamp": "2026-07-11T00:16:39.879955638Z",
-  "totalTicks": 153053,
-  "activeGoals": 4,
-  "successRate": 1,0000,
-  "planningEfficiency": 1,0000,
-  "confidence": 0,4967,
-  "beliefCount": 119763,
+  "timestamp": "2026-07-11T06:41:32.513574911Z",
+  "totalTicks": 153153,
+  "activeGoals": 8,
+  "successRate": 0,9184,
+  "planningEfficiency": 0,8991,
+  "confidence": 0,9500,
+  "beliefCount": 119902,
   "acceptedMutations": 0,
   "rejectedMutations": 0,
   "emergenceEvents": [
+    "T153066: World model reached 119780 beliefs — potential concept formation",
+    "T153070: 5 consecutive failures — learned strategy collapsed",
+    "T153073: 6 consecutive failures — learned strategy collapsed",
+    "T153074: 7 consecutive failures — learned strategy collapsed",
+    "T153075: 8 consecutive failures — learned strategy collapsed",
+    "T153080: World model reached 119800 beliefs — potential concept formation",
+    "T153106: World model reached 119820 beliefs — potential concept formation",
+    "T153121: World model reached 119840 beliefs — potential concept formation",
+    "T153134: World model reached 119860 beliefs — potential concept formation"
   ]
 }
