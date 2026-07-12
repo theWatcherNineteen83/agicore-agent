@@ -58,6 +58,7 @@ public final class CausalDreamer {
     private long hypothesesCreated = 0;
     private long interventionsRun = 0;
     private long hypothesesCompleted = 0;
+    private boolean startupResetDone = false;
 
     public CausalDreamer(MemoryConsolidator memory, KanbanBoard kanbanBoard,
                          HypothesisGenerator hypothesisGenerator,
@@ -117,16 +118,38 @@ public final class CausalDreamer {
      */
     public boolean dreamOnce() {
         try {
+            var snapshot = kanbanBoard != null ? kanbanBoard.snapshot() : null;
+            int wip = snapshot != null ? snapshot.inProgress().size() : -1;
+            int openSize = hypothesisStore.open().size();
+
+            // Schreibe Status als Datei für externe Debug-Inspektion
+            try {
+                String status = String.format(java.util.Locale.ROOT,
+                        "dreamsRun=%d hypothesesCreated=%d hypothesesCompleted=%d testing=%d open=%d wip=%d\n",
+                        dreamsRun, hypothesesCreated, hypothesesCompleted, testingSince.size(), openSize, wip);
+                java.nio.file.Files.writeString(java.nio.file.Path.of("/tmp/causal-dreamer.status"), status);
+            } catch (Exception ignored) {}
+
+            // ── WIP-Gate: nur träumen wenn Metis nicht überlastet ist ──
             if (kanbanBoard != null) {
-                int wip = kanbanBoard.snapshot().inProgress().size();
-                if (wip >= 3) {
-                    LOG.fine("CausalDreamer: WIP=" + wip + " >= 3 — skipping");
+                if (wip >= 6) {
                     return false;
                 }
             }
-            if (hypothesisStore.open().size() >= maxOpenHypotheses) {
-                LOG.fine("CausalDreamer: overflow " + hypothesisStore.open().size() + " >= " + maxOpenHypotheses + " — skipping");
-                return false;
+
+            // ── Startup-Reset: Alte TESTING-Hypothesen → PROPOSED (Messwerte verloren) ──
+            if (!startupResetDone) {
+                int resetCount = 0;
+                for (CausalHypothesis h : hypothesisStore.open()) {
+                    if (h.status() == CausalHypothesis.Status.TESTING) {
+                        hypothesisStore.upsert(h.withStatus(CausalHypothesis.Status.PROPOSED));
+                        resetCount++;
+                    }
+                }
+                startupResetDone = true;
+                if (resetCount > 0) {
+                    System.err.println("CausalDreamer: startup reset " + resetCount + " TESTING → PROPOSED");
+                }
             }
 
             boolean didWork = false;
@@ -196,7 +219,7 @@ public final class CausalDreamer {
 
             // ── Schritt 3: Neue Hypothesen aus Experiences (nur wenn Platz) ──
             int openCount = hypothesisStore.open().size();
-            if (openCount < maxOpenHypotheses) {
+            if (openCount < Math.max(maxOpenHypotheses, 200)) {
                 List<Experience> recent = memory.stm().recent(lookback);
                 if (recent != null && !recent.isEmpty()) {
                     dreamsRun++;
