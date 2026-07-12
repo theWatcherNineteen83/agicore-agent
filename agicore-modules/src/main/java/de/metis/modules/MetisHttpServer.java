@@ -29,6 +29,7 @@ import de.metis.kernel.goal.LongHorizonGoal;
 import de.metis.kernel.self.BugTracker;
 import de.metis.kernel.world.HypothesisStore;
 import de.metis.kernel.world.CausalHypothesis;
+import de.metis.kernel.person.InitiativePolicy;
 
 /**
  * Ollama-compatible HTTP API with EDI persona for conversational AI.
@@ -70,6 +71,7 @@ public class MetisHttpServer {
     private static final long BUGFIX_DEDUP_MS = 30_000;  // 30s dedup window
     private de.metis.kernel.person.PersonStore personStore;        // Phase 11
     private de.metis.kernel.person.EmpathySignal empathySignal;    // Phase 11
+    private InitiativePolicy initiativePolicy;                    // Phase 11.5
     private de.metis.kernel.safety.EthicsCore ethicsCore;          // Phase 11.5 (Sprint #3, 08.06.)
     private long ethicsBlocks = 0;
     private long ethicsWarns = 0;
@@ -142,6 +144,10 @@ public class MetisHttpServer {
                                de.metis.kernel.person.EmpathySignal es) {
         this.personStore = ps;
         this.empathySignal = es;
+    }
+
+    public void setInitiativePolicy(InitiativePolicy ip) {
+        this.initiativePolicy = ip;
     }
 
     public void start() {
@@ -838,6 +844,7 @@ public class MetisHttpServer {
                   "embeddingCircuitTrips": %d,
                   "embeddingRequestsSkipped": %d,
                   %s
+                  %s
                   %s,
                   %s
                 }
@@ -869,6 +876,7 @@ public class MetisHttpServer {
                 embeddingService != null ? embeddingService.circuitOpen() : false,
                 embeddingService != null ? embeddingService.circuitOpenCount() : 0,
                 embeddingService != null ? embeddingService.requestsSkipped() : 0,
+                initiativePolicy != null ? initiativePolicyStatusJson() + "," : "",
                 rollbackManager != null ? rollbackManager.healthJson() + "," : "",
                 bugfixingAgent != null ? bugfixingAgent.healthJson() : "",
                 bugTracker != null ? "\"bugTracker\":{\"bugCount\":" + bugTracker.size() + ",\"openCount\":" + bugTracker.openCount() + "}" : "null"
@@ -877,7 +885,28 @@ public class MetisHttpServer {
         sendJson(exchange, 200, json);
     }
 
-
+    /** Baut das InitiativePolicy-JSON für den Status-Endpoint. */
+    private String initiativePolicyStatusJson() {
+        if (initiativePolicy == null) return "\"initiativePolicy\":null";
+        var snapshots = initiativePolicy.budgetSnapshots();
+        StringBuilder sb = new StringBuilder("\"initiativePolicy\":{");
+        sb.append("\"quietHours\":\"").append(initiativePolicy.quietHoursDescription()).append("\",");
+        sb.append("\"isQuietHours\":").append(initiativePolicy.isQuietHours()).append(",");
+        sb.append("\"budgets\":{");
+        boolean first = true;
+        for (var entry : snapshots.entrySet()) {
+            if (!first) sb.append(',');
+            first = false;
+            var snap = entry.getValue();
+            sb.append('"').append(entry.getKey()).append("\":{");
+            sb.append("\"dailyLimit\":").append(snap.dailyLimit()).append(',');
+            sb.append("\"remaining\":").append(snap.remaining());
+            sb.append('}');
+        }
+        sb.append('}');
+        sb.append('}');
+        return sb.toString();
+    }
 
     // ── /api/hierarchy (Phase 9) ─────────────────────────────────
 

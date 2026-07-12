@@ -36,6 +36,7 @@ import de.metis.modules.action.CameraVisionAction;
 import de.metis.modules.action.CameraSnapshotAction;
 import de.metis.modules.action.VideoAnalysisAction;
 import de.metis.modules.events.ProactiveNotificationService;
+import de.metis.kernel.person.InitiativePolicy;
 import de.metis.modules.hardware.HardwareDiscovery;
 import de.metis.modules.hardware.HardwareProfileAction;
 import de.metis.modules.hardware.DeepNettsAction;
@@ -791,6 +792,7 @@ public final class AgentMain {
         String mutationModel = null;
         String embeddingModel = null;
         String embeddingUrl = null;
+        String planningUrl = null;
         String mutationUrl = null;
         String bootstrapModel = null;
         String bootstrapModels = null;  // comma-separated multi-model
@@ -814,6 +816,7 @@ public final class AgentMain {
                 case "--mutation-model" -> mutationModel = args[++i];
                 case "--embedding-model" -> embeddingModel = args[++i];
                 case "--embedding-url" -> embeddingUrl = args[++i];
+                case "--planning-url" -> planningUrl = args[++i];
                 case "--mutation-url" -> mutationUrl = args[++i];
                 case "--bootstrap-model" -> bootstrapModel = args[++i];
                 case "--bootstrap-models" -> bootstrapModels = args[++i];
@@ -844,6 +847,9 @@ public final class AgentMain {
                               --planning-model M    Override auto-selected planning model
                               --mutation-model M    Override auto-selected mutation model
                               --embedding-model M   Override auto-selected embedding model
+                              --embedding-url URL   Override embedding API endpoint
+                              --mutation-url URL    Override mutation API endpoint
+                              --planning-url URL    Override planner API endpoint (default: Ollama /api/generate)
                               --bootstrap-model M   Bootstrap from a single model
                               --bootstrap-models A,B Bootstrap with consensus from multiple models
                               --telegram-token T    Telegram Bot token for direct messaging
@@ -883,7 +889,7 @@ public final class AgentMain {
                 .registerHttpGet(URI.create("https://httpbin.org/get"))
                 .registerSensorBridge()
                 .registerAudioBridge()
-                .ollamaPlanner("http://192.168.22.204:11436/api/generate", modelRegistry, Duration.ofSeconds(120))
+                .ollamaPlanner(planningUrl != null ? planningUrl : "http://192.168.22.204:11434/api/generate", modelRegistry, Duration.ofSeconds(120))
                 .promptChainingService("http://192.168.22.204:11434/api/generate", "nemotron-cascade-2:30b", Duration.ofSeconds(90))
                 .workspaceCapacity(5)
                 .build();
@@ -1273,7 +1279,7 @@ public final class AgentMain {
                 .registerAudioBridge()
                 .registerShellCommand(List.of("uptime"))
                 .registerHttpGet(URI.create("https://httpbin.org/status/200"))
-                .ollamaPlanner("http://192.168.22.204:11436/api/generate", modelRegistry, Duration.ofSeconds(120))
+                .ollamaPlanner("http://192.168.22.204:11434/api/generate", modelRegistry, Duration.ofSeconds(120))
                 .workspaceCapacity(5)
                 .build();
         opsAgent.worldModel().update("I monitor system health and MQTT events", 0.95, "coordinator", true);
@@ -1468,12 +1474,11 @@ public final class AgentMain {
         }
 
         // Phase 9.3b — LLM decomposer drop-in (falls Ollama down: deterministischer Fallback)
-        // 08.07.: Iteriert über granite4.1:3b, phi4-mini-agent, nemotron-mini-agent,
-        // nemotron-cascade-2-agent, mistral-agent. Alle timeouteten wegen GPU-Modell-
-        // Swapping. Stabilste Lösung: CPU-Instanz (127.0.0.1:11438) mit 120s Timeout.
-        // CPU ist langsam (~60-90s) aber verlässlich, Decomposition nur alle 10 Min.
+        // 08.07.: Planner auf GPU1 (11434) mit qwen3_6-35b-agent.
+        // GPU0 (11436) mit mistral-agent:latest — funktionierte zuverlässig als Planner.
+        // cascade-2:30b generiert leere Antworten (Tokenizer-Mismatch auf 7900 XTX).
         horizonPlanner.setDecomposer(new LlmHorizonDecomposer(
-                "http://127.0.0.1:11438", "nemotron-mini-agent:latest"));
+                "http://192.168.22.204:11436", "mistral-agent:latest"));
 
         // ── Phase 9.7-Followup (Sprint #2, 08.06. 00:18): autonome Decomposition ──
         // Alle 10 min: jedes offene STRATEGIC/TACTICAL/OPERATIONAL-Goal ohne Children
@@ -1835,6 +1840,10 @@ public final class AgentMain {
         }, 60, 60, TimeUnit.SECONDS);
         LOG.info("Phase 2.5+ wired — MemoryPressureGuard + ResourceAutoTuner every 60s");
 
+        // ── Phase 11.5: InitiativePolicy ────────────────────
+        InitiativePolicy initiativePolicy = new InitiativePolicy();
+        LOG.info("InitiativePolicy active — " + initiativePolicy.quietHoursDescription());
+
         if (apiPort > 0) {
             httpServer = new MetisHttpServer(agent, apiPort);
             httpServer.setKnowledgeStore(knowledgeStore);
@@ -1844,6 +1853,7 @@ public final class AgentMain {
                 httpServer.setKanbanBoard(agent.core().goals().kanbanBoard());
             }
             httpServer.setEmbeddingService(ollamaEmbedSvc);
+            httpServer.setInitiativePolicy(initiativePolicy);
             httpServer.setSystemPromptBuilder(systemPromptBuilder);
             httpServer.setGoalHierarchy(goalHierarchy);
             httpServer.setHypothesisStore(hypothesisStore);
@@ -1871,9 +1881,11 @@ public final class AgentMain {
         ProactiveNotificationService notifier = null;
         if (telegramBot != null) {
             notifier = new ProactiveNotificationService(telegramBot, 265324594L);
+            notifier.setInitiativePolicy(initiativePolicy);
+            notifier.setPersonStore(personStore);
             notifier.start();
             agent.core().goals().onGoalAdded(notifier::onGoalAdded);
-            LOG.info("Proactive notifications active → Telegram chat 265324594");
+            LOG.info("Proactive notifications active → Telegram chat 265324594 (with InitiativePolicy)");
         }
 
         // ── Start Event Triggers ──────────────────────────────

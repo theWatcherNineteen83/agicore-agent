@@ -57,6 +57,10 @@ import java.util.stream.Collectors;
 public class OllamaPlanner implements Planner {
 
     private static final Logger LOG = Logger.getLogger(OllamaPlanner.class.getName());
+    /** True if this planner talks to an OpenAI-compatible endpoint. */
+    private boolean isOpenAI() {
+        return ollamaUrl != null && (ollamaUrl.contains("v1/chat/completions") || ollamaUrl.contains("v1/completions"));
+    }
 
     // ── Ollama configuration ──────────────────────────────────
     private String ollamaUrl;
@@ -627,7 +631,20 @@ sb.append("- git-feature-branch: scan the Git repo for TODOs, generate optimisat
     private String callOllamaModel(String modelName, String prompt) {
         long startMs = System.currentTimeMillis();
         try {
-            String jsonBody = String.format("""
+            String jsonBody;
+            if (isOpenAI()) {
+                jsonBody = String.format("""
+                    {
+                      "model": "%s",
+                      "messages": [{"role": "user", "content": %s}],
+                      "stream": false,
+                      "temperature": 0.3,
+                      "top_p": 0.95,
+                      "max_tokens": 1024
+                    }
+                    """, modelName, escapeJson(prompt));
+            } else {
+                jsonBody = String.format("""
                     {
                       "model": "%s",
                       "prompt": %s,
@@ -641,6 +658,7 @@ sb.append("- git-feature-branch: scan the Git repo for TODOs, generate optimisat
                       "keep_alive": "10m"
                     }
                     """, modelName, escapeJson(prompt));
+            }
 
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(ollamaUrl))
@@ -1039,6 +1057,17 @@ sb.append("  Or single-action format: {\"thought\":\"...\",\"action\":\"<name>\"
      * and /api/chat format ("message"."content" field).
      */
     private String extractResponseField(String json) {
+        if (isOpenAI()) {
+            // OpenAI format: {"choices":[{"message":{"content":"..."}}]}
+            // Use simple string extraction (same style as extractJsonStringValue)
+            String content = extractJsonStringValue(json, "content");
+            if (content != null && !content.isBlank()) return content;
+            // Fallback: try completion format {"choices":[{"text":"..."}]}
+            String text = extractJsonStringValue(json, "text");
+            if (text != null && !text.isBlank()) return text;
+            return null;
+        }
+        // Ollama format below
         // Priority 1: /api/generate "response" field
         String text = extractJsonStringValue(json, "response");
         if (text != null && !text.isBlank()) return text;

@@ -2,6 +2,9 @@ package de.metis.modules.events;
 
 import de.metis.modules.telegram.TelegramBotService;
 import de.metis.kernel.goal.Goal;
+import de.metis.kernel.person.InitiativePolicy;
+import de.metis.kernel.person.Person;
+import de.metis.kernel.person.PersonStore;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -29,6 +32,8 @@ public class ProactiveNotificationService {
 
     private TelegramBotService telegramBot;
     private long ownerChatId;
+    private InitiativePolicy initiativePolicy;
+    private PersonStore personStore;
 
     private Instant lastNotification = Instant.EPOCH;
     private final Map<String, Instant> categoryCooldowns = new ConcurrentHashMap<>();
@@ -38,6 +43,16 @@ public class ProactiveNotificationService {
     public ProactiveNotificationService(TelegramBotService telegramBot, long ownerChatId) {
         this.telegramBot = telegramBot;
         this.ownerChatId = ownerChatId;
+    }
+
+    /** Setzt InitiativePolicy für Phase 11.5 Gating. */
+    public void setInitiativePolicy(InitiativePolicy policy) {
+        this.initiativePolicy = policy;
+    }
+
+    /** Setzt PersonStore für Person-Lookup beim Initiative-Gate. */
+    public void setPersonStore(PersonStore store) {
+        this.personStore = store;
     }
 
     public void start() {
@@ -74,6 +89,16 @@ public class ProactiveNotificationService {
         // Deduplicate
         if (!seenGoalDescriptions.add(description)) return;
 
+        // ── Phase 11.5: InitiativePolicy-Gate ──
+        if (initiativePolicy != null) {
+            Person owner = personStore != null
+                    ? personStore.get(String.valueOf(ownerChatId)).orElse(null)
+                    : null;
+            if (!initiativePolicy.mayInitiate(owner, mapCategoryToInitiativeCategory(category), goal.priority())) {
+                return;
+            }
+        }
+
         // Rate limit
         if (Duration.between(lastNotification, Instant.now()).compareTo(MIN_NOTIFY_INTERVAL) < 0) {
             return;
@@ -92,6 +117,13 @@ public class ProactiveNotificationService {
             telegramBot.sendMessage(ownerChatId, message);
             lastNotification = Instant.now();
             categoryCooldowns.put(category, Instant.now());
+            // Phase 11.5: Budget tracken
+            if (initiativePolicy != null) {
+                Person owner = personStore != null
+                        ? personStore.get(String.valueOf(ownerChatId)).orElse(null)
+                        : null;
+                initiativePolicy.recordOutreach(owner);
+            }
             LOG.info("Proactive notification sent: " + message);
         }
     }
@@ -168,6 +200,19 @@ public class ProactiveNotificationService {
             }
         }
         return null;
+    }
+
+    /** Mappt interne Goal-Kategorie auf InitiativePolicy-Kategorie. */
+    private String mapCategoryToInitiativeCategory(String category) {
+        if (category == null) return "other";
+        return switch (category) {
+            case "weather", "weather-trend" -> "weather";
+            case "mqtt-event" -> "alert";
+            case "ha-event" -> "alert";
+            case "server", "server-down" -> "server";
+            case "security", "smoke", "gas" -> "security";
+            default -> "other";
+        };
     }
 
     public void stop() {

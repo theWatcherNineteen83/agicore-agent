@@ -1,6 +1,6 @@
 # 🧠 Metis Autonomous Agent Framework - Roadmap
 
-**Stand: 10.07.2026 20:45 (Phase 13 — Reality Check dokumentiert)**
+**Stand: 12.07.2026 21:15 (Phase 11.5 deployed + Model-Fixes)**
 
 > **⚠️ WICHTIG: Namensänderung** — "AGI EDI" war aspirantisch. Dieses Projekt ist ein **exzellentes autonomes Agent-Framework**, keine AGI. Siehe **Reality Check** unten.
 
@@ -130,15 +130,21 @@ Ohne kausales Denken und Personenverständnis wäre Self-Modification blindes Tr
 
 ---
 
-### 🚧 Phase 11.5 — Initiative-Policy ⬜ BUILT 0% · VERIFIED ⬜
+### 🚧 Phase 11.5 — Initiative-Policy 🟢 BUILT 100% · VERIFIED ⬜
 
-EDI spricht ungefragt an. Metis hat Bausteine (proaktive MQTT/Wetter→Telegram), aber keine Policy.
+**Status (12.07.2026):** Alle 5 Tasks gebaut und deployed.
 
-- [ ] **InitiativeLevel** Enum: SILENT / REACT_ONLY / NOTIFY / SUGGEST / CONVERSE
-- [ ] **TrustLevel→InitiativeLevel-Mapping** (OWNER→CONVERSE, TRUSTED→SUGGEST, etc.)
-- [ ] **InitiativeBudget** pro Person/Tag (max N proaktive Messages)
-- [ ] **QuietHours** (22:00–08:00) — nur kritische Schwellwerte überschreiben
+- [x] **InitiativeLevel** Enum: SILENT / REACT_ONLY / NOTIFY / SUGGEST / CONVERSE
+- [x] **TrustLevel→InitiativeLevel-Mapping** (OWNER→CONVERSE, TRUSTED→SUGGEST, etc.)
+- [x] **InitiativeBudget** pro Person/Tag (default 12, resettet täglich)
+- [x] **QuietHours** (22:00–08:00 Europe/Berlin) — kritische Priorität (≥85) übersteuert
 - [ ] **Sentiment-Gold-Set** für Phase-11 EmpathySignal — aus echten Telegram-Logs destillieren
+
+**Integration:** ProactiveNotificationService checkt InitiativePolicy vor jeder Notification.
+Status-API zeigt `initiativePolicy`-Sektion mit QuietHours/Budgets.
+
+**Dateien:** `InitiativeLevel.java`, `InitiativePolicy.java` (beide kernel/person/),
+`ProactiveNotificationService.java` (modules/events/), `MetisHttpServer.java`, `AgentMain.java`.
 
 ---
 
@@ -165,9 +171,10 @@ EDI spricht ungefragt an. Metis hat Bausteine (proaktive MQTT/Wetter→Telegram)
 | **1.** | ✅ Phase 10 CAUSAL-Eval-Tasks: HypothesisStore injiziert + CausalScorer wired + 3 Tasks | 10 | ~2h | ✅ 25.06. |
 | **2.** | ✅ Phase 11 PersonModel (100%): Trust-Automation + EmpathySignal + PersonAwareSystemPrompt + MultiPersonMemory + RelationshipMemory | 11 | 2-3 Tage | ✅ 04.07. |
 | **3.** | Continuity-Soak-Test (7 Tage) für memory_continuity | 8 | passiv | ⬜ |
-| **4.** | Initiative-Policy v1 (InitiativeLevel + TrustLevel-Mapping) | 11.5 | 1-2 Tage | ⬜ |
+| **4.** | ✅ Initiative-Policy v1 (InitiativeLevel + TrustLevel-Mapping + Budget + QuietHours) | 11.5 | 1h | ✅ 12.07. |
 | **5.** | Phase 13a VoiceFeatureExtractor (Python/librosa) — Vorarbeit für Voice Analysis | 13 | 1-2 Tage | ⬜ |
 | **6.** | Phase 13b+c LusseyranEvaluator + PersonModel-Integration | 13 | 2-3 Tage | ⬜ |
+| **7.** | Modell-Fixes (Judge nemotron-mini-agent→CPU, Mutation granite-code:3b→GPU1) | — | 10 Min | ✅ 12.07. |
 
 ---
 
