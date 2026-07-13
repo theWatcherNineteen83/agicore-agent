@@ -1,11 +1,11 @@
 {
-  "timestamp": "2026-07-13T02:41:36.552863327Z",
-  "totalTicks": 154074,
-  "activeGoals": 5,
-  "successRate": 0,8989,
-  "planningEfficiency": 0,8812,
+  "timestamp": "2026-07-13T10:34:37.104689291Z",
+  "totalTicks": 154274,
+  "activeGoals": 8,
+  "successRate": 0,9672,
+  "planningEfficiency": 0,9621,
   "confidence": 0,9500,
-  "beliefCount": 121502,
+  "beliefCount": 121798,
   "acceptedMutations": 0,
   "rejectedMutations": 0,
   "emergenceEvents": [
@@ -13,6 +13,16 @@
     "T154003: World model reached 121420 beliefs — potential concept formation",
     "T154022: World model reached 121460 beliefs — potential concept formation",
     "T154048: World model reached 121480 beliefs — potential concept formation",
-    "T154049: World model reached 121480 beliefs — potential concept formation"
+    "T154049: World model reached 121480 beliefs — potential concept formation",
+    "T154105: World model reached 121540 beliefs — potential concept formation",
+    "T154106: World model reached 121540 beliefs — potential concept formation",
+    "T154107: World model reached 121540 beliefs — potential concept formation",
+    "T154141: World model reached 121580 beliefs — potential concept formation",
+    "T154150: World model reached 121600 beliefs — potential concept formation",
+    "T154159: World model reached 121620 beliefs — potential concept formation",
+    "T154170: World model reached 121640 beliefs — potential concept formation",
+    "T154171: World model reached 121640 beliefs — potential concept formation",
+    "T154186: World model reached 121660 beliefs — potential concept formation",
+    "T154187: World model reached 121660 beliefs — potential concept formation"
   ]
 }
