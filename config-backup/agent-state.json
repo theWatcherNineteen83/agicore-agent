@@ -1,13 +1,13 @@
 {
-  "timestamp": "2026-07-13T21:22:01.539834622Z",
-  "totalTicks": 154574,
-  "activeGoals": 14,
-  "successRate": 0,9837,
-  "planningEfficiency": 0,9808,
+  "timestamp": "2026-07-14T05:23:34.587085820Z",
+  "totalTicks": 154774,
+  "activeGoals": 1,
+  "successRate": 0,9879,
+  "planningEfficiency": 0,9822,
   "confidence": 0,9500,
-  "beliefCount": 122194,
+  "beliefCount": 122420,
   "acceptedMutations": 0,
-  "rejectedMutations": 0,
+  "rejectedMutations": 2,
   "emergenceEvents": [
     "T153975: Success rate dropped 100% → 50% (emergent instability)",
     "T154003: World model reached 121420 beliefs — potential concept formation",
@@ -40,6 +40,21 @@
     "T154529: World model reached 122120 beliefs — potential concept formation",
     "T154546: World model reached 122140 beliefs — potential concept formation",
     "T154551: World model reached 122160 beliefs — potential concept formation",
-    "T154563: World model reached 122180 beliefs — potential concept formation"
+    "T154563: World model reached 122180 beliefs — potential concept formation",
+    "T154589: World model reached 122220 beliefs — potential concept formation",
+    "T154589: Emergence-triggered evolution — Source file not found: OllamaPlanner",
+    "T154607: World model reached 122240 beliefs — potential concept formation",
+    "T154645: World model reached 122280 beliefs — potential concept formation",
+    "T154664: World model reached 122300 beliefs — potential concept formation",
+    "T154665: World model reached 122300 beliefs — potential concept formation",
+    "T154682: World model reached 122320 beliefs — potential concept formation",
+    "T154683: World model reached 122320 beliefs — potential concept formation",
+    "T154707: World model reached 122340 beliefs — potential concept formation",
+    "T154727: World model reached 122360 beliefs — potential concept formation",
+    "T154739: Emergence-triggered evolution — Source file not found: OllamaPlanner",
+    "T154745: World model reached 122380 beliefs — potential concept formation",
+    "T154746: World model reached 122380 beliefs — potential concept formation",
+    "T154760: World model reached 122400 beliefs — potential concept formation",
+    "T154774: World model reached 122420 beliefs — potential concept formation"
   ]
 }
