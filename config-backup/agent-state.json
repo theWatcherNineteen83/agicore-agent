@@ -1,13 +1,16 @@
 {
-  "timestamp": "2026-07-14T17:13:44.001806248Z",
-  "totalTicks": 154824,
-  "activeGoals": 4,
-  "successRate": 1,0000,
-  "planningEfficiency": 1,0000,
-  "confidence": 0,5014,
-  "beliefCount": 122503,
+  "timestamp": "2026-07-14T22:39:39.036342889Z",
+  "totalTicks": 154924,
+  "activeGoals": 0,
+  "successRate": 0,9324,
+  "planningEfficiency": 0,6789,
+  "confidence": 0,9500,
+  "beliefCount": 122755,
   "acceptedMutations": 0,
   "rejectedMutations": 0,
   "emergenceEvents": [
+    "T154879: World model reached 122660 beliefs — potential concept formation",
+    "T154893: World model reached 122700 beliefs — potential concept formation",
+    "T154921: High idle ratio 0,0% — agent may be in exploration loop"
   ]
 }
