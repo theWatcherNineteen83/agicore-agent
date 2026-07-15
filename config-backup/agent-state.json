@@ -1,13 +1,17 @@
 {
-  "timestamp": "2026-07-15T08:11:20.689121076Z",
-  "totalTicks": 155125,
-  "activeGoals": 4,
-  "successRate": 1,0000,
-  "planningEfficiency": 1,0000,
-  "confidence": 0,4956,
-  "beliefCount": 123053,
+  "timestamp": "2026-07-15T15:19:12.815744182Z",
+  "totalTicks": 155225,
+  "activeGoals": 26,
+  "successRate": 0,9158,
+  "planningEfficiency": 0,8716,
+  "confidence": 0,9500,
+  "beliefCount": 123450,
   "acceptedMutations": 0,
   "rejectedMutations": 0,
   "emergenceEvents": [
+    "T155126: Success rate dropped 100% → 50% (emergent instability)",
+    "T155153: World model reached 123160 beliefs — potential concept formation",
+    "T155187: World model reached 123300 beliefs — potential concept formation",
+    "T155205: World model reached 123360 beliefs — potential concept formation"
   ]
 }
