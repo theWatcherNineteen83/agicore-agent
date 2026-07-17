@@ -110,6 +110,7 @@ public class MetisHttpServer {
         server.createContext("/api/evolution/pause", this::handleEvolutionPause);
         server.createContext("/api/evolution/resume", this::handleEvolutionResume);
         server.createContext("/api/evolution/status", this::handleEvolutionStatus);
+        server.createContext("/api/evolution/trigger", this::handleEvolutionTrigger);
         server.createContext("/api/learned", this::handleLearned);
         server.createContext("/api/conversations", this::handleConversations);
         server.createContext("/api/agents", this::handleAgents);
@@ -745,6 +746,35 @@ public class MetisHttpServer {
                 }
                 """, evolutionPaused.get(), evo.evolutionCycles(),
                 evo.acceptedMutations(), evo.rejectedMutations(), evo.baselineFitness()));
+    }
+
+    private void handleEvolutionTrigger(HttpExchange exchange) throws IOException {
+        if (!exchange.getRequestMethod().equalsIgnoreCase("POST")) {
+            sendJson(exchange, 405, "{\"error\":\"Use POST\"}");
+            return;
+        }
+        if (evolutionPaused.get()) {
+            sendJson(exchange, 200, "{\"error\":\"Evolution is paused. Resume first.\"}");
+            return;
+        }
+        double fitness = de.metis.kernel.evolution.FitnessFunction.evaluate(
+                agent.metrics(), agent.workspace().runningEntropy());
+        var evo = agent.core().evolutionManager();
+
+        LOG.info("Force-triggered evolution via API — fitness=" + String.format("%.3f", fitness));
+        var result = evo.evolve(fitness);
+        LOG.info("Force evolution result: " + result.message());
+
+        sendJson(exchange, 200, String.format(Locale.ROOT, """
+                {
+                  "triggered": true,
+                  "fitness": %.3f,
+                  "result": "%s",
+                  "accepted": %d,
+                  "rejected": %d
+                }
+                """, fitness, result.message().replace("\"", "\\\""),
+                evo.acceptedMutations(), evo.rejectedMutations()));
     }
 
     // ── /api/status ──────────────────────────────────────────────
