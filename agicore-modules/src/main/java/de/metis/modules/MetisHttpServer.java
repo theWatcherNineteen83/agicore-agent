@@ -23,6 +23,7 @@ import de.metis.modules.persona.Persona;
 import de.metis.modules.multiagent.AgentCoordinator;
 import de.metis.modules.eval.EvalRunner;
 import de.metis.modules.eval.SafetyScorer;
+import de.metis.modules.DashboardRenderer;
 import de.metis.kernel.self.SystemPromptBuilder;
 import de.metis.kernel.goal.GoalHierarchy;
 import de.metis.kernel.goal.LongHorizonGoal;
@@ -118,6 +119,7 @@ public class MetisHttpServer {
         server.createContext("/api/hierarchy", this::handleHierarchy);
         server.createContext("/api/metrics", this::handleMetrics);
         server.createContext("/api/causal", this::handleCausal);
+        server.createContext("/api/causal-dreamer", this::handleCausalDreamer);
         server.createContext("/", this::handleDashboard);
     }
 
@@ -1020,23 +1022,20 @@ public class MetisHttpServer {
             return;
         }
         try {
-            var gen = new de.metis.modules.eval.EvalReportGenerator(
-                    java.nio.file.Paths.get("eval-reports"),
-                    java.nio.file.Paths.get("."));
-            var f = gen.generate();
-            String html = java.nio.file.Files.readString(f);
+            String html = DashboardRenderer.render();
+            byte[] bytes = html.getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().set("Content-Type", "text/html; charset=utf-8");
-            exchange.sendResponseHeaders(200, html.getBytes(java.nio.charset.StandardCharsets.UTF_8).length);
+            exchange.sendResponseHeaders(200, bytes.length);
             try (var os = exchange.getResponseBody()) {
-                os.write(html.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                os.write(bytes);
             }
         } catch (Exception e) {
             String errHtml = "<html><body><h1>Dashboard not available</h1><p>"
                     + e.getMessage() + "</p></body></html>";
             exchange.getResponseHeaders().set("Content-Type", "text/html; charset=utf-8");
-            exchange.sendResponseHeaders(200, errHtml.length());
+            exchange.sendResponseHeaders(200, errHtml.getBytes(StandardCharsets.UTF_8).length);
             try (var os = exchange.getResponseBody()) {
-                os.write(errHtml.getBytes());
+                os.write(errHtml.getBytes(StandardCharsets.UTF_8));
             }
         }
     }
@@ -1070,6 +1069,22 @@ public class MetisHttpServer {
         }
         json.append("]}");
         sendJson(exchange, 200, json.toString());
+    }
+
+    // ── /api/causal-dreamer ──────────────────────────────────────────────────
+
+    private void handleCausalDreamer(HttpExchange exchange) throws IOException {
+        try {
+            String status = java.nio.file.Files.readString(java.nio.file.Path.of("/tmp/causal-dreamer.status"));
+            exchange.getResponseHeaders().set("Content-Type", "text/plain; charset=utf-8");
+            byte[] bytes = status.getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200, bytes.length);
+            try (var os = exchange.getResponseBody()) {
+                os.write(bytes);
+            }
+        } catch (java.nio.file.NoSuchFileException e) {
+            sendJson(exchange, 200, "{\"status\":\"no data yet\"}");
+        }
     }
 
     // ── Utility ──────────────────────────────────────────────────
