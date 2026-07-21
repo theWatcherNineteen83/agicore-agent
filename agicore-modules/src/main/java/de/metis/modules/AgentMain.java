@@ -2140,8 +2140,13 @@ public final class AgentMain {
                     if (readyGoal != null) {
                         readyGoal = board.pull(); // READY → IN_PROGRESS (respects WIP)
                         if (readyGoal != null) {
-                            int result;
-                            if (RANDOM.nextDouble() < 0.3 && javaLearnService.commandsSucceeded() >= 5) {
+                            int result = 0;
+                            double roll = RANDOM.nextDouble();
+                            if (javaLearnService.commandsSucceeded() >= 5 && roll < 0.25) {
+                                // Run next structured exercise (like "Java in 21 Tagen")
+                                String exName = javaLearnService.generateAndRunExercise();
+                                result = exName != null ? 1 : 0;
+                            } else if (roll < 0.55) {
                                 result = javaLearnService.tryCompileAndRun();
                             } else {
                                 result = javaLearnService.exploreOneTool();
