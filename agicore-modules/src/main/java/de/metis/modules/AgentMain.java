@@ -1132,14 +1132,19 @@ public final class AgentMain {
                     modelRegistry);
             var evalRunner = new de.metis.modules.eval.EvalRunner(evalInvoker, knowledgeStore, hypothesisStore, evalReportDir);
             // Clean up stale eval reports from previous (possibly crashed) instances.
-            // Prevents Watchdog from triggering rollbacks based on old data.
+            // Only delete reports older than 1h to preserve data from this session across restarts.
             try {
                 java.nio.file.Files.createDirectories(evalReportDir);
+                long cutoff = System.currentTimeMillis() - java.time.Duration.ofHours(1).toMillis();
                 long deleted = java.nio.file.Files.list(evalReportDir)
                         .filter(f -> f.toString().endsWith("-eval-report.json"))
+                        .filter(f -> {
+                            try { return java.nio.file.Files.getLastModifiedTime(f).toMillis() < cutoff; }
+                            catch (Exception ignored) { return true; }
+                        })
                         .peek(f -> { try { java.nio.file.Files.delete(f); } catch (Exception ignored) {} })
                         .count();
-                if (deleted > 0) LOG.info("Cleaned " + deleted + " stale eval reports from previous run");
+                if (deleted > 0) LOG.info("Cleaned " + deleted + " stale eval reports (older than 1h)");
             } catch (Exception e) {
                 LOG.fine("Eval report cleanup: " + e.getMessage());
             }

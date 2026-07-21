@@ -46,6 +46,8 @@ public final class CausalDreamer {
 
     /** UUID → vergangene Ticks seit Testing-Start. */
     private final Map<UUID, Long> testingSince = new ConcurrentHashMap<>();
+    /** UUID → pre-measurement (live-metrics average) captured at test start. */
+    private final Map<UUID, Double> preScores = new ConcurrentHashMap<>();
 
     /** Optionale Live-Metriken (beliefCount, successRate etc.) für echte Messwerte.
      *  Wenn null → Fallback auf CausalModel-Predictions (Standard). */
@@ -110,6 +112,14 @@ public final class CausalDreamer {
         this.metricsSupplier = metricsSupplier;
         this.lookback = Math.max(5, lookback);
         this.maxOpenHypotheses = Math.max(1, maxOpenHypotheses);
+        // Restore counters from persisted store so restart doesn't lose history
+        this.hypothesesCompleted = hypothesisStore.all().stream()
+                .filter(h -> h.status() == CausalHypothesis.Status.CONFIRMED
+                        || h.status() == CausalHypothesis.Status.REFUTED).count();
+        this.dreamsRun = hypothesisStore.size(); // approximate: each hypothesis = one dream
+        this.hypothesesCreated = hypothesisStore.size();
+        LOG.info("CausalDreamer: restored counters — created=" + hypothesesCreated
+                + " completed=" + hypothesesCompleted);
     }
 
     /**
@@ -161,9 +171,23 @@ public final class CausalDreamer {
                     CausalHypothesis tested = interventionRunner.startTesting(h);
                     if (tested != null) {
                         testingSince.put(h.id(), 0L);
+                        // Capture real pre-measurement from live metrics (not hardcoded 0.5)
+                        if (metricsSupplier != null) {
+                            var live = metricsSupplier.get();
+                            if (live != null && !live.isEmpty()) {
+                                double avg = live.values().stream()
+                                        .mapToDouble(Double::doubleValue).average().orElse(0.5);
+                                preScores.put(h.id(), avg);
+                            } else {
+                                preScores.put(h.id(), 0.5);
+                            }
+                        } else {
+                            preScores.put(h.id(), 0.5);
+                        }
                         didWork = true;
                         LOG.info("CausalDreamer: started testing " + h.id().toString().substring(0, 8)
-                                + " — " + h.cause() + " -> " + h.effect());
+                                + " — " + h.cause() + " -> " + h.effect()
+                                + " pre=" + String.format(java.util.Locale.ROOT, "%.3f", preScores.get(h.id())));
                     }
                 }
             }
@@ -176,26 +200,14 @@ public final class CausalDreamer {
                 if (ticks >= TEST_OBSERVATION_TICKS) {
                     var opt = hypothesisStore.get(entry.getKey());
                     if (opt.isPresent() && opt.get().status() == CausalHypothesis.Status.TESTING) {
-                        // Messung: live Metrics (wenn vorhanden) oder CausalModel-Predictions
-                        double pre = 0.5;
-                        double post = 0.5;
-                        if (causalModel != null) {
-                            var preds = causalModel.predict(opt.get().cause(), opt.get().condition(), 1);
-                            if (!preds.isEmpty()) {
-                                post = preds.get(0).confidence();
-                            }
-                        }
-                        // Live-Metriken (beliefCount, successRate etc.) überschreiben den CausalModel-Wert
+                        // Echte pre/post Messung: pre bei Teststart erfasst, post jetzt live
+                        double pre = preScores.getOrDefault(entry.getKey(), 0.5);
+                        double post = pre; // default: no change
                         if (metricsSupplier != null) {
                             var live = metricsSupplier.get();
                             if (live != null && !live.isEmpty()) {
-                                // Nutze den Mittelwert aller Live-Metriken als Indikator
-                                double liveAvg = live.values().stream()
-                                        .mapToDouble(Double::doubleValue).average().orElse(0.5);
-                                // Wenn CausalModel noch keine Daten hat, nutze live-Werte
-                                if (Math.abs(post - 0.5) < 0.001) {
-                                    post = 0.5 + (liveAvg - 0.5) * 0.3; // leichte Modulation
-                                }
+                                post = live.values().stream()
+                                        .mapToDouble(Double::doubleValue).average().orElse(pre);
                             }
                         }
                         CausalHypothesis concluded = interventionRunner.conclude(opt.get(), pre, post);
@@ -214,7 +226,7 @@ public final class CausalDreamer {
                     toRemove.add(entry.getKey());
                 }
             }
-            toRemove.forEach(testingSince::remove);
+            toRemove.forEach(id -> { testingSince.remove(id); preScores.remove(id); });
             if (!toRemove.isEmpty()) didWork = true;
 
             // ── Schritt 3: Neue Hypothesen aus Experiences (nur wenn Platz) ──
