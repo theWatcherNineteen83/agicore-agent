@@ -1865,6 +1865,7 @@ public final class AgentMain {
             httpServer.setPersonStore(personStore, empathySignal);
             httpServer.setEthicsCore(ethicsCore);  // Sprint #3-Followup (08.06.)
             httpServer.setBugTracker(bugTracker);
+            httpServer.setDbLearnService(dbLearnService);
             httpServer.start();
         }
 

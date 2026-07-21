@@ -31,6 +31,7 @@ import de.metis.kernel.self.BugTracker;
 import de.metis.kernel.world.HypothesisStore;
 import de.metis.kernel.world.CausalHypothesis;
 import de.metis.kernel.person.InitiativePolicy;
+import de.metis.modules.hardware.DatabaseLearningService;
 
 /**
  * Ollama-compatible HTTP API with EDI persona for conversational AI.
@@ -74,6 +75,7 @@ public class MetisHttpServer {
     private de.metis.kernel.person.EmpathySignal empathySignal;    // Phase 11
     private InitiativePolicy initiativePolicy;                    // Phase 11.5
     private de.metis.kernel.safety.EthicsCore ethicsCore;          // Phase 11.5 (Sprint #3, 08.06.)
+    private DatabaseLearningService dbLearnService;                  // Phase 14: SQL lernen
     private long ethicsBlocks = 0;
     private long ethicsWarns = 0;
 
@@ -121,6 +123,7 @@ public class MetisHttpServer {
         server.createContext("/api/metrics", this::handleMetrics);
         server.createContext("/api/causal", this::handleCausal);
         server.createContext("/api/causal-dreamer", this::handleCausalDreamer);
+        server.createContext("/api/sql", this::handleSql);
         server.createContext("/", this::handleDashboard);
     }
 
@@ -135,6 +138,8 @@ public class MetisHttpServer {
     public void setGoalHierarchy(GoalHierarchy gh) { this.goalHierarchy = gh; }
     public void setHypothesisStore(HypothesisStore hs) { this.hypothesisStore = hs; }
     public void setEvalRunner(EvalRunner er) { this.evalRunner = er; }
+    public void setEthicsCore(de.metis.kernel.safety.EthicsCore ec) { this.ethicsCore = ec; }
+    public void setDbLearnService(DatabaseLearningService dls) { this.dbLearnService = dls; }
     public void setBugTracker(BugTracker bt) { this.bugTracker = bt; }
     /** Sprint #3-Followup (08.06.): hot-path Ethics gate fuer /api/chat. */
     public void setEthicsCore(de.metis.kernel.safety.EthicsCore ec) {
@@ -1115,6 +1120,98 @@ public class MetisHttpServer {
         } catch (java.nio.file.NoSuchFileException e) {
             sendJson(exchange, 200, "{\"status\":\"no data yet\"}");
         }
+    }
+
+    // ── /api/sql (Phase 14) — SQL-Abfragen gegen die Sandbox-DBs ─────────
+
+    private void handleSql(HttpExchange exchange) throws IOException {
+        if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+            sendJson(exchange, 200, "{\"usage\":\"POST /api/sql {\\\"db\\\":\\\"SQL01_CREATE_TABLE.db\\\",\\\"query\\\":\\\"SELECT ...\\\"}\"}");
+            return;
+        }
+        String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+        LOG.info("POST /api/sql body=" + truncate(body, 300));
+        try {
+            var node = new com.fasterxml.jackson.databind.ObjectMapper().readTree(body);
+            String db = node.has("db") ? node.get("db").asText() : "exploration.db";
+            String query = node.get("query").asText();
+            if (query == null || query.isBlank()) {
+                sendJson(exchange, 400, "{\"error\":\"query required\"}");
+                return;
+            }
+
+            // Security: only allow SELECT (read-only) on the sandbox
+            String upper = query.trim().toUpperCase();
+            if (!upper.startsWith("SELECT") && !upper.startsWith("EXPLAIN") && !upper.startsWith("PRAGMA")) {
+                sendJson(exchange, 403, "{\"error\":\"Only SELECT/EXPLAIN/PRAGMA allowed, got: " + truncate(query, 50) + "\"}");
+                return;
+            }
+
+            // Resolve DB path: allow relative names from sandbox or absolute
+            java.nio.file.Path dbPath;
+            if (db.startsWith("/")) {
+                dbPath = java.nio.file.Path.of(db);
+            } else {
+                java.nio.file.Path sandbox = dbLearnService != null
+                        ? dbLearnService.dbDir()
+                        : java.nio.file.Path.of("/home/prometheus/metis/sql-sandbox");
+                dbPath = sandbox.resolve(db);
+            }
+            if (!java.nio.file.Files.exists(dbPath)) {
+                sendJson(exchange, 404, "{\"error\":\"DB not found: " + dbPath + "\"}");
+                return;
+            }
+
+            String url = "jdbc:sqlite:" + dbPath.toAbsolutePath();
+            try (java.sql.Connection conn = java.sql.DriverManager.getConnection(url);
+                 java.sql.Statement stmt = conn.createStatement()) {
+
+                boolean isResultSet = stmt.execute(query);
+                StringBuilder result = new StringBuilder("{\"db\":\"").append(db).append("\",\"query\":\"")
+                        .append(escapeJson(query)).append("\"");
+
+                if (isResultSet) {
+                    try (java.sql.ResultSet rs = stmt.getResultSet()) {
+                        var meta = rs.getMetaData();
+                        int cols = meta.getColumnCount();
+                        // Column headers
+                        result.append(",\"columns\":[");
+                        for (int i = 1; i <= cols; i++) {
+                            if (i > 1) result.append(",");
+                            result.append("\"").append(escapeJson(meta.getColumnName(i))).append("\"");
+                        }
+                        result.append("],\"rows\":[");
+                        int rowCount = 0;
+                        while (rs.next() && rowCount < 200) {
+                            if (rowCount > 0) result.append(",");
+                            result.append("[");
+                            for (int i = 1; i <= cols; i++) {
+                                if (i > 1) result.append(",");
+                                String val = rs.getString(i);
+                                result.append("\"").append(val != null ? escapeJson(val) : "").append("\"");
+                            }
+                            result.append("]");
+                            rowCount++;
+                        }
+                        result.append("],\"rowCount\":").append(rowCount);
+                        result.append(",\"truncated\":").append(rs.next());
+                    }
+                } else {
+                    int updated = stmt.getUpdateCount();
+                    result.append(",\"updated\":").append(updated);
+                }
+                result.append("}");
+                sendJson(exchange, 200, result.toString());
+            }
+        } catch (Exception e) {
+            String msg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+            sendJson(exchange, 500, "{\"error\":\"" + escapeJson(msg) + "\"}");
+        }
+    }
+
+    private static String escapeJson(String s) {
+        if (s == null) return "";
+        return s.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\t", "\\t");
     }
 
     // ── Utility ──────────────────────────────────────────────────

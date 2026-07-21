@@ -199,6 +199,38 @@ Status-API zeigt `initiativePolicy`-Sektion mit QuietHours/Budgets.
 
 ## 📝 Changelog
 
-- **21.07.2026:** CausalDreamer-Fix (echte pre/post-Messung statt synthetisch), Java-in-21-Tagen-Curriculum deployed
+- **21.07.2026:** CausalDreamer-Fix (echte pre/post-Messung statt synthetisch), Java-in-21-Tagen-Curriculum deployed, DatabaseLearningService (SQLite+JDBC, 14 Lektionen)
 - **17.07.2026:** GPU-Units aufgeraeumt (System-Units, User-Units entfernt), Planner-Fix (HIP=1→0)
 - **10.07.2026:** Reality Check — Projekt umbenannt, Capability-Board ehrlich
+
+---
+
+## PHASE 14 — Database Learning & Wissen speichern
+
+**Status: 🟡 SQLite deployed (21.07.), DuckDB geplant**
+
+### Strategie: Zwei-DB-Architektur
+
+| Datenbank | Rolle | Warum |
+|-----------|-------|-------|
+| **SQLite** | OLTP: Beliefs, Goals, Hypothesen, Persons, Kanban | ACID, FTS5 Volltext, 1 JAR embedded, zero-setup |
+| **DuckDB** | OLAP: Metrics-Analyse, Hypothesen-Trends, Planner-Reports | 100x schnellere Aggregationen, liest SQLite-Dateien direkt |
+
+### Metis' Speicherprofile → DB-Mapping
+
+| Daten | Typ | Volumen | Ziel-DB | Abfrage-Muster |
+|-------|-----|---------|---------|----------------|
+| Beliefs | Text + Tags | 128K | SQLite + FTS5 | Volltext, Tag-Filter, Konfidenz-Range |
+| Embeddings | 768-dim Vektoren | ~250 | SQLite (spaeter LanceDB) | Cosine-Similarity |
+| Episoden | Timeline | ~10K | SQLite | Zeitfenster, Action-Typ |
+| Hypothesen | Causal Records | ~10K | SQLite + DuckDB | Status-Filter, Trend-Analyse |
+| Goals/Kanban | Workflow | ~75 | SQLite | Status, Horizon |
+| Metrics | Zeitreihen | kontinuierlich | DuckDB | Aggregation, Window-Functions |
+
+### Ablauf
+
+1. ✅ **SQLite-Curriculum** (14 Lektionen, autonom via DatabaseLearningService)
+2. ⬜ **SQL-API-Endpoint** (POST /api/sql — Metis + Human koennen SQLite-DBs abfragen)
+3. ⬜ **Belief-Store-Migration** (JSONL → SQLite mit FTS5-Index)
+4. ⬜ **DuckDB-Curriculum + Analytics-Dashboard** (Trend-Analyse, Planner-Stats)
+5. ⬜ **Optional: MariaDB für Produktion** (wenn Client/Server noetig)
