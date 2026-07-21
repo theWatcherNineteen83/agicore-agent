@@ -1865,7 +1865,6 @@ public final class AgentMain {
             httpServer.setPersonStore(personStore, empathySignal);
             httpServer.setEthicsCore(ethicsCore);  // Sprint #3-Followup (08.06.)
             httpServer.setBugTracker(bugTracker);
-            httpServer.setDbLearnService(dbLearnService);
             httpServer.start();
         }
 
@@ -2178,6 +2177,7 @@ public final class AgentMain {
 
         // Goal 3: Database Learning — SQLite+JDBC, SQL curriculum
         var dbLearnService = new de.metis.modules.hardware.DatabaseLearningService(agent.worldModel());
+        if (httpServer != null) httpServer.setDbLearnService(dbLearnService);
         var dbScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
             var t = new Thread(r, "db-learner");
             t.setDaemon(true);

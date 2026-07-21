@@ -141,10 +141,6 @@ public class MetisHttpServer {
     public void setEthicsCore(de.metis.kernel.safety.EthicsCore ec) { this.ethicsCore = ec; }
     public void setDbLearnService(DatabaseLearningService dls) { this.dbLearnService = dls; }
     public void setBugTracker(BugTracker bt) { this.bugTracker = bt; }
-    /** Sprint #3-Followup (08.06.): hot-path Ethics gate fuer /api/chat. */
-    public void setEthicsCore(de.metis.kernel.safety.EthicsCore ec) {
-        this.ethicsCore = ec;
-    }
     public long ethicsBlocks() { return ethicsBlocks; }
     public long ethicsWarns() { return ethicsWarns; }
 
