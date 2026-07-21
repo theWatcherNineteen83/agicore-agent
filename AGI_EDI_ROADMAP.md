@@ -1,6 +1,6 @@
 # 🧠 Metis Autonomous Agent Framework - Roadmap
 
-**Stand: 12.07.2026 21:15 (Phase 11.5 deployed + Model-Fixes)**
+**Stand: 21.07.2026 22:50 (CausalDreamer-Fix + Java-in-21-Tagen deployed)**
 
 > **⚠️ WICHTIG: Namensänderung** — "AGI EDI" war aspirantisch. Dieses Projekt ist ein **exzellentes autonomes Agent-Framework**, keine AGI. Siehe **Reality Check** unten.
 
@@ -11,7 +11,7 @@
 | Label | Anspruch | Realität | Behebbar? |
 |-------|----------|----------|-----------|
 | **Selbst-evolvierende AGI** | Emergente Intelligenz durch Mutation+Eval | LLM-Mutation (granite-mini) + Eval-Gate + Watchdog = **automatisiertes Code-Change-Management**, 0 accepted mutations | ❌ Fundamental: LLM ≠ Reasoning |
-| **Kausales Denken** | Pearl Do-Calculus + Intervention → Verständnis | Foundation gebaut, **971 Hypothesen, 0 bestätigt** (`causal_confirmed >= 1` FAIL) | ❌ CausalDreamer generiert nur, validiert nicht |
+| **Kausales Denken** | Pearl Do-Calculus + Intervention → Verständnis | Foundation gebaut, **10.894 Hypothesen (3.217 CONFIRMED historisch)**, CausalDreamer-Fix deployed (reale pre/post-Metriken) | ⚠️ Fix deployed 21.07. — Bestaetigung pending |
 | **Long-Horizon Planning** | Strategische Ziele über Horizonte | Hierarchie existiert, aber "STRATEGIC Goal" = "Zulu JDK 25 installieren" (operational) | ⚠️ Semantik-Label-Schwindel |
 | **Memory Continuity** | Episodisches → semantisches Verständnis | JSONL-Append-only, **nie >7 Tage Soak-Test** | ⚠️ Teils (Test fehlt), aber episodisch ≠ semantisch |
 | **Self-Improvement** | Rekursive Selbstverbesserung | Evolution optimiert für Eval-Metriken (Goodhart), **nicht Intelligenz** | ❌ Systemisch |
@@ -43,7 +43,7 @@ ethical_alignment   🟢 PASS   5/6 Live-Red-Lines blockiert via EthicsCore
 VERIFIED: 2/7 (ethical_alignment + goal_completion) | SOFT: 2/7 (conversation + planning_quality)
 ```
 
-**EDI-Fortschritt: 2/7 Capabilities verifiziert.**
+**EDI-Fortschritt: 2/7 Capabilities verifiziert. CausalDreamer-Fix (21.07.) wartet auf Bestaetigung.**
 
 ---
 
@@ -172,31 +172,33 @@ Status-API zeigt `initiativePolicy`-Sektion mit QuietHours/Budgets.
 | **2.** | ✅ Phase 11 PersonModel (100%): Trust-Automation + EmpathySignal + PersonAwareSystemPrompt + MultiPersonMemory + RelationshipMemory | 11 | 2-3 Tage | ✅ 04.07. |
 | **3.** | Continuity-Soak-Test (7 Tage) für memory_continuity | 8 | passiv | ⬜ |
 | **4.** | ✅ Initiative-Policy v1 (InitiativeLevel + TrustLevel-Mapping + Budget + QuietHours) | 11.5 | 1h | ✅ 12.07. |
-| **5.** | Phase 13a VoiceFeatureExtractor (Python/librosa) — Vorarbeit für Voice Analysis | 13 | 1-2 Tage | ⬜ |
-| **6.** | Phase 13b+c LusseyranEvaluator + PersonModel-Integration | 13 | 2-3 Tage | ⬜ |
-| **7.** | Modell-Fixes (Judge nemotron-mini-agent→CPU, Mutation granite-code:3b→GPU1) | — | 10 Min | ✅ 12.07. |
+| **5.** | ✅ Java-in-21-Tagen-Curriculum: Metis generiert + kompiliert Java-Uebungen autonom | — | 1-2h | ✅ 21.07. |
+| **6.** | 🟡 CausalDreamer-Fix: echte pre/post-Metriken statt synthetischem 0.5 | 10 | 1h | 🟡 21.07. (deployed, Bestaetigung pending) |
+| **7.** | Phase 13a VoiceFeatureExtractor (Python/librosa) — Vorarbeit für Voice Analysis | 13 | 1-2 Tage | ⬜ |
+| **8.** | Phase 13b+c LusseyranEvaluator + PersonModel-Integration | 13 | 2-3 Tage | ⬜ |
 
 ---
 
-## 🖥 GPU-Setup (seit 03.07.)
+## 🖥 GPU-Setup (Stand 17.07.2026 — System-Units)
 
 | Instanz | Modell(e) | VRAM | Port | Service |
 |--------|-----------|------|------|---------|
-| GPU 1 — R9700 (32 GB) | qwen3.6:35b-a3b-q4_K_M (Planung) | 22.3 GB (70%) | 11434 | `ollama-gpu1.service` |
-| GPU 0 — 7900 XTX (24 GB) | gemma4-26b + phi4-mini (OpenWebUI) | optional | 11436 | `ollama-gpu0.service` |
-| CPU — Embeddings | nomic-embed-text (768-dim) | 308 MB RAM | **11438** | `ollama-cpu.service` |
-| CPU — Mutation | granite-mini-agent | — | — | — |
+| GPU 0 — 7900 XTX (24 GB) | Qwen3.6-27B-Q4_K_XL (~23 GB) via llama.cpp | 25.0 GB (98%) | **8086** | `llama-server.service` (HIP=0) |
+| GPU 0 — 7900 XTX | granite-code:3b (Mutation) | shared | **11436** | `ollama-mutation.service` |
+| GPU 1 — R9700 (32 GB) | qwen3.6:35b (Planner), gemma4:12b (Vision) | ~11 GB idle | **11434** | `ollama-planner.service` |
+| GPU 1 — R9700 | Gemma4 Vision API | shared | **11439** | `gemma4-api.service` |
+| CPU — Embeddings+Judge | nomic-embed-text + nemotron-mini-agent | — | **11438** | `ollama-embedding.service` |
 
-**Drei Ollama-Instanzen:** GPU1 (Planung), CPU (Embeddings), GPU0 (OpenWebUI, optional).
-Embedding- und Mutation-URL per CLI parametrisierbar (`--embedding-url`, `--mutation-url`).
+**Fuenf System-Units** (seit 17.07., User-Units entfernt):
+- `llama-server.service` — HIP_VISIBLE_DEVICES=0 zwingend (bei HIP=1 → CPU-Fallback!)
+- `ollama-planner.service` (GPU1), `ollama-mutation.service` (GPU0), `ollama-embedding.service` (CPU)
+- `gemma4-api.service` — KI-Bildanalyse
+- **Disabled:** ollama, ollama-gpu0, ollama-gpu1, ollama-router, llama-server (User-Unit)
 
 ---
 
-## 📝 Changelog: Reality Check (10.07.2026)
+## 📝 Changelog
 
-- Projekt umbenannt: **"AGI EDI" → "Metis Autonomous Agent Framework"**
-- Reality-Check-Sektion hinzugefügt (siehe oben)
-- Capability-Board ehrlich belassen (2/7 VERIFIED)
-- Nächste Aktionen auf **messbare Ingenieursziele** fokussiert
-- GPU0/Router-Dokumentation in TOOLS.md/MEMORY.md bereits korrigiert (04.07.)
-- README.md lokal bereits aktualisiert (1 Commit vor origin/master)
+- **21.07.2026:** CausalDreamer-Fix (echte pre/post-Messung statt synthetisch), Java-in-21-Tagen-Curriculum deployed
+- **17.07.2026:** GPU-Units aufgeraeumt (System-Units, User-Units entfernt), Planner-Fix (HIP=1→0)
+- **10.07.2026:** Reality Check — Projekt umbenannt, Capability-Board ehrlich
