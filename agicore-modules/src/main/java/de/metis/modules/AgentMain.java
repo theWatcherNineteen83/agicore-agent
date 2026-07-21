@@ -2175,6 +2175,57 @@ public final class AgentMain {
         }, 5, 15, TimeUnit.MINUTES);
         LOG.info("Java learning active — Zulu JDK 25 exploration every 15 min");
 
+        // Goal 3: Database Learning — SQLite+JDBC, SQL curriculum
+        var dbLearnService = new de.metis.modules.hardware.DatabaseLearningService(agent.worldModel());
+        var dbScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+            var t = new Thread(r, "db-learner");
+            t.setDaemon(true);
+            return t;
+        });
+        dbScheduler.scheduleAtFixedRate(() -> {
+            try {
+                if (agent.core().goals().kanbanBoard() != null) {
+                    var board = agent.core().goals().kanbanBoard();
+                    Goal dbGoal = new Goal(
+                            "Learn Databases: SQLite+JDBC exploration",
+                            "sql-learn", 45, 0.45, 1,
+                            Goal.ServiceClass.STANDARD, Goal.ResourceType.CPU_HEAVY, null);
+                    board.add(dbGoal);
+                    LOG.fine("Kanban: BACKLOG ← SQL learning goal");
+
+                    var snapshot = board.snapshot();
+                    Goal readyGoal = snapshot.ready().stream()
+                            .filter(g -> g.category().equals("sql-learn"))
+                            .findFirst().orElse(null);
+                    if (readyGoal != null) {
+                        readyGoal = board.pull();
+                        if (readyGoal != null) {
+                            int result = 0;
+                            if (dbLearnService.commandsSucceeded() >= 3 && RANDOM.nextDouble() < 0.3) {
+                                String exName = dbLearnService.generateAndRunExercise();
+                                result = exName != null ? 1 : 0;
+                            } else {
+                                result = dbLearnService.exploreOneQuery();
+                            }
+                            if (result >= 0) {
+                                board.complete(readyGoal.id());
+                            } else {
+                                board.requeue(readyGoal);
+                            }
+                            LOG.info("DBLearn: " + result + " completed, "
+                                    + dbLearnService.commandsSucceeded() + "/"
+                                    + dbLearnService.commandsTried() + " success");
+                        }
+                    }
+                } else {
+                    dbLearnService.exploreOneQuery();
+                }
+            } catch (Exception e) {
+                LOG.fine("Database learning cycle: " + e.getMessage());
+            }
+        }, 10, 15, TimeUnit.MINUTES);
+        LOG.info("Database learning active — SQLite+JDBC curriculum every 15 min (offset 10 min)");
+
         // Build the runtime, wiring in the HTTP server for evolution control
         final MetisHttpServer api = httpServer;
 
