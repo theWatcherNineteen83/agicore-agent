@@ -27,12 +27,13 @@ public enum GoalHorizon {
 
     /** True, wenn dieser Horizont aus einem höheren zerlegt werden kann. */
     public boolean canBeDecomposed() {
-        return this == STRATEGIC || this == TACTICAL || this == OPERATIONAL;
+        return this == LIFETIME || this == STRATEGIC || this == TACTICAL || this == OPERATIONAL;
     }
 
-    /** Der nächst-engere Horizont bei Decomposition (oder null für TICK/LIFETIME). */
+    /** Der nächst-engere Horizont bei Decomposition (oder null für TICK). */
     public GoalHorizon nextDown() {
         return switch (this) {
+            case LIFETIME    -> STRATEGIC;
             case STRATEGIC   -> TACTICAL;
             case TACTICAL    -> OPERATIONAL;
             case OPERATIONAL -> TICK;

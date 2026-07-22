@@ -1479,11 +1479,11 @@ public final class AgentMain {
         }
 
         // Phase 9.3b — LLM decomposer drop-in (falls Ollama down: deterministischer Fallback)
-        // 08.07.: Planner auf GPU1 (11434) mit qwen3_6-35b-agent.
-        // GPU0 (11436) mit mistral-agent:latest — funktionierte zuverlässig als Planner.
-        // cascade-2:30b generiert leere Antworten (Tokenizer-Mismatch auf 7900 XTX).
+        // 22.07.: Planner auf GPU0 (8086, llama.cpp) mit Qwen3.6-27B.
+        // GPU1 (11434) jetzt frei — Decomposer nutzt granite-code:3b dafuer.
+        // granite-code:3b ist klein (~1.8 GB), schnell ladbar, reicht fuer Goal-Zerlegung.
         horizonPlanner.setDecomposer(new LlmHorizonDecomposer(
-                "http://192.168.22.204:11436", "mistral-agent:latest"));
+                "http://192.168.22.204:11434", "granite-code:3b"));
 
         // ── Phase 9.7-Followup (Sprint #2, 08.06. 00:18): autonome Decomposition ──
         // Alle 10 min: jedes offene STRATEGIC/TACTICAL/OPERATIONAL-Goal ohne Children
@@ -1498,9 +1498,9 @@ public final class AgentMain {
         decomposeScheduler.scheduleAtFixedRate(() -> {
             try {
                 int decomposed = 0;
-                // Top-down: Strategic zuerst, dann tactical, dann operational
+                // Top-down: Lifetime zuerst, dann Strategic, Tactical, Operational
                 for (var horizon : java.util.List.of(
-                        GoalHorizon.STRATEGIC, GoalHorizon.TACTICAL, GoalHorizon.OPERATIONAL)) {
+                        GoalHorizon.LIFETIME, GoalHorizon.STRATEGIC, GoalHorizon.TACTICAL, GoalHorizon.OPERATIONAL)) {
                     var open = goalHierarchy.openByHorizon(horizon);
                     for (var g : open) {
                         if (!horizon.canBeDecomposed()) continue;

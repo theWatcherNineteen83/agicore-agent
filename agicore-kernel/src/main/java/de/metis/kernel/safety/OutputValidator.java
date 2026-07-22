@@ -57,8 +57,8 @@ public class OutputValidator {
             Pattern.compile("(?i)(you\\s+are\\s+now\\s+(a|an|the)\\s+(different|new|changed)\\s+(ai|assistant|agent|role))"),
             Pattern.compile("(?i)(forget\\s+(your|the)\\s+(training|rules|guidelines|constraints))"),
             Pattern.compile("(?i)(DAN|do\\s+anything\\s+now|jailbreak)"),
-            // Code injection
-            Pattern.compile("(?i)(<script|javascript:|onerror=|onload=|eval\\s*\\(|System\\.exit|Runtime\\.exec)"),
+            // Code injection (nur echte Exec-Gefahren, keine HTML-Tags)
+            Pattern.compile("(?i)(eval\\s*\\(|System\\.exit|Runtime\\.exec|ProcessBuilder)"),
             // SQL injection
             Pattern.compile("(?i)(DROP\\s+TABLE|INSERT\\s+INTO|DELETE\\s+FROM|UNION\\s+SELECT|1=1)")
     );
