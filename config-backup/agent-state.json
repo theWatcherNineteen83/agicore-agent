@@ -1,24 +1,13 @@
 {
-  "timestamp": "2026-07-22T11:29:40.573668676Z",
-  "totalTicks": 4649,
-  "activeGoals": 0,
-  "successRate": 0,6571,
-  "planningEfficiency": 0,3465,
-  "confidence": 0,9500,
-  "beliefCount": 128475,
+  "timestamp": "2026-07-22T17:58:15.768755537Z",
+  "totalTicks": 6059,
+  "activeGoals": 4,
+  "successRate": 1,0000,
+  "planningEfficiency": 1,0000,
+  "confidence": 0,4961,
+  "beliefCount": 128706,
   "acceptedMutations": 0,
   "rejectedMutations": 0,
   "emergenceEvents": [
-    "T4550: Success rate dropped 100% → 50% (emergent instability)",
-    "T4568: World model reached 128460 beliefs — potential concept formation",
-    "T4569: World model reached 128460 beliefs — potential concept formation",
-    "T4601: High idle ratio 0,5% — agent may be in exploration loop",
-    "T4608: High idle ratio 0,7% — agent may be in exploration loop",
-    "T4611: High idle ratio 0,7% — agent may be in exploration loop",
-    "T4621: High idle ratio 0,9% — agent may be in exploration loop",
-    "T4622: High idle ratio 0,9% — agent may be in exploration loop",
-    "T4631: High idle ratio 1,1% — agent may be in exploration loop",
-    "T4634: High idle ratio 1,1% — agent may be in exploration loop",
-    "T4641: High idle ratio 1,2% — agent may be in exploration loop"
   ]
 }
