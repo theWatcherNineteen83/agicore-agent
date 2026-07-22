@@ -18,7 +18,7 @@ ExecStart=/opt/zing25-jdk/bin/java \
             --enable-native-access=ALL-UNNAMED \
     -jar /home/prometheus/metis/metis-agent.jar \
     --api-port 11735 \
-    --planning-model qwen3_6-35b-agent --planning-url http://127.0.0.1:8086/v1/chat/completions \
+    --planning-model qwen3_6-27b-agent --planning-url http://127.0.0.1:8086/v1/chat/completions \
     --embedding-url http://127.0.0.1:11438/api/embeddings --embedding-model nomic-embed-text \
     --mutation-url http://127.0.0.1:11434 --mutation-model granite-code:3b \
     --telegram-token 8334147633:AAEoXX7LS8pDe_gWXO8mUav8i0SGmEPnVLU \
