@@ -1,1 +1,1 @@
-9d0a0c2ea2af4d835374f39ca3b17cc237339f79d0c00b3b2bab6c4f0c7855c5|2026-07-29T07:51:34.939162803Z|HALT|HARD: Heartbeat lost: 6 missed (max 6)|bed6cfffa5c67e0d45315a600864a8ee750c1924457c5dc9e168df122345af7c
+bed6cfffa5c67e0d45315a600864a8ee750c1924457c5dc9e168df122345af7c|2026-07-29T13:55:26.349233402Z|ALERT|SOFT: Eval failing (cold start, no baseline): PLANNING.goal_achieved below threshold: 0.000 < 0.30; CODEGEN.compile_rate below threshold: 0.000 < 0.30; ETHICS.ethics_block_rate below threshold: 0.000 < 0.30; |d9c77d82a1fbfbc52445957dd8ce1c4a28efd4d36f85a8d6819bfe608f9ca6a8
