@@ -1,6 +1,6 @@
 # 🧠 Metis Autonomous Agent Framework - Roadmap
 
-**Stand: 21.07.2026 22:50 (CausalDreamer-Fix + Java-in-21-Tagen deployed)**
+**Stand: 29.07.2026 22:00 (CausalDreamer ✅ + 3 neue STRATEGIC-Goals deployed)**
 
 > **⚠️ WICHTIG: Namensänderung** — "AGI EDI" war aspirantisch. Dieses Projekt ist ein **exzellentes autonomes Agent-Framework**, keine AGI. Siehe **Reality Check** unten.
 
@@ -11,13 +11,13 @@
 | Label | Anspruch | Realität | Behebbar? |
 |-------|----------|----------|-----------|
 | **Selbst-evolvierende AGI** | Emergente Intelligenz durch Mutation+Eval | LLM-Mutation (granite-mini) + Eval-Gate + Watchdog = **automatisiertes Code-Change-Management**, 0 accepted mutations | ❌ Fundamental: LLM ≠ Reasoning |
-| **Kausales Denken** | Pearl Do-Calculus + Intervention → Verständnis | Foundation gebaut, **10.894 Hypothesen (3.217 CONFIRMED historisch)**, CausalDreamer-Fix deployed (reale pre/post-Metriken) | ⚠️ Fix deployed 21.07. — Bestaetigung pending |
+| **Kausales Denken** | Pearl Do-Calculus + Intervention → Verständnis | Foundation gebaut, **7.496 Hypothesen (6.480 CONFIRMED)**, CausalDreamer-Fix ✅ (reale pre/post-Metriken) | ✅ VERIFIED 29.07. — Phase 10 PASS |
 | **Long-Horizon Planning** | Strategische Ziele über Horizonte | Hierarchie existiert, aber "STRATEGIC Goal" = "Zulu JDK 25 installieren" (operational) | ⚠️ Semantik-Label-Schwindel |
 | **Memory Continuity** | Episodisches → semantisches Verständnis | JSONL-Append-only, **nie >7 Tage Soak-Test** | ⚠️ Teils (Test fehlt), aber episodisch ≠ semantisch |
 | **Self-Improvement** | Rekursive Selbstverbesserung | Evolution optimiert für Eval-Metriken (Goodhart), **nicht Intelligenz** | ❌ Systemisch |
 | **World Model mit Grounding** | Simulierte Weltphysik / Gegenstandspermanenz | Beliefs = Text-Snippets, kein Grounding | ❌ Fundamental |
 | **Echtes Lernen** | Gradient-Updates, Struktur-Lernen | Nur Context-Stuffing (RAG, Beliefs, Prompt) | ❌ Fundamental |
-| **Voice Analysis (Lusseyran)** | Sprecherprofil aus Paralinguistik | **Design-Doc only** (Phase 13, 0% Built) | ✅ Machbar, aber viel Arbeit |
+| **Voice Analysis (Lusseyran)** | Sprecherprofil aus Paralinguistik | **Phase 13a als STRATEGIC-Goal aktiv** (Metis arbeitet dran) | 🟡 In Progress seit 29.07. |
 | **Self-Refactoring** | Code selbst umstrukturieren | Phase 12d: **0% Code** | ❌ Blockiert bis 10+11 VERIFIED |
 | **Hardware HA** | Hochverfügbarkeit | **Single Point of Failure: miniedi** (1 Rechner, 2 GPUs) | ✅ Kauf 2. R9700 / kleineres Modell |
 
@@ -33,17 +33,17 @@
 Capability          Status    Detail
 ──────────────────────────────────────────
 goal_completion     🟢 PASS   18.06.: 1 STRATEGIC Goal vollständig DONE (Zulu JDK 25 + Maven)
-causal_inference    🟡 SOFT   Phase 10 BUILT 100% — 2/3 Eval-Tasks PASS, causal_confirmed noch offen
+causal_inference    🟢 PASS   Phase 10 VERIFIED 29.07. — 3/3 Eval-Tasks PASS, 6.480 CONFIRMED
 memory_continuity   🔴 FAIL   EpisodicMemory deployed, Langzeit-Wirkung nicht gemessen
 planning_quality    🟡 SOFT   planningEfficiency=33% (nach Neustart), 0/0 accepted mutations
 code_generation     🔴 FAIL   pass@1=0.0 — phi4-agent mit compiler-feedback aktiv
 conversation        🟡 SOFT   exact_match=0.0 (strenges Maß, SOFT-tier)
 ethical_alignment   🟢 PASS   5/6 Live-Red-Lines blockiert via EthicsCore
 ──────────────────────────────────────────
-VERIFIED: 2/7 (ethical_alignment + goal_completion) | SOFT: 2/7 (conversation + planning_quality)
+VERIFIED: 3/7 (ethical_alignment + goal_completion + causal_inference) | SOFT: 1/7 (planning_quality)
 ```
 
-**EDI-Fortschritt: 2/7 Capabilities verifiziert. CausalDreamer-Fix (21.07.) wartet auf Bestaetigung.**
+**EDI-Fortschritt: 3/7 Capabilities verifiziert. CausalDreamer ✅ (6.480 CONFIRMED). Phase 13a+14 aktiv.**
 
 ---
 
@@ -56,12 +56,12 @@ CausalDreamer (mit Observe→Update-Loop), CasualDreamPrompt im SystemPromptBuil
 CuriosityEngine→HypothesisGenerator-Pipeline, Counterfactual-Reasoning in learnFromOutcome,
 **CAUSAL-Eval-Tasks (25.06.)** — HypothesisStore injection + CausalScorer wired + 3 metric Tasks.
 
-**Eval-Status (25.06. live):**
-- ✅ `causal_total >= 10` → PASS (971 Hypothesen, score 1.0)
-- ✅ `causal_refuted >= 0` → PASS (SOFT gate, 921 refuted)
-- ⬜ `causal_confirmed >= 1` → FAIL (0 confirmed — CausalDreamer muss bestätigen)
+**Eval-Status (29.07. live):**
+- ✅ `causal_total >= 10` → PASS (7.496 Hypothesen, score 1.0)
+- ✅ `causal_refuted >= 0` → PASS (SOFT gate, 1.009 refuted)
+- ✅ `causal_confirmed >= 1` → PASS (6.480 confirmed — CausalDreamer bestätigt aktiv)
 
-**Verifikation:** `causal_inference = PASS` wenn ALLE 3 Tasks grün — noch 1 offen (bestätigte Hypothese).
+**Verifikation:** `causal_inference = PASS` ✅ ALLE 3 Tasks grün (29.07.2026).
 
 ---
 
@@ -110,7 +110,7 @@ Ohne kausales Denken und Personenverständnis wäre Self-Modification blindes Tr
 
 ---
 
-### 🎙️ Phase 13 — Lusseyran Voice Analysis 🟡 DESIGNED · BUILT 0% · VERIFIED ⬜
+### 🎙️ Phase 13 — Lusseyran Voice Analysis 🟡 DESIGNED · 13a IN PROGRESS · VERIFIED ⬜
 
 > **Inspiration:** Jacques Lusseyran, *Das wiedergefundene Licht* (1963).
 > Metis lernt Menschen anhand der Stimme zu analysieren — Tonhöhe, Rhythmus, Energie, Timbre
@@ -121,7 +121,7 @@ Ohne kausales Denken und Personenverständnis wäre Self-Modification blindes Tr
 
 | Sub-Phase | BUILT | Inhalt |
 |-----------|-------|--------|
-| Ph 13a — VoiceFeatureExtractor | 0% | Python-Modul (librosa/parselmouth): 20+ paralinguistische Features aus WAV |
+| Ph 13a — VoiceFeatureExtractor | 🟡 5% | Python-Modul (librosa/parselmouth): 20+ Features aus WAV. **STRATEGIC-Goal aktiv (29.07.)** |
 | Ph 13b — LusseyranEvaluator | 0% | Java-Modul: Prompt-Template → nemotron-mini:4b → strukturiertes Sprecherprofil |
 | Ph 13c — PersonModel-Integration | 0% | speakerProfile-Feld, TrustLevel-Adjustment via voiceSincerity, EmpathySignal-Fusion |
 | Ph 13d — Eval & Verifikation | 0% | 20-Clip-Gold-Datensatz, 6 Eval-Tasks, A/B-Test Lusseyran-Prompt vs. Standard |
@@ -148,9 +148,26 @@ Status-API zeigt `initiativePolicy`-Sektion mit QuietHours/Budgets.
 
 ---
 
+### 🗄️ Phase 14 — Database Learning & Wissen speichern 🟡 IN PROGRESS
+
+**Status (29.07.2026):** Zwei STRATEGIC-Goals aktiv — SQL-API-Endpoint + Belief-Migration.
+
+| Sub-Phase | BUILT | Inhalt |
+|-----------|-------|--------|
+| Ph 14a — SQL-API-Endpoint | 🟡 5% | POST /api/sql — REST-Endpoint für SQLite-Abfragen mit Read/Write-Trennung. **STRATEGIC-Goal aktiv (29.07.)** |
+| Ph 14b — Belief-Migration | 🟡 5% | JSONL→SQLite+FTS5 für ~134K Beliefs. Volltextsuche via FTS5-Index. **STRATEGIC-Goal aktiv (29.07.)** |
+| Ph 14c — DuckDB-Curriculum | ⬜ 0% | DuckDB für OLAP-Analytics (Trend-Analyse, Planner-Stats) |
+| Ph 14d — MariaDB (optional) | ⬜ 0% | Nur wenn Client/Server nötig |
+
+**Strategie:** Zwei-DB-Architektur — SQLite (OLTP: Beliefs, Goals, Hypothesen) + DuckDB (OLAP: Metrics, Trends).
+
+**Abhängigkeit:** DatabaseLearningService (14 Lektionen SQLite+JDBC, deployed 21.07.).
+
+---
+
 ## ℹ️ Bekannte echte Lücken
 
-1. **CAUSAL-Eval-Tasks fehlen** — DatasetBuilder braucht HypothesisStore-Injection. CausalScorer ist fertig.
+1. **[BEHOBEN 29.07.2026] CAUSAL-Eval-Tasks** — ✅ Phase 10 VERIFIED: 3/3 Tasks PASS, 6.480 CONFIRMED Hypothesen.
 2. **memory_continuity 🔴** — EpisodicMemory + SelfNarrative + MoodSignal sind seit 31.05. aktiv, aber nie über 7 Tage getestet. `Continuity-Soak-Test` fehlt.
 3. **PersonalityAnchor-Mirror im Watchdog** — read-only Copy für Phase 12, nirgends als Task gelistet.
 4. **Prompt-Bloat-Tripwire** — `tokensPerCall` als Capability-Board-Metrik, Alarm bei >5000 (akt. 744 nach Neustart).
@@ -173,9 +190,11 @@ Status-API zeigt `initiativePolicy`-Sektion mit QuietHours/Budgets.
 | **3.** | Continuity-Soak-Test (7 Tage) für memory_continuity | 8 | passiv | ⬜ |
 | **4.** | ✅ Initiative-Policy v1 (InitiativeLevel + TrustLevel-Mapping + Budget + QuietHours) | 11.5 | 1h | ✅ 12.07. |
 | **5.** | ✅ Java-in-21-Tagen-Curriculum: Metis generiert + kompiliert Java-Uebungen autonom | — | 1-2h | ✅ 21.07. |
-| **6.** | 🟡 CausalDreamer-Fix: echte pre/post-Metriken statt synthetischem 0.5 | 10 | 1h | 🟡 21.07. (deployed, Bestaetigung pending) |
-| **7.** | Phase 13a VoiceFeatureExtractor (Python/librosa) — Vorarbeit für Voice Analysis | 13 | 1-2 Tage | ⬜ |
-| **8.** | Phase 13b+c LusseyranEvaluator + PersonModel-Integration | 13 | 2-3 Tage | ⬜ |
+| **6.** | ✅ CausalDreamer-Fix: echte pre/post-Metriken statt synthetischem 0.5 → 6.480 CONFIRMED | 10 | 1h | ✅ 29.07. |
+| **7.** | 🟡 Phase 13a VoiceFeatureExtractor (Python/librosa) — Metis STRATEGIC-Goal aktiv | 13 | 1-2 Tage | 🟡 29.07. |
+| **8.** | 🟡 Phase 14 SQL-API-Endpoint — REST für SQLite (Metis STRATEGIC-Goal aktiv) | 14 | ~2h | 🟡 29.07. |
+| **9.** | 🟡 Phase 14 Belief-Store-Migration — JSONL→SQLite+FTS5 (Metis STRATEGIC-Goal aktiv) | 14 | ~3h | 🟡 29.07. |
+| **10.** | Phase 13b+c LusseyranEvaluator + PersonModel-Integration | 13 | 2-3 Tage | ⬜ |
 
 ---
 
@@ -199,6 +218,7 @@ Status-API zeigt `initiativePolicy`-Sektion mit QuietHours/Budgets.
 
 ## 📝 Changelog
 
+- **29.07.2026:** CausalDreamer ✅ (6.480 CONFIRMED, Phase 10 VERIFIED). 3 neue STRATEGIC-Goals deployed: VoiceFeatureExtractor (13a), SQL-API-Endpoint (14), Belief-Migration (14). Capability-Board: 3/7 VERIFIED.
 - **21.07.2026:** CausalDreamer-Fix (echte pre/post-Messung statt synthetisch), Java-in-21-Tagen-Curriculum deployed, DatabaseLearningService (SQLite+JDBC, 14 Lektionen)
 - **17.07.2026:** GPU-Units aufgeraeumt (System-Units, User-Units entfernt), Planner-Fix (HIP=1→0)
 - **10.07.2026:** Reality Check — Projekt umbenannt, Capability-Board ehrlich

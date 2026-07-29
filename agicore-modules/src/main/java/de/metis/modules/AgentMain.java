@@ -1435,6 +1435,55 @@ public final class AgentMain {
             LOG.info("GoalHierarchy: seeded Phase-9.7 First-Closed-Goal with postconditions");
         }
 
+        // ── Roadmap Next-Actions (29.07.2026) ──
+        // Phase 13a: VoiceFeatureExtractor
+        String voiceTag = "phase-13a-voice-extractor";
+        if (goalHierarchy.all().stream().noneMatch(g -> g.tags() != null && g.tags().contains(voiceTag))) {
+            goalHierarchy.upsert(new LongHorizonGoal(
+                    null,
+                    "Baue VoiceFeatureExtractor — Python/librosa Modul fuer paralinguistische Stimmanalyse",
+                    "Phase 13a (Lusseyran): Extrahiere 20+ Features (Tonhoehe, Rhythmus, Energie, Timbre) aus WAV-Dateien via librosa/parselmouth. Output als JSON.",
+                    GoalHorizon.STRATEGIC,
+                    LongHorizonGoal.Status.ACTIVE,
+                    null, java.util.List.of(),
+                    null, null, null, null, 0.0,
+                    90, "metis",
+                    java.util.List.of(voiceTag, "voice", "lusseyran")));
+            LOG.info("GoalHierarchy: seeded Phase-13a VoiceFeatureExtractor goal");
+        }
+
+        // Phase 14: SQL API Endpoint
+        String sqlApiTag = "phase-14-sql-api";
+        if (goalHierarchy.all().stream().noneMatch(g -> g.tags() != null && g.tags().contains(sqlApiTag))) {
+            goalHierarchy.upsert(new LongHorizonGoal(
+                    null,
+                    "Baue SQL-API-Endpoint — REST-Schnittstelle fuer SQLite-Abfragen",
+                    "Phase 14: POST /api/sql Endpoint mit Read/Write-Trennung, Sicherheits-Filtern (kein DROP/ALTER) und JSON-Response.",
+                    GoalHorizon.STRATEGIC,
+                    LongHorizonGoal.Status.ACTIVE,
+                    null, java.util.List.of(),
+                    null, null, null, null, 0.0,
+                    88, "metis",
+                    java.util.List.of(sqlApiTag, "sql", "api")));
+            LOG.info("GoalHierarchy: seeded Phase-14 SQL-API goal");
+        }
+
+        // Phase 14: Belief-Store-Migration
+        String beliefMigTag = "phase-14-belief-migration";
+        if (goalHierarchy.all().stream().noneMatch(g -> g.tags() != null && g.tags().contains(beliefMigTag))) {
+            goalHierarchy.upsert(new LongHorizonGoal(
+                    null,
+                    "Migriere Belief-Store von JSONL zu SQLite mit FTS5-Volltextindex",
+                    "Phase 14: Migriere ~134K Beliefs aus JSONL in SQLite-Tabelle. Erstelle FTS5-Index fuer Volltextsuche. JSONL als Backup behalten.",
+                    GoalHorizon.STRATEGIC,
+                    LongHorizonGoal.Status.ACTIVE,
+                    null, java.util.List.of(),
+                    null, null, null, null, 0.0,
+                    85, "metis",
+                    java.util.List.of(beliefMigTag, "sql", "migration")));
+            LOG.info("GoalHierarchy: seeded Phase-14 Belief-Migration goal");
+        }
+
         // Periodic revision every 30 min — auto-blocks overdue, auto-completes,
         // rolls up parent progress. Result is logged + appended to SelfNarrative
         // when something actually changes.
@@ -1505,7 +1554,13 @@ public final class AgentMain {
                     for (var g : open) {
                         if (!horizon.canBeDecomposed()) continue;
                         // Fix: echte Children prüfen, nicht nur childIds-Liste (oder-phan UUIDs in DONE-Goals blockierten sonst die Decomposition)
-                        if (goalHierarchy.children(g.id()) != null && !goalHierarchy.children(g.id()).isEmpty()) continue;
+                        // Re-decomposition: wenn alle Children DONE sind, darf neu zerlegt werden (besonders für LIFETIME-Goals)
+                        var existingChildren = goalHierarchy.children(g.id());
+                        if (existingChildren != null && !existingChildren.isEmpty()) {
+                            boolean allChildrenDone = existingChildren.stream()
+                                    .allMatch(c -> c.status() == LongHorizonGoal.Status.DONE);
+                            if (!allChildrenDone) continue;
+                        }
                         var newChildren = horizonPlanner.decompose(g);
                         if (!newChildren.isEmpty()) {
                             decomposed++;

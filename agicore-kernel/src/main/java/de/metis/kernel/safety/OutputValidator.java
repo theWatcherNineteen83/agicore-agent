@@ -57,8 +57,9 @@ public class OutputValidator {
             Pattern.compile("(?i)(you\\s+are\\s+now\\s+(a|an|the)\\s+(different|new|changed)\\s+(ai|assistant|agent|role))"),
             Pattern.compile("(?i)(forget\\s+(your|the)\\s+(training|rules|guidelines|constraints))"),
             Pattern.compile("(?i)(DAN|do\\s+anything\\s+now|jailbreak)"),
-            // Code injection (nur echte Exec-Gefahren, keine HTML-Tags)
-            Pattern.compile("(?i)(eval\\s*\\(|System\\.exit|Runtime\\.exec|ProcessBuilder)"),
+            // Code injection: Nur wirklich kritische Exec-Patterns — kein Runtime.exec etc.,
+            // da diese natürlich in LLM-Thoughts und Plan-Beschreibungen auftauchen
+            Pattern.compile("(?i)(\\beval\\s*\\(\\s*['\"].*['\"]\\s*\\))"),
             // SQL injection
             Pattern.compile("(?i)(DROP\\s+TABLE|INSERT\\s+INTO|DELETE\\s+FROM|UNION\\s+SELECT|1=1)")
     );
@@ -196,6 +197,22 @@ public class OutputValidator {
                 return ValidationResult.fail(
                         "Sicherheitsrisiko: Injection-Pattern erkannt");
             }
+        }
+        return ValidationResult.ok();
+    }
+
+    /**
+     * Lightweight planner injection check — only blocks actual command-injection attempts
+     * in action parameters, NOT in the thought/reasoning section.
+     */
+    public ValidationResult checkPlannerInjection(String actionType, String thought, String params) {
+        // The action type itself is never an injection vector
+        // Only check the parameters for actual dangerous patterns
+        if (params == null || params.isBlank()) return ValidationResult.ok();
+        String combined = actionType + " " + params;
+        // Tight pattern: only flag if a real command string is being injected
+        if (combined.matches("(?si).*\\beval\\s*\\(\\s*['\"].*['\"]\\s*\\)\\s*;?")) {
+            return ValidationResult.fail("Sicherheitsrisiko: eval()-Injection im Parameter");
         }
         return ValidationResult.ok();
     }

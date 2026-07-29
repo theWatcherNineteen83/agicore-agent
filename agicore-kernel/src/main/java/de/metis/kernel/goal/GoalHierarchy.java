@@ -45,6 +45,7 @@ public class GoalHierarchy {
     public GoalHierarchy(Path file) {
         this.file = file;
         load();
+        migrateLifetimeGoals();
     }
 
     private synchronized void load() {
@@ -61,6 +62,28 @@ public class GoalHierarchy {
             LOG.info("GoalHierarchy: loaded " + byId.size() + " goals");
         } catch (Exception e) {
             LOG.warning("GoalHierarchy: load failed " + e.getMessage());
+        }
+    }
+
+    /**
+     * Migration: LIFETIME goals that were incorrectly marked DONE get reopened.
+     * LIFETIME goals are eternal by design and should never be DONE.
+     */
+    private synchronized void migrateLifetimeGoals() {
+        int reopened = 0;
+        for (var entry : byId.entrySet()) {
+            var g = entry.getValue();
+            if (g.horizon() == GoalHorizon.LIFETIME && g.status() == LongHorizonGoal.Status.DONE) {
+                var fixed = g.withStatus(LongHorizonGoal.Status.ACTIVE).withProgress(0.0);
+                entry.setValue(fixed);
+                // Persist the correction
+                upsert(fixed);
+                LOG.info("GoalHierarchy: reopened LIFETIME goal \"" + g.title() + "\" (was incorrectly DONE)");
+                reopened++;
+            }
+        }
+        if (reopened > 0) {
+            LOG.info("GoalHierarchy: migration complete — " + reopened + " LIFETIME goal(s) reopened");
         }
     }
 
@@ -144,7 +167,9 @@ public class GoalHierarchy {
         }
         boolean allDone = kids.stream()
                 .allMatch(k -> k.status() == LongHorizonGoal.Status.DONE);
-        if (allDone && parent.status() != LongHorizonGoal.Status.DONE) {
+        // LIFETIME goals are eternal by design — never mark them DONE even if all children are complete
+        if (allDone && parent.status() != LongHorizonGoal.Status.DONE
+                && parent.horizon() != GoalHorizon.LIFETIME) {
             upsert(parent.withStatus(LongHorizonGoal.Status.DONE));
             changed = true;
         }
