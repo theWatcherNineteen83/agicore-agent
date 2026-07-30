@@ -1,11 +1,11 @@
 {
-  "timestamp": "2026-07-30T05:41:32.213563629Z",
-  "totalTicks": 26055,
-  "activeGoals": 7,
-  "successRate": 0,9931,
-  "planningEfficiency": 0,6210,
+  "timestamp": "2026-07-30T11:40:46.155016336Z",
+  "totalTicks": 26855,
+  "activeGoals": 14,
+  "successRate": 0,9952,
+  "planningEfficiency": 0,7591,
   "confidence": 0,9500,
-  "beliefCount": 134268,
+  "beliefCount": 134572,
   "acceptedMutations": 0,
   "rejectedMutations": 6,
   "emergenceEvents": [
