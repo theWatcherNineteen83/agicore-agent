@@ -66,6 +66,14 @@ public class HttpRequestAction implements Action {
     @Override
     public ActionResult execute() {
         Instant start = Instant.now();
+
+        // Validate URL scheme before attempting (fast-fail for bad URLs)
+        String scheme = uri.getScheme();
+        if (scheme == null || (!scheme.equalsIgnoreCase("http") && !scheme.equalsIgnoreCase("https"))) {
+            return ActionResult.fail(NAME,
+                    "Invalid URL scheme: '" + scheme + "' — only http/https supported (got: " + uri + ")", start);
+        }
+
         try {
             var builder = HttpRequest.newBuilder(uri)
                     .timeout(Duration.ofSeconds(30));

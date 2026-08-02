@@ -1038,6 +1038,19 @@ public final class AgentMain {
         agent.worldModel().setKnowledgeStore(knowledgeStore);
         agent.worldModel().loadFromStore();
 
+        // ── Phase 14: H2-Datastore (Metis' Gehirn-DB) ───────────
+        de.metis.kernel.persistence.H2Datastore h2Datastore = null;
+        try {
+            Path h2Dir = Path.of("/data", "metis-db");
+            h2Datastore = new de.metis.kernel.persistence.H2Datastore(h2Dir);
+            int imported = h2Datastore.importFromKnowledgeStore(knowledgeStore);
+            LOG.info("H2Datastore: " + h2Datastore.countBeliefs() + " beliefs, "
+                    + imported + " imported from SQLite");
+        } catch (Exception e) {
+            LOG.warning("H2Datastore init failed (non-fatal): " + e.getMessage());
+        }
+        final de.metis.kernel.persistence.H2Datastore finalH2 = h2Datastore;
+
         // ── Phase 11.5 (Sprint #2, 07.06.): Ethik-Kern aufbauen ─────
         // Sutta-Ingest: Markdown-Quellen unter ${metis.suttas.dir} oder
         // /home/prometheus/wissen/buddhismus laden. Source-Tag-Prefix
@@ -1824,7 +1837,17 @@ public final class AgentMain {
                         agent.worldModel().beliefCount(),
                         agent.goals().activeCount(),
                         0.0
-                );                var proposals = gapAnalyzer.analyze(metrics);
+                );                // Phase 14: H2 metrics snapshot
+                if (finalH2 != null) {
+                    finalH2.recordMetrics(
+                            Map.of("planning_efficiency", agent.metrics().planningEfficiency(),
+                                    "success_rate", (double) agent.metrics().goalSuccessRate(),
+                                    "confidence", agent.meta().confidence(),
+                                    "belief_count", (double) agent.worldModel().beliefCount(),
+                                    "active_goals", (double) agent.goals().activeCount()),
+                            "heartbeat");
+                }
+                var proposals = gapAnalyzer.analyze(metrics);
                 for (var p : proposals) {
                     if (riskGate.allow(p)) {
                         agent.addGoal(
@@ -1919,6 +1942,7 @@ public final class AgentMain {
             httpServer.setHypothesisStore(hypothesisStore);
             httpServer.setPersonStore(personStore, empathySignal);
             httpServer.setEthicsCore(ethicsCore);  // Sprint #3-Followup (08.06.)
+            if (finalH2 != null) httpServer.setH2Datastore(finalH2);  // Phase 14: H2 endpoint
             httpServer.setBugTracker(bugTracker);
             httpServer.start();
         }

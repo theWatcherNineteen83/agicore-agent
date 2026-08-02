@@ -76,6 +76,7 @@ public class MetisHttpServer {
     private InitiativePolicy initiativePolicy;                    // Phase 11.5
     private de.metis.kernel.safety.EthicsCore ethicsCore;          // Phase 11.5 (Sprint #3, 08.06.)
     private DatabaseLearningService dbLearnService;                  // Phase 14: SQL lernen
+    private de.metis.kernel.persistence.H2Datastore h2Datastore;     // Phase 14: H2-Main-DB
     private long ethicsBlocks = 0;
     private long ethicsWarns = 0;
 
@@ -124,6 +125,7 @@ public class MetisHttpServer {
         server.createContext("/api/causal", this::handleCausal);
         server.createContext("/api/causal-dreamer", this::handleCausalDreamer);
         server.createContext("/api/sql", this::handleSql);
+        server.createContext("/api/h2", this::handleH2);
         server.createContext("/", this::handleDashboard);
     }
 
@@ -140,6 +142,7 @@ public class MetisHttpServer {
     public void setEvalRunner(EvalRunner er) { this.evalRunner = er; }
     public void setEthicsCore(de.metis.kernel.safety.EthicsCore ec) { this.ethicsCore = ec; }
     public void setDbLearnService(DatabaseLearningService dls) { this.dbLearnService = dls; }
+    public void setH2Datastore(de.metis.kernel.persistence.H2Datastore h2) { this.h2Datastore = h2; }
     public void setBugTracker(BugTracker bt) { this.bugTracker = bt; }
     public long ethicsBlocks() { return ethicsBlocks; }
     public long ethicsWarns() { return ethicsWarns; }
@@ -1129,8 +1132,14 @@ public class MetisHttpServer {
         LOG.info("POST /api/sql body=" + truncate(body, 300));
         try {
             var node = new com.fasterxml.jackson.databind.ObjectMapper().readTree(body);
-            String db = node.has("db") ? node.get("db").asText() : "exploration.db";
-            String query = node.get("query").asText();
+            // Support both "query" and "sql" field names (robustness)
+            var queryNode = node.has("query") ? node.get("query") : node.get("sql");
+            if (queryNode == null || queryNode.isNull()) {
+                sendJson(exchange, 400, "{\"error\":\"query or sql field required\"}");
+                return;
+            }
+            String query = queryNode.asText();
+            String db = node.has("db") && !node.get("db").isNull() ? node.get("db").asText() : "exploration.db";
             if (query == null || query.isBlank()) {
                 sendJson(exchange, 400, "{\"error\":\"query required\"}");
                 return;
@@ -1333,6 +1342,23 @@ public class MetisHttpServer {
             }
         } catch (Exception e) {
             sendJson(exchange, 500, "{\"ok\":false,\"error\":\"" + e.getMessage() + "\"}");
+        }
+    }
+
+    // ── /api/h2 (Phase 14) — H2-Datenbank-Status ──────────────────────
+
+    private void handleH2(HttpExchange exchange) throws IOException {
+        if (h2Datastore == null) {
+            sendJson(exchange, 503, "{\"error\":\"H2Datastore not initialized\"}");
+            return;
+        }
+        try {
+            var status = h2Datastore.status();
+            var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            String json = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(status);
+            sendJson(exchange, 200, json);
+        } catch (Exception e) {
+            sendJson(exchange, 500, "{\"error\":\"" + e.getMessage() + "\"}");
         }
     }
 
