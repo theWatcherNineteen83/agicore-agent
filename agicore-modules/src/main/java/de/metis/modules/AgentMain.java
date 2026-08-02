@@ -931,6 +931,11 @@ public final class AgentMain {
         agent.core().executor().register(new WebCrawlAction("https://example.com"));
         LOG.info("WebCrawlAction registered — recursive web crawler for knowledge acquisition");
 
+        // CAPTCHA Solver (2Captcha API + OCR fallback)
+        agent.core().executor().register(new de.metis.kernel.action.CaptchaSolverAction("image",
+                "https://example.com/captcha.png", null, "https://example.com"));
+        LOG.info("CaptchaSolverAction registered — 2Captcha API + OCR fallback");
+
         // MCP Bridge — connects to Model Context Protocol servers, discovers tools
         if (System.getProperty("metis.mcp.servers") != null) {
             String[] servers = System.getProperty("metis.mcp.servers").split(",");
@@ -1050,6 +1055,18 @@ public final class AgentMain {
             LOG.warning("H2Datastore init failed (non-fatal): " + e.getMessage());
         }
         final de.metis.kernel.persistence.H2Datastore finalH2 = h2Datastore;
+
+        // ── Phase 14c: DuckDB Analytics (OLAP) ──────────────────
+        de.metis.kernel.persistence.DuckDBAnalyticsService duckDb = null;
+        try {
+            Path duckDir = Path.of("/data", "metis-db");
+            duckDb = new de.metis.kernel.persistence.DuckDBAnalyticsService(duckDir);
+            LOG.info("DuckDB Analytics: " + duckDb.status().get("dbPath")
+                    + " — " + duckDb.status().getOrDefault("metricCount", 0) + " metrics");
+        } catch (Exception e) {
+            LOG.warning("DuckDB init failed (non-fatal): " + e.getMessage());
+        }
+        final de.metis.kernel.persistence.DuckDBAnalyticsService finalDuck = duckDb;
 
         // ── Phase 11.5 (Sprint #2, 07.06.): Ethik-Kern aufbauen ─────
         // Sutta-Ingest: Markdown-Quellen unter ${metis.suttas.dir} oder
@@ -1847,6 +1864,16 @@ public final class AgentMain {
                                     "active_goals", (double) agent.goals().activeCount()),
                             "heartbeat");
                 }
+                // Phase 14c: DuckDB analytics snapshot
+                if (finalDuck != null) {
+                    finalDuck.recordMetrics(
+                            Map.of("planning_efficiency", agent.metrics().planningEfficiency(),
+                                    "success_rate", (double) agent.metrics().goalSuccessRate(),
+                                    "confidence", agent.meta().confidence(),
+                                    "belief_count", (double) agent.worldModel().beliefCount(),
+                                    "active_goals", (double) agent.goals().activeCount()),
+                            "heartbeat");
+                }
                 var proposals = gapAnalyzer.analyze(metrics);
                 for (var p : proposals) {
                     if (riskGate.allow(p)) {
@@ -1943,6 +1970,7 @@ public final class AgentMain {
             httpServer.setPersonStore(personStore, empathySignal);
             httpServer.setEthicsCore(ethicsCore);  // Sprint #3-Followup (08.06.)
             if (finalH2 != null) httpServer.setH2Datastore(finalH2);  // Phase 14: H2 endpoint
+            if (finalDuck != null) httpServer.setDuckDb(finalDuck);    // Phase 14c: DuckDB endpoint
             httpServer.setBugTracker(bugTracker);
             httpServer.start();
         }
