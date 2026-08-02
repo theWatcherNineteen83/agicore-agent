@@ -181,7 +181,70 @@ public class H2Datastore implements AutoCloseable {
                 """);
             stmt.execute("CREATE INDEX IF NOT EXISTS idx_snap_type_time ON agent_snapshots(snapshot_type, created_at DESC)");
 
-            LOG.info("H2Datastore schema initialized (7 tables)");
+            // Phase 14c: Analytics tables (OLAP in H2 — Window Functions, CTEs)
+            stmt.execute("""
+                CREATE TABLE IF NOT EXISTS metrics_ts (
+                    id SERIAL PRIMARY KEY,
+                    metric_name VARCHAR(128) NOT NULL,
+                    metric_value DOUBLE PRECISION NOT NULL,
+                    tags VARCHAR(1024),
+                    recorded_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+                )
+                """);
+            stmt.execute("CREATE INDEX IF NOT EXISTS idx_mts_name_time ON metrics_ts(metric_name, recorded_at)");
+
+            stmt.execute("""
+                CREATE TABLE IF NOT EXISTS planner_stats (
+                    id SERIAL PRIMARY KEY,
+                    tick INTEGER NOT NULL,
+                    action_name VARCHAR(128) NOT NULL,
+                    call_count INTEGER NOT NULL DEFAULT 0,
+                    error_count INTEGER NOT NULL DEFAULT 0,
+                    recorded_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+                )
+                """);
+            stmt.execute("CREATE INDEX IF NOT EXISTS idx_ps_tick ON planner_stats(tick)");
+
+            stmt.execute("""
+                CREATE TABLE IF NOT EXISTS eval_history (
+                    id BIGINT PRIMARY KEY,
+                    tier VARCHAR(32) NOT NULL,
+                    task_name VARCHAR(256) NOT NULL,
+                    score DOUBLE PRECISION NOT NULL,
+                    gate VARCHAR(16) NOT NULL,
+                    details VARCHAR(4096),
+                    recorded_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+                )
+                """);
+            stmt.execute("CREATE INDEX IF NOT EXISTS idx_eval_time ON eval_history(recorded_at)");
+
+            stmt.execute("""
+                CREATE TABLE IF NOT EXISTS goal_completions (
+                    id SERIAL PRIMARY KEY,
+                    goal_id VARCHAR(36) NOT NULL,
+                    horizon VARCHAR(20),
+                    category VARCHAR(128),
+                    ticks_to_complete INTEGER,
+                    completed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+                )
+                """);
+            stmt.execute("CREATE INDEX IF NOT EXISTS idx_gc_date ON goal_completions(completed_at)");
+
+            stmt.execute("""
+                CREATE TABLE IF NOT EXISTS daily_snapshots (
+                    snapshot_date DATE PRIMARY KEY,
+                    belief_count INTEGER,
+                    goal_count INTEGER,
+                    active_goals INTEGER,
+                    done_goals INTEGER,
+                    planner_success_rate DOUBLE PRECISION,
+                    avg_latency_ms DOUBLE PRECISION,
+                    confirmed_hypotheses INTEGER,
+                    recorded_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+                )
+                """);
+
+            LOG.info("H2Datastore schema initialized (7 operational + 5 analytics = 12 tables)");
         }
     }
 
@@ -447,6 +510,118 @@ public class H2Datastore implements AutoCloseable {
         return imported;
     }
 
+    // ── Analytics (Phase 14c) — OLAP in H2 ──────────────────────────
+
+    /** Record a metric for trend analysis. */
+    public void recordAnalyticsMetric(String name, double value, String tags) {
+        try (PreparedStatement ps = conn.prepareStatement(
+                "INSERT INTO metrics_ts (metric_name, metric_value, tags) VALUES (?, ?, ?)")) {
+            ps.setString(1, name);
+            ps.setDouble(2, value);
+            ps.setString(3, tags != null ? tags : "");
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            LOG.fine("H2 analytics metric: " + e.getMessage());
+        }
+    }
+
+    /** Bulk metric recording. */
+    public void recordAnalyticsMetrics(Map<String, Double> metrics, String tags) {
+        try {
+            conn.setAutoCommit(false);
+            for (var e : metrics.entrySet()) {
+                recordAnalyticsMetric(e.getKey(), e.getValue(), tags);
+            }
+            conn.commit();
+            conn.setAutoCommit(true);
+        } catch (SQLException ex) {
+            LOG.warning("H2 bulk analytics: " + ex.getMessage());
+            try { conn.rollback(); conn.setAutoCommit(true); } catch (SQLException ignored) {}
+        }
+    }
+
+    /** Record planner action stats for error-trend analysis. */
+    public void recordPlannerStats(int tick, Map<String, Integer> callCounts,
+                                   Map<String, Integer> errorCounts) {
+        try {
+            conn.setAutoCommit(false);
+            for (var entry : callCounts.entrySet()) {
+                String action = entry.getKey();
+                int calls = entry.getValue();
+                int errors = errorCounts.getOrDefault(action, 0);
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "INSERT INTO planner_stats (tick, action_name, call_count, error_count) VALUES (?, ?, ?, ?)")) {
+                    ps.setInt(1, tick);
+                    ps.setString(2, action);
+                    ps.setInt(3, calls);
+                    ps.setInt(4, errors);
+                    ps.executeUpdate();
+                }
+            }
+            conn.commit();
+            conn.setAutoCommit(true);
+        } catch (SQLException e) {
+            LOG.fine("H2 plannerStats: " + e.getMessage());
+            try { conn.rollback(); conn.setAutoCommit(true); } catch (SQLException ignored) {}
+        }
+    }
+
+    /** Top-N actions by error rate (last N hours). */
+    public List<Map<String, Object>> topErrorActions(int hours, int limit) {
+        List<Map<String, Object>> results = new ArrayList<>();
+        try (PreparedStatement ps = conn.prepareStatement("""
+                SELECT action_name,
+                       SUM(call_count) AS total_calls,
+                       SUM(error_count) AS total_errors,
+                       ROUND(SUM(error_count) * 100.0 / NULLIF(SUM(call_count), 0), 1) AS error_rate_pct
+                FROM planner_stats
+                WHERE recorded_at > DATEADD('HOUR', -?, CURRENT_TIMESTAMP)
+                GROUP BY action_name
+                HAVING SUM(call_count) > 0
+                ORDER BY error_rate_pct DESC
+                LIMIT ?
+                """)) {
+            ps.setInt(1, hours);
+            ps.setInt(2, limit);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Map<String, Object> row = new LinkedHashMap<>();
+                    row.put("action", rs.getString("action_name"));
+                    row.put("calls", rs.getLong("total_calls"));
+                    row.put("errors", rs.getLong("total_errors"));
+                    row.put("errorRate", rs.getDouble("error_rate_pct"));
+                    results.add(row);
+                }
+            }
+        } catch (SQLException e) {
+            LOG.warning("H2 topErrorActions: " + e.getMessage());
+        }
+        return results;
+    }
+
+    /** Daily state snapshot for long-term trend analysis. */
+    public void takeDailySnapshot(int beliefCount, int goalCount, int activeGoals,
+                                  int doneGoals, double plannerSuccessRate,
+                                  double avgLatencyMs, int confirmedHypotheses) {
+        try (PreparedStatement ps = conn.prepareStatement("""
+                MERGE INTO daily_snapshots (snapshot_date, belief_count, goal_count,
+                    active_goals, done_goals, planner_success_rate, avg_latency_ms,
+                    confirmed_hypotheses)
+                KEY (snapshot_date) VALUES (CURRENT_DATE, ?, ?, ?, ?, ?, ?, ?)
+                """)) {
+            ps.setInt(1, beliefCount);
+            ps.setInt(2, goalCount);
+            ps.setInt(3, activeGoals);
+            ps.setInt(4, doneGoals);
+            ps.setDouble(5, plannerSuccessRate);
+            ps.setDouble(6, avgLatencyMs);
+            ps.setInt(7, confirmedHypotheses);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            LOG.fine("H2 dailySnapshot: " + e.getMessage());
+        }
+    }
+
     // ── Status / Health ──────────────────────────────────────────────
 
     public Map<String, Object> status() {
@@ -464,6 +639,16 @@ public class H2Datastore implements AutoCloseable {
                      "SELECT COUNT(*) FROM metrics WHERE recorded_at > DATEADD('HOUR', -24, CURRENT_TIMESTAMP)")) {
             s.put("metrics24h", rs.next() ? rs.getInt(1) : 0);
         } catch (SQLException ignored) {}
+        // Analytics stats
+        try (Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM metrics_ts")) {
+            s.put("analyticsMetrics", rs.next() ? rs.getInt(1) : 0);
+        } catch (SQLException ignored) {}
+        try (Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery("SELECT COUNT(DISTINCT snapshot_date) FROM daily_snapshots")) {
+            s.put("dailySnapshots", rs.next() ? rs.getInt(1) : 0);
+        } catch (SQLException ignored) {}
+        s.put("recentErrors", topErrorActions(24, 5));
         return s;
     }
 

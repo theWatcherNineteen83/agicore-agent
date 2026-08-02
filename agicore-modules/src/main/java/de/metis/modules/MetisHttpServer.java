@@ -77,7 +77,6 @@ public class MetisHttpServer {
     private de.metis.kernel.safety.EthicsCore ethicsCore;          // Phase 11.5 (Sprint #3, 08.06.)
     private DatabaseLearningService dbLearnService;                  // Phase 14: SQL lernen
     private de.metis.kernel.persistence.H2Datastore h2Datastore;     // Phase 14: H2-Main-DB
-    private de.metis.kernel.persistence.DuckDBAnalyticsService duckDb; // Phase 14c: DuckDB Analytics
     private long ethicsBlocks = 0;
     private long ethicsWarns = 0;
 
@@ -127,7 +126,6 @@ public class MetisHttpServer {
         server.createContext("/api/causal-dreamer", this::handleCausalDreamer);
         server.createContext("/api/sql", this::handleSql);
         server.createContext("/api/h2", this::handleH2);
-        server.createContext("/api/duckdb", this::handleDuckDb);
         server.createContext("/", this::handleDashboard);
     }
 
@@ -145,7 +143,6 @@ public class MetisHttpServer {
     public void setEthicsCore(de.metis.kernel.safety.EthicsCore ec) { this.ethicsCore = ec; }
     public void setDbLearnService(DatabaseLearningService dls) { this.dbLearnService = dls; }
     public void setH2Datastore(de.metis.kernel.persistence.H2Datastore h2) { this.h2Datastore = h2; }
-    public void setDuckDb(de.metis.kernel.persistence.DuckDBAnalyticsService dd) { this.duckDb = dd; }
     public void setBugTracker(BugTracker bt) { this.bugTracker = bt; }
     public long ethicsBlocks() { return ethicsBlocks; }
     public long ethicsWarns() { return ethicsWarns; }
@@ -1366,21 +1363,6 @@ public class MetisHttpServer {
     }
 
     // ── /api/board ──────────────────────────────────────────────
-
-    private void handleDuckDb(HttpExchange exchange) throws IOException {
-        if (duckDb == null) {
-            sendJson(exchange, 503, "{\"error\":\"DuckDB not initialized\"}");
-            return;
-        }
-        try {
-            var status = duckDb.status();
-            var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-            String json = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(status);
-            sendJson(exchange, 200, json);
-        } catch (Exception e) {
-            sendJson(exchange, 500, "{\"error\":\"" + e.getMessage() + "\"}");
-        }
-    }
 
     // ── /api/board ──────────────────────────────────────────────
 
