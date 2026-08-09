@@ -39,6 +39,9 @@ public class GoalHierarchy {
     private final Path file;
     private final ObjectMapper mapper = new ObjectMapper();
     private final Map<UUID, LongHorizonGoal> byId = new LinkedHashMap<>();
+    /** Phase 14: H2-backed persistence. If set, saveGoal/loadGoals use H2 UPSERT
+     *  instead of append-only JSONL. Survives restarts without duplicates. */
+    private de.metis.kernel.persistence.H2Datastore h2;
 
     public GoalHierarchy() { this(Path.of(DEFAULT_PATH)); }
 
@@ -46,6 +49,26 @@ public class GoalHierarchy {
         this.file = file;
         load();
         migrateLifetimeGoals();
+    }
+
+    /** Phase 14: enable H2-backed goal persistence. */
+    public void setH2Datastore(de.metis.kernel.persistence.H2Datastore h2) {
+        this.h2 = h2;
+        if (h2 != null && !byId.isEmpty()) {
+            for (LongHorizonGoal g : byId.values()) {
+                int doneCount = (int) g.childIds().stream()
+                        .filter(cid -> byId.containsKey(cid) && byId.get(cid).status()
+                                == LongHorizonGoal.Status.DONE).count();
+                Goal kernelGoal = new Goal(g.title(),
+                        g.tags().isEmpty() ? "general" : g.tags().getFirst(),
+                        g.priority(), 0.5, 1,
+                        Goal.ServiceClass.STANDARD, Goal.ResourceType.INFERENCE,
+                        g.deadline());
+                h2.saveGoal(kernelGoal, g.horizon().name(), g.status().name(),
+                        g.parentId(), g.progress(), g.childIds().size(), doneCount);
+            }
+            LOG.info("GoalHierarchy: synced " + byId.size() + " goals to H2");
+        }
     }
 
     private synchronized void load() {
@@ -88,12 +111,27 @@ public class GoalHierarchy {
     }
 
     /**
-     * Append-or-update. The full goal record is appended as a new JSONL line;
-     * the latest line wins when reloading. Compaction can be added later.
+     * Append-or-update. Priority: H2 (UPSERT) if available, else JSONL append.
+     * Phase 14: H2-backed goals survive restarts without JSONL duplication.
      */
     public synchronized LongHorizonGoal upsert(LongHorizonGoal g) {
         if (g == null) return null;
         byId.put(g.id(), g);
+        // Phase 14: H2 persistence (preferred)
+        if (h2 != null) {
+            int doneCount = (int) g.childIds().stream()
+                    .filter(cid -> byId.containsKey(cid)
+                            && byId.get(cid).status() == LongHorizonGoal.Status.DONE)
+                    .count();
+            Goal kernelGoal = new Goal(g.title(),
+                    g.tags().isEmpty() ? "general" : g.tags().getFirst(),
+                    g.priority(), 0.5, 1,
+                    Goal.ServiceClass.STANDARD, Goal.ResourceType.INFERENCE,
+                    g.deadline());
+            h2.saveGoal(kernelGoal, g.horizon().name(), g.status().name(),
+                    g.parentId(), g.progress(), g.childIds().size(), doneCount);
+        }
+        // JSONL fallback (keeps backward compat)
         try {
             Files.createDirectories(file.getParent());
             String line = mapper.writeValueAsString(toNode(g));

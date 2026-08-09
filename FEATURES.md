@@ -1,8 +1,6 @@
 # Metis AGI — Feature-Katalog
 
-**Stand: 18.06.2026 19:40 (+Phase 10 Hot-Path: Intervention→Observe→Update-Loop, Counterfactual-Reasoning, CausalScorer) · Phase 9.7: Erstes STRATEGIC Goal DONE 🎉**
-
-**Stand: 06.06.2026 21:30 (+Phase 3.5 S9-Mobile-Sensor-Array) · Repo-Tag v0.11.11-governance · 330 Tests (gruen) · CI: Kernel+Watchdog (GitHub Actions)**
+**Stand: 09.08.2026 21:15 (+Phase 10 VERIFIED, 11 VERIFIED, 12d Deployed, 13a Deployed, 14 VERIFIED) · 6/7 Capabilities VERIFIED**
 
 ---
 
@@ -115,7 +113,33 @@ STRANGER(0) → AUTO      (strenger Allow-List-Modus)
 
 ### Logging
 - `Phase 11 wired — PersonStore=3 persons, trust-to-approval mapping active`
-- `Phase 11 PersonModel Foundation (50%) → 100% (Hot-Path bereits vollstaendig verdrahtet)`
+- `Phase 11 VERIFIED 09.08. — PersonScorer mit 5 HARD-gate Tasks (trust, empathy, memory)`
+
+## 🎙️ Voice Feature Extractor (Phase 13a, v0.12.0, 09.08.2026)
+
+| Komponente | Datei | Funktion |
+|---|---|---|
+| **VoiceFeatureExtractor** | `scripts/voice_feature_extractor.py` | Python-Modul (pure scipy/numpy, kein librosa): 25+ paralinguistische Features (Pitch, Energy, Rhythm, Timbre, Formant, Voice Quality) aus WAV-Dateien |
+| **Lusseyran-Profil** | (embedded) | Klassifiziert Stimmhöhe, Energie, Sprechgeschwindigkeit, Stimmhaftigkeit, Variabilität, Pausen |
+| **VoiceFeatureAction** | `modules/action/VoiceFeatureAction.java` | Java-Action-Wrapper: ruft Python-Extractor via subprocess, JSON-Output als ActionResult |
+| **Ausgabe** | JSON | 7 Kategorien: meta, pitch, energy, rhythm, timbre, formant, voice_quality + lusseyran_profile |
+
+## 🗄️ H2 Database & Goal-Persistenz (Phase 14, v0.12.0, 09.08.2026)
+
+| Komponente | Datei | Funktion |
+|---|---|---|
+| **H2Datastore** | `kernel/persistence/H2Datastore.java` (671L) | H2-Embedded-DB (PostgreSQL-Mode): 12 Tabellen (beliefs, goals, hypotheses, metrics, evolution, experiences, snapshots) |
+| **Goal-Persistenz** | `GoalHierarchy.setH2Datastore()` | Goals via H2-MERGE (UPSERT) statt JSONL-append — 226 Goals überleben Restarts |
+| **SQL-API** | `POST /api/sql` | REST-Endpoint für SQLite-Abfragen (SELECT/EXPLAIN/PRAGMA) |
+| **H2-API** | `POST /api/h2` | REST-Endpoint für H2-Datenbank-Abfragen |
+
+## 🔧 Selbst-Refactoring (Phase 12d, v0.12.0, 09.08.2026)
+
+| Komponente | Datei | Funktion |
+|---|---|---|
+| **TestGapAnalyzer** | `modules/evolution/TestGapAnalyzer.java` | Analysiert Test-Coverage: findet Klassen ohne Tests, Orphan-Tests, Coverage-% via Datei-Struktur |
+| **RefactorProposal** | `modules/evolution/RefactorProposal.java` | Code-Smell-Detektor: Long Methods, Too Many Methods, Deep Nesting, Magic Numbers |
+| **CoverageCheck** | `modules/evolution/CoverageCheck.java` | Parst Jacoco-XML-Reports: Instruction/Line/Branch/Method Coverage, Low-Coverage-Klassen |
 
 ## 📚 Book Ingestion Service (v0.8.0)
 

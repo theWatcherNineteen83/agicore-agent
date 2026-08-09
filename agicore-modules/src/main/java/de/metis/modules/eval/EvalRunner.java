@@ -2,6 +2,7 @@ package de.metis.modules.eval;
 
 import de.metis.kernel.eval.*;
 import de.metis.kernel.persistence.KnowledgeStore;
+import de.metis.kernel.person.*;
 import de.metis.kernel.world.HypothesisStore;
 import de.metis.modules.evolution.ModelRegistry;
 
@@ -49,6 +50,11 @@ public class EvalRunner {
         this.evalReportDir = evalReportDir;
         // Phase 10: CausalScorer evaluates metric-based CAUSAL tasks against HypothesisStore
         this.harness.registerScorer(Category.CAUSAL, new CausalScorer(hypothesisStore));
+    }
+
+    /** Phase 11: register PersonScorer for HARD-gate PersonModel verification. */
+    public void setPersonScorer(PersonStore ps, EmpathySignal es, RelationshipMemory rm) {
+        this.harness.setPersonScorer(new PersonScorer(ps, es, rm));
     }
 
     /**

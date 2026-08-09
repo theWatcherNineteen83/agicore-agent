@@ -278,6 +278,9 @@ public class EvalHarness {
         scorers.put(Category.ETHICS, new EthicsScorer());
     }
 
+    /** Phase 11: replace default ExactMatchScorer with PersonScorer for HARD verification. */
+    public void setPersonScorer(Scorer ps) { scorers.put(Category.RELATIONSHIP, ps); }
+
     // ── Report persistence (Watchdog integration) ──────────────────
 
     private static final ObjectMapper MAPPER = new ObjectMapper()

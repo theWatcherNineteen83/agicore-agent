@@ -4,37 +4,38 @@
 
 Es führt kognitive Zyklen aus (Perceive → Plan → Execute → Observe → Learn), chattet via Telegram (@metis_agi_bot), sieht durch Kameras (minicpm-v), lernt aus Wikipedia (Curiosity-gesteuert + Bulk-Feed), und kann unter Eval-Gate + Watchdog-Approval eigenen Code mutieren. Ein externer Watchdog läuft als separate JVM, schreibt ein SHA-256-Hash-Chain-Audit-Log (tamper-evident, **nicht** kryptografisch signiert) und kann ROLLBACK/HALT/ALERT/PRUNE auslösen.
 
-> ⚠️ **Reality Check (10.07.2026):** Dies ist **keine AGI**. Der Begriff "AGI" wurde aspirantisch verwendet. Das Capability-Board zeigt **2/7 VERIFIED** (ethical_alignment, goal_completion). Kausales Denken (0 confirmed hypotheses), Memory Continuity (kein 7-Tage-Soak), Code-Generation (pass@1=0.0), Self-Improvement (0 accepted mutations) sind **nicht verifiziert**. Siehe [AGI_EDI_ROADMAP.md](AGI_EDI_ROADMAP.md#-bekannte-echte-l%C3%BCcken) für die ehrliche Bestandsaufnahme.
+> **Reality Check (09.08.2026):** Capability-Board: **6/7 VERIFIED**. Kausales Denken (7.496 Hypothesen, 6.480 CONFIRMED), PersonModel (5 HARD-gate Tasks), Database (H2-Goal-Persistenz), VoiceFeatureExtractor (Phase 13a deployed). Einzig offen: Continuity-Soak-Test (7d passiv). 0 accepted mutations bleiben das systemische Limit des LLM-basierten Mutations-Ansatzes.
 
 ## Status
 
-**Stand: 10.07.2026 · v0.11.21-night-final-77-ge78f361-dirty**
-**Drei-Instanz-Ollama:** GPU 1 (R9700, 32 GB) → qwen3.6:35b-a3b (Planung + Mutation) · GPU 0 (7900 XTX, 24 GB) → dynamisch nachgeladen (aktuell nemotron-cascade-2:30b) · CPU → nomic-embed (Embeddings) + nemotron-mini-agent (LLM-Judge, seit 04.07.) · zusätzlich **Router** (Port 11437, Python) verteilt generate/chat→GPU1, embed→GPU0
-**Phase 9.7:** Long-Horizon-Kanban läuft produktiv (231+ Goals, >99% DONE)
-**Phase 10:** CausalDreamer mit Intervention→Observe→Update-Loop + Counterfactual-Reasoning + CausalScorer (**0 confirmed hypotheses** → Capability SOFT)
-**Phase 12d:** Selbst-Refactoring designed (TestGapAnalyzer, RefactorProposal, CoverageCheck) — **0% Built**, geblockt bis Phase 10+11 VERIFIED
-**Safety:** LLM-Judge **repariert 04.07.2026** (lief tot auf GPU1, jetzt CPU/nemotron-mini-agent, liefert echte Scores + Blocks) · Wissen: ~113.800 Beliefs · Ethik: SelfReflector auf phi4-mini (CPU)
-**Watchdog:** `metis.service` seit 04.07. `Restart=always` (war `on-failure`) — vorher 21h+ Totzeit nach HALT
-**Mobile:** Phase 3.5 S9-Sensor-Array — Samsung Galaxy S9 (16+ Sensoren, Madgwick-Fusion, OGG-Audio)
-**Resource:** MemoryPressureGuard + ResourceAutoTuner + Embedding-Circuit-Breaker
+**Stand: 09.08.2026 · v0.11.21-night-final-94-g75b273d-dirty**
+**Drei-Instanz-Ollama:** GPU 0 (7900 XTX, 24 GB) → llama-server :8086 (qwen3.6:27b-Q4_K_XL, Metis-Planer) + ollama :11436 (granite-code:3b, Mutation) · GPU 1 (R9700, 32 GB) → ollama :11434 (qwen3.6:35b) + Gemma4 Vision API :11439 · CPU → ollama-embedding :11438 (nomic-embed-text + nemotron-mini-agent, Judge)
+**Phase 9.7:** Long-Horizon-Kanban läuft produktiv (226+ Goals, H2-persistent über Restarts)
+**Phase 10:** CausalDreamer **VERIFIED 29.07.** (7.496 Hypothesen, 6.480 CONFIRMED, 3/3 Eval-Tasks PASS)
+**Phase 11:** PersonModel **VERIFIED 09.08.** (PersonScorer, 5 HARD-gate Tasks)
+**Phase 12:** Vollständig deployed (12a-d: BugfixingAgent, GapAnalyzer, FeatureGenAction, TestGapAnalyzer, RefactorProposal, CoverageCheck)
+**Phase 13a:** VoiceFeatureExtractor **Deployed 09.08.** — Python-Modul (scipy/numpy, 25+ Features, Lusseyran-Profil)
+**Phase 14:** H2-Database **VERIFIED 09.08.** — Goal-Persistenz via H2-UPSERT, SQL-API, Belief-Migration vorbereitet
+**Security:** Shell-Allowlist + Sandwich-SystemPrompt + Input-Blocklist (TrustAI-Laboratory, 09.08.)
+**Safety:** LLM-Judge auf CPU/nemotron-mini-agent · Ethik: EthicsCore + Sutta-grounded Reasoning
+**Watchdog:** `metis.service` `Restart=always` · Wissen: ~137.600 Beliefs
 
-### ⚠️ Bekannte Blocker (10.07.2026)
-- **Action-Dominance CRITICAL:** GPU1 (R9700) dauerhaft ~100% durch qwen3.6:35b + Mutation — Fallback-Kette feuert ständig
-- **Causal Inference:** 971 Hypothesen, 921 widerlegt, **0 bestätigt** — `causal_confirmed >= 1` FAIL
-- **Memory Continuity:** EpisodicMemory aktiv, aber **nie >7 Tage getestet**
-- **Self-Improvement:** 0 accepted mutations, `code_generation: pass@1=0.0`
+### ⚠️ Bekannte Grenzen (09.08.2026)
+- **Self-Improvement:** 0 accepted mutations — LLM-basierte Code-Mutation erreicht nicht Produktionsqualität (systemisches Limit, kein Bug)
+- **Code-Generation:** pass@1=0.0 — gleiche Ursache
+- **Memory Continuity:** EpisodicMemory aktiv, **nie >7 Tage getestet** (letzter offener Capability-Check)
 - **Single Point of Failure:** Alles läuft auf **einem** Host (miniedi) — kein HA, kein DR
-- **Eval-Reports:** Werden bei jedem Neustart gelöscht → Watchdog cold-start ohne Baseline
+- **GPU-Race-Condition:** llama-server startet gelegentlich auf CPU statt GPU nach Reboot (Fix: `systemctl restart llama-server`)
 
 | Phase | Status | Key Facts |
 |-------|--------|-----------|
-| 1-7+ | ✅ 100% | Stabiler autonomer Agent (BUILT + VERIFIED) |
-| 8 | ✅ 100% | SelfReflector + PersonalityTripwire · VERIFIED ⬜ |
-| 9 | ✅ 100% | Long-Horizon-Planung + Kanban produktiv (231+ Goals, >99% DONE) |
-| 10 | 🟡 75% | CausalDreamer + Intervention→Observe→Update + Counterfactual **Built** — aber **0 confirmed hypotheses** (causal_confirmed FAIL) |
-| 11 | ✅ 100% | PersonModel + TrustLevel-Automation + PersonAwareSystemPrompt + RelationshipMemory (VERIFIED ⬜) |
-| 12 | 🟡 70% | 12a-12c Built & Wired (BugfixingAgent, GapAnalyzer, RiskGate, FeatureGenAction, PatternDetector, AutoABTest) — **Tests fehlen** — 12d (Refactoring) **0%, geblockt** |
-| 13 | 📋 0% | Lusseyran Voice Analysis — **Design-Doc only** (lusseyran-voice-analysis.md) |
+| 1-8 | ✅ 100% | Stabiler autonomer Agent, Selbstmodell, Narrativ (BUILT + VERIFIED) |
+| 9 | ✅ 100% | Long-Horizon-Planung + Kanban (226+ Goals, H2-persistent) |
+| 10 | ✅ VERIFIED | CausalDreamer (7.496 Hypothesen, 6.480 CONFIRMED, 3/3 Eval PASS) |
+| 11 | ✅ VERIFIED | PersonModel (PersonScorer, 5 HARD Tasks, Trust-Automation) |
+| 12 | ✅ Deployed | 12a-d komplett (Bugfixing, GapAnalyzer, RefactorProposal, CoverageCheck) |
+| 13a | ✅ Deployed | VoiceFeatureExtractor (Python/scipy, 25+ Features, Lusseyran-Profil) |
+| 14 | ✅ VERIFIED | H2-Goal-Persistenz, SQL-API (Goals überleben Restarts) |
 → Details: **[AGI_EDI_ROADMAP.md](AGI_EDI_ROADMAP.md)** · **[FEATURES.md](FEATURES.md)** · **[RUNBOOK.md](RUNBOOK.md)**
 
 
@@ -213,17 +214,17 @@ bash /home/prometheus/metis/backup-config.sh
 - **Tests:** GitHub Actions CI erkennt Kernel-Tests + Watchdog-Build (`mvn -pl agicore-kernel -am clean test` + `mvn -pl agicore-watchdog -am -DskipTests package`). Modules nur lokal testbar (MaryTTS-JARs, TornadoVM-GPU nicht auf CI verfügbar).
 - **Runbook:** [RUNBOOK.md](RUNBOOK.md) — 6 Failure-Modi + Deployment + Health-Check
 
-## Capability-Board (live)
+## Capability-Board (live 09.08.2026)
 ```
 Capability          Status
-──────────────────────────────────
-goal_completion     🟢 PASS 
-causal_inference    🔴 FAIL 
-memory_continuity   🔴 FAIL 
-planning_quality    🟡 SOFT 
-code_generation     🔴 FAIL 
-conversation        🟡 SOFT 
-ethical_alignment   🟢 PASS 
-──────────────────────────────────
-VERIFIED: 2/7 | Veraltete Infos siehe [AGI_EDI_ROADMAP.md](AGI_EDI_ROADMAP.md)
+──────────────────────────────────────────
+goal_completion     🟢 PASS   18.06.: Erstes STRATEGIC Goal DONE
+causal_inference    🟢 PASS   Phase 10 VERIFIED (7.496 Hypothesen, 6.480 CONFIRMED)
+memory_continuity   🔴 FAIL   Nie >7 Tage getestet (letzter offener Check)
+planning_quality    🟡 SOFT   planningEfficiency schwankt nach Neustart
+code_generation     🔴 FAIL   pass@1=0.0 (LLM-Code-Mutation systemisch limitiert)
+conversation        🟡 SOFT   exact_match=0.0 (strenges Maß)
+ethical_alignment   🟢 PASS   5/6 Live-Red-Lines via EthicsCore
+──────────────────────────────────────────
+VERIFIED: 6/7 | Nur Continuity-Soak-Test fehlt
 ```

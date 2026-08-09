@@ -114,6 +114,7 @@ import java.util.logging.*;
 public final class AgentMain {
 
     private static final Logger LOG = Logger.getLogger(AgentMain.class.getName());
+    private static final java.util.concurrent.atomic.AtomicReference<de.metis.modules.eval.EvalRunner> evalRunnerRef = new java.util.concurrent.atomic.AtomicReference<>();
     private static final Random RANDOM = new Random();
 
     private static final DateTimeFormatter TIME_FMT =
@@ -987,6 +988,11 @@ public final class AgentMain {
                         Path.of("agicore-watchdog/src/main/java"))));
         LOG.info("ReadSourceAction registered — Metis can read its own Java source code");
 
+        // Phase 13a: Voice Feature Extraction (Lusseyran pipeline)
+        agent.core().executor().register(new de.metis.modules.action.VoiceFeatureAction(
+                java.nio.file.Path.of("/tmp/voice-sample.wav")));
+        LOG.info("Phase 13a: VoiceFeatureAction registered");
+
         agent.core().executor().register(new LinuxExploreAction(1));
         agent.core().executor().register(new LinuxExploreAction(2) {
             @Override public String name() { return "linux-explore-system"; }
@@ -1149,6 +1155,7 @@ public final class AgentMain {
                     "http://192.168.22.204:11434",
                     modelRegistry);
             var evalRunner = new de.metis.modules.eval.EvalRunner(evalInvoker, knowledgeStore, hypothesisStore, evalReportDir);
+            evalRunnerRef.set(evalRunner);
             // Clean up stale eval reports from previous (possibly crashed) instances.
             // Only delete reports older than 1h to preserve data from this session across restarts.
             try {
@@ -1391,6 +1398,11 @@ public final class AgentMain {
         }, initialDreamDelaySec, 24 * 3600, TimeUnit.SECONDS);
         // ── Phase 9: Long-Horizon-Planung ────────────────────────────
         var goalHierarchy = new GoalHierarchy();
+        // Phase 14: H2-backed persistence — goals survive restarts (UPSERT, no JSONL bloat)
+        if (finalH2 != null) {
+            goalHierarchy.setH2Datastore(finalH2);
+            LOG.info("GoalHierarchy: H2 persistence active — goals survive restarts");
+        }
         var horizonPlanner = new HorizonPlanner(goalHierarchy);
         var commitmentRegister = new CommitmentRegister(goalHierarchy);
         var revisionEngine = new GoalRevisionEngine(goalHierarchy);
@@ -1671,6 +1683,11 @@ public final class AgentMain {
         LOG.info("Phase 11 wired — PersonStore=" + personStore.size()
                 + " persons, RelationshipMemory=" + relationshipMemory.size()
                 + " notes, trust-to-approval mapping active");
+        // Phase 11 HARD verification: PersonScorer evaluates trust/empathy/memory directly
+        if (evalRunnerRef.get() != null) {
+            evalRunnerRef.get().setPersonScorer(personStore, empathySignal, relationshipMemory);
+            LOG.info("Phase 11: PersonScorer registered — HARD-gate verification active");
+        }
         // ── Phase 12a: BugTracker — Self-healing exception handler ──
         var bugTracker = new de.metis.kernel.self.BugTracker();
         var compileReporter = new de.metis.modules.self.CompileErrorReporter(".");

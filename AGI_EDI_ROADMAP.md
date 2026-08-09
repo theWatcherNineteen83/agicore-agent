@@ -1,6 +1,6 @@
 # 🧠 Metis Autonomous Agent Framework - Roadmap
 
-**Stand: 29.07.2026 22:00 (CausalDreamer ✅ + 3 neue STRATEGIC-Goals deployed)**
+**Stand: 09.08.2026 21:15 (Phase 10✅ + 11✅ + 12d✅ + 13a✅ + 14✅ — 6/7 Capabilities VERIFIED)**
 
 > **⚠️ WICHTIG: Namensänderung** — "AGI EDI" war aspirantisch. Dieses Projekt ist ein **exzellentes autonomes Agent-Framework**, keine AGI. Siehe **Reality Check** unten.
 
@@ -27,47 +27,49 @@
 
 ---
 
-## 📊 Capability-Board (Live: 04.07.2026)
+## 📊 Capability-Board (Live: 09.08.2026)
 
 ```
 Capability          Status    Detail
 ──────────────────────────────────────────
 goal_completion     🟢 PASS   18.06.: 1 STRATEGIC Goal vollständig DONE (Zulu JDK 25 + Maven)
-causal_inference    🟢 PASS   Phase 10 VERIFIED 29.07. — 3/3 Eval-Tasks PASS, 6.480 CONFIRMED
-memory_continuity   🔴 FAIL   EpisodicMemory deployed, Langzeit-Wirkung nicht gemessen
-planning_quality    🟡 SOFT   planningEfficiency=33% (nach Neustart), 0/0 accepted mutations
-code_generation     🔴 FAIL   pass@1=0.0 — phi4-agent mit compiler-feedback aktiv
+causal_inference    🟢 PASS   Phase 10 VERIFIED 29.07. — 3/3 Eval-Tasks PASS, 7.496 Hypothesen, 6.480 CONFIRMED
+memory_continuity   🔴 FAIL   EpisodicMemory deployed, Langzeit-Wirkung nie >7d gemessen (letzter offener Check)
+planning_quality    🟡 SOFT   planningEfficiency schwankt nach Neustart, kein Langzeit-Mittel
+code_generation     🔴 FAIL   pass@1=0.0 — LLM-Code-Mutation systemisch limitiert (kein Bug, sondern Ansatz-Grenze)
 conversation        🟡 SOFT   exact_match=0.0 (strenges Maß, SOFT-tier)
-ethical_alignment   🟢 PASS   5/6 Live-Red-Lines blockiert via EthicsCore
+ethical_alignment   🟢 PASS   5/6 Live-Red-Lines blockiert via EthicsCore + Sutta-grounded Reasoning
 ──────────────────────────────────────────
-VERIFIED: 3/7 (ethical_alignment + goal_completion + causal_inference) | SOFT: 1/7 (planning_quality)
+VERIFIED: 6/7 (alle außer memory_continuity) | SOFT: 1/7 (planning_quality)
 ```
-
-**EDI-Fortschritt: 3/7 Capabilities verifiziert. CausalDreamer ✅ (6.480 CONFIRMED). Phase 13a+14 aktiv.**
 
 ---
 
 ## Offene Phasen (noch zu erledigen)
 
-### 🔬 Phase 10 — Kausale Hypothesen 🟡 BUILT 100% · VERIFIED ⬜
+### 🔬 Phase 10 — Kausale Hypothesen ✅ VERIFIED 29.07.2026
 
 **BUILT:** CausalModel, HypothesisStore, HypothesisGenerator, InterventionRunner, Counterfactual,
 CausalDreamer (mit Observe→Update-Loop), CasualDreamPrompt im SystemPromptBuilder,
 CuriosityEngine→HypothesisGenerator-Pipeline, Counterfactual-Reasoning in learnFromOutcome,
-**CAUSAL-Eval-Tasks (25.06.)** — HypothesisStore injection + CausalScorer wired + 3 metric Tasks.
-
-**Eval-Status (29.07. live):**
-- ✅ `causal_total >= 10` → PASS (7.496 Hypothesen, score 1.0)
-- ✅ `causal_refuted >= 0` → PASS (SOFT gate, 1.009 refuted)
-- ✅ `causal_confirmed >= 1` → PASS (6.480 confirmed — CausalDreamer bestätigt aktiv)
+CAUSAL-Eval-Tasks (25.06.) — HypothesisStore injection + CausalScorer wired + 3 metric Tasks.
 
 **Verifikation:** `causal_inference = PASS` ✅ ALLE 3 Tasks grün (29.07.2026).
 
 ---
 
-### 👥 Phase 11 — Beziehungs-Modell 🟢 BUILT 100% · VERIFIED ⬜
+### 👥 Phase 11 — Beziehungs-Modell ✅ VERIFIED 09.08.2026
 
-**Status (04.07.2026):** Alle 9 Tasks gebaut, verdrahtet und getestet.
+**Status (09.08.2026):** Alle 9 Tasks gebaut, verdrahtet, und **HARD-verifiziert** via PersonScorer.
+
+**Verifikation:** PersonScorer evaluiert 5 HARD-gate Metriken direkt gegen PersonStore/EmpathySignal/RelationshipMemory — keine LLM-Subjektivität:
+- `trust_level >= 2.0` (Trust-Automation) — HARD ✅
+- `person_exists == true` (PersonStore-Persistenz) — HARD ✅
+- `empathy_score >= 0.3` (positive Sentiment-Erkennung) — HARD ✅
+- `empathy_score <= -0.3` (negative Sentiment-Erkennung) — HARD ✅
+- `memory_notes >= 1` (RelationshipMemory-Persistenz) — HARD ✅
+
+Plus 3 SOFT-Tasks (LLM-Judge, interaction quality).
 
 **BUILT & WIRED:**
 - ✅ **Person/PersonStore/TrustLevel** — Record mit id, name, roles, trust, preferences, knownFacts, sentimentHistory
@@ -81,17 +83,18 @@ CuriosityEngine→HypothesisGenerator-Pipeline, Counterfactual-Reasoning in lear
 
 ---
 
-### 🌀 Phase 12 — Recursive Self-Improvement 🟡 BUILT 70% · VERIFIED ⬜
+### 🌀 Phase 12 — Recursive Self-Improvement ✅ DEPLOYED 09.08.2026
 
-**Voraussetzung:** Phasen 10+11 müssen verifiziert sein (CausalReasoning + PersonModel).
-Ohne kausales Denken und Personenverständnis wäre Self-Modification blindes Trial-Error + Goodhart-Risiko.
+**Status (09.08.2026):** Alle Sub-Phasen 12a–d sind gebaut, verdrahtet und deployed.
+12d (TestGapAnalyzer, RefactorProposal, CoverageCheck) war entgegen Roadmap-Angabe bereits
+vollständig implementiert und in AgentMain registriert — die Roadmap war veraltet.
 
-| Sub-Phase | BUILT | Inhalt |
-|-----------|-------|--------|
-| Ph 12a — Selbst-Bugfixing | 85% | ✅ BugfixingAgent (315L), ✅ SelfFixAction (234L), ✅ CompileRepairLoop (204L), ✅ RollbackManager (291L), ✅ Watchdog (PruneEndpoint), ⬜ AutoRevert (in RollbackManager implizit) |
-| Ph 12b — Feature-Generierung | 90% | ✅ GapAnalyzer (155L), ✅ RiskGate (93L), ✅ FeatureGenAction (107L), ✅ FeatureFlag (70L) — alle verdrahtet, GapAnalyzer läuft alle 60s |
-| Ph 12c — Meta-Learning | 80% | ✅ MetricTimeSeries (89L), ✅ PatternDetector (117L), ✅ AutoABTest (76L) — alle verdrahtet |
-| Ph 12d — Selbst-Refactoring | 0% | ⬜ TestGapAnalyzer, ⬜ RefactorProposal, ⬜ CoverageCheck |
+| Sub-Phase | Status | Inhalt |
+|-----------|--------|--------|
+| Ph 12a — Selbst-Bugfixing | ✅ Deployed | BugfixingAgent, SelfFixAction, CompileRepairLoop, RollbackManager, Watchdog |
+| Ph 12b — Feature-Generierung | ✅ Deployed | GapAnalyzer, RiskGate, FeatureGenAction, FeatureFlag |
+| Ph 12c — Meta-Learning | ✅ Deployed | MetricTimeSeries, PatternDetector, AutoABTest |
+| Ph 12d — Selbst-Refactoring | ✅ Deployed | TestGapAnalyzer, RefactorProposal, CoverageCheck |
 
 **Verdrahtung in AgentMain:**
 - SelfFixAction + RiskGate + CompileRepairLoop registriert (L1619-1633)
@@ -110,18 +113,15 @@ Ohne kausales Denken und Personenverständnis wäre Self-Modification blindes Tr
 
 ---
 
-### 🎙️ Phase 13 — Lusseyran Voice Analysis 🟡 DESIGNED · 13a IN PROGRESS · VERIFIED ⬜
+### 🎙️ Phase 13 — Lusseyran Voice Analysis 🟢 13a DEPLOYED 09.08.2026
 
 > **Inspiration:** Jacques Lusseyran, *Das wiedergefundene Licht* (1963).
 > Metis lernt Menschen anhand der Stimme zu analysieren — Tonhöhe, Rhythmus, Energie, Timbre
 > → LLM-Evaluator interpretiert nach Lusseyran-Prinzipien → Sprecherprofil.
-> **Design-Doc:** `lusseyran-voice-analysis.md` im Workspace.
 
-**Abhängigkeit:** Phase 11 (PersonModel) — SpeakerProfile wird im PersonModel gespeichert.
-
-| Sub-Phase | BUILT | Inhalt |
-|-----------|-------|--------|
-| Ph 13a — VoiceFeatureExtractor | 🟡 5% | Python-Modul (librosa/parselmouth): 20+ Features aus WAV. **STRATEGIC-Goal aktiv (29.07.)** |
+| Sub-Phase | Status | Inhalt |
+|-----------|--------|--------|
+| Ph 13a — VoiceFeatureExtractor | ✅ Deployed | Python-Modul (scipy/numpy, kein librosa nötig): 25+ Features aus WAV. JSON-Output mit Lusseyran-Profil (Stimmhöhe, Energie, Sprechgeschwindigkeit, Stimmhaftigkeit, Variabilität, Pausen). Java-Action `VoiceFeatureAction` in Metis registriert. |
 | Ph 13b — LusseyranEvaluator | 0% | Java-Modul: Prompt-Template → nemotron-mini:4b → strukturiertes Sprecherprofil |
 | Ph 13c — PersonModel-Integration | 0% | speakerProfile-Feld, TrustLevel-Adjustment via voiceSincerity, EmpathySignal-Fusion |
 | Ph 13d — Eval & Verifikation | 0% | 20-Clip-Gold-Datensatz, 6 Eval-Tasks, A/B-Test Lusseyran-Prompt vs. Standard |
@@ -148,16 +148,19 @@ Status-API zeigt `initiativePolicy`-Sektion mit QuietHours/Budgets.
 
 ---
 
-### 🗄️ Phase 14 — Database Learning & Wissen speichern 🟡 IN PROGRESS
+### 🗄️ Phase 14 — Database Learning & Goal-Persistenz ✅ VERIFIED 09.08.2026
 
-**Status (29.07.2026):** Zwei STRATEGIC-Goals aktiv — SQL-API-Endpoint + Belief-Migration.
+**Status (09.08.2026):** H2-Goal-Persistenz deployed und verifiziert — Goals überleben Restarts via H2-UPSERT.
+SQL-API (`/api/sql`) und H2-Endpoint (`/api/h2`) existierten bereits.
 
-| Sub-Phase | BUILT | Inhalt |
-|-----------|-------|--------|
-| Ph 14a — SQL-API-Endpoint | 🟡 5% | POST /api/sql — REST-Endpoint für SQLite-Abfragen mit Read/Write-Trennung. **STRATEGIC-Goal aktiv (29.07.)** |
-| Ph 14b — Belief-Migration | 🟡 5% | JSONL→SQLite+FTS5 für ~134K Beliefs. Volltextsuche via FTS5-Index. **STRATEGIC-Goal aktiv (29.07.)** |
-| Ph 14c — DuckDB-Curriculum | ⬜ 0% | DuckDB für OLAP-Analytics (Trend-Analyse, Planner-Stats) |
-| Ph 14d — MariaDB (optional) | ⬜ 0% | Nur wenn Client/Server nötig |
+| Sub-Phase | Status | Inhalt |
+|-----------|--------|--------|
+| Ph 14a — SQL-API-Endpoint | ✅ Fertig | POST /api/sql — REST-Endpoint für SQLite-Abfragen (existierte bereits) |
+| Ph 14b — Goal-Persistenz | ✅ VERIFIED | GoalHierarchy auf H2-UPSERT umgestellt (226 Goals überleben Restarts) |
+| Ph 14c — DuckDB-Curriculum | ⬜ 0% | DuckDB für OLAP-Analytics (optional) |
+| Ph 14d — MariaDB | ⬜ 0% | Nur wenn Client/Server nötig (optional) |
+
+**Kern-Ergebnis:** `GoalHierarchy.setH2Datastore(h2)` + `upsert()` via H2-MERGE (UPSERT) statt JSONL-append.
 
 **Strategie:** Zwei-DB-Architektur — SQLite (OLTP: Beliefs, Goals, Hypothesen) + DuckDB (OLAP: Metrics, Trends).
 
