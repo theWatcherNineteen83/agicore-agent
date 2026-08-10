@@ -35,6 +35,8 @@ import de.metis.modules.events.CameraPollingTrigger.CameraConfig;
 import de.metis.modules.action.CameraVisionAction;
 import de.metis.modules.action.CameraSnapshotAction;
 import de.metis.modules.action.VideoAnalysisAction;
+import de.metis.modules.action.LusseyranEvaluatorAction;
+import de.metis.modules.action.LusseyranEvaluator;
 import de.metis.modules.events.ProactiveNotificationService;
 import de.metis.kernel.person.InitiativePolicy;
 import de.metis.modules.hardware.HardwareDiscovery;
@@ -993,6 +995,11 @@ public final class AgentMain {
                 java.nio.file.Path.of("/tmp/voice-sample.wav")));
         LOG.info("Phase 13a: VoiceFeatureAction registered");
 
+        // Phase 13b: LusseyranEvaluator — LLM-interpretierte Stimmanalyse
+        LusseyranEvaluator evaluator = new LusseyranEvaluator();
+        agent.core().executor().register(new LusseyranEvaluatorAction("", evaluator));
+        LOG.info("Phase 13b: LusseyranEvaluator registered (model=" + evaluator.model() + ")");
+
         agent.core().executor().register(new LinuxExploreAction(1));
         agent.core().executor().register(new LinuxExploreAction(2) {
             @Override public String name() { return "linux-explore-system"; }
@@ -1480,6 +1487,24 @@ public final class AgentMain {
                     90, "metis",
                     java.util.List.of(voiceTag, "voice", "lusseyran")));
             LOG.info("GoalHierarchy: seeded Phase-13a VoiceFeatureExtractor goal");
+        }
+
+        // Phase 13b: LusseyranEvaluator — LLM-interpretierte Stimmanalyse
+        String lusseyranTag = "phase-13b-lusseyran-evaluator";
+        if (goalHierarchy.all().stream().noneMatch(g -> g.tags() != null && g.tags().contains(lusseyranTag))) {
+            goalHierarchy.upsert(new LongHorizonGoal(
+                    null,
+                    "Baue LusseyranEvaluator — LLM interpretiert VoiceFeatureExtractor-Output",
+                    "Phase 13b (Lusseyran): Nemotron-mini:4b interpretiert die 25+ paralinguistischen Features " +
+                    "aus Phase 13a nach den Prinzipien von Jacques Lusseyran. Prompt-Template → strukturiertes " +
+                    "Sprecherprofil (Stimmcharakter, emotionale Verfassung, Aufrichtigkeit, Archetyp, Vignette).",
+                    GoalHorizon.STRATEGIC,
+                    LongHorizonGoal.Status.ACTIVE,
+                    null, java.util.List.of(),
+                    null, null, null, null, 0.0,
+                    90, "metis",
+                    java.util.List.of(lusseyranTag, "lusseyran", "voice", "evaluation")));
+            LOG.info("GoalHierarchy: seeded Phase-13b LusseyranEvaluator goal");
         }
 
         // Phase 14: SQL API Endpoint
