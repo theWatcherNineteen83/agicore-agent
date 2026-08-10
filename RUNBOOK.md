@@ -209,11 +209,4 @@ for m in json.load(sys.stdin).get('models',[]):
 
 ---
 
-## 🔑 Zugangsdaten
 
-| System | User | Auth |
-|---|---|---|
-| miniedi SSH | prometheus | SSH-Key von Kali (`ssh miniedi`) |
-| miniedi sudo | prometheus | Passphrase (lokal in `tools/credentials/local-maschine.md`) |
-| GitHub | theWatcherNineteen83 | Token auf Kali konfiguriert |
-| GitHub (miniedi) | — | ⚠️ SSH-Key fehlt |
