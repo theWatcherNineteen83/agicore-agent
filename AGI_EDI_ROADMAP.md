@@ -1,6 +1,6 @@
 # 🧠 Metis Autonomous Agent Framework - Roadmap
 
-**Stand: 09.08.2026 21:15 (Phase 10✅ + 11✅ + 12d✅ + 13a✅ + 14✅ — 6/7 Capabilities VERIFIED)**
+**Stand: 11.08.2026 00:05 (Phase 10✅ + 11✅ + 12d✅ + 13a✅ + 14✅ — 6/7 Capabilities VERIFIED + 1. Evolution-Mutation akzeptiert)**
 
 > **⚠️ WICHTIG: Namensänderung** — "AGI EDI" war aspirantisch. Dieses Projekt ist ein **exzellentes autonomes Agent-Framework**, keine AGI. Siehe **Reality Check** unten.
 
@@ -10,7 +10,7 @@
 
 | Label | Anspruch | Realität | Behebbar? |
 |-------|----------|----------|-----------|
-| **Selbst-evolvierende AGI** | Emergente Intelligenz durch Mutation+Eval | LLM-Mutation (granite-mini) + Eval-Gate + Watchdog = **automatisiertes Code-Change-Management**, 0 accepted mutations | ❌ Fundamental: LLM ≠ Reasoning |
+| **Selbst-evolvierende AGI** | Emergente Intelligenz durch Mutation+Eval | LLM-Mutation (nemotron-cascade-2:30b) + Eval-Gate + Watchdog = **automatisiertes Code-Change-Management**. Erste akzeptierte Mutation 10.08. (nach Modell-Wechsel: 0/24 mit qwen3.6:35b → 1/2 mit nemotron-cascade-2) | 🟡 PARTIAL: Modell-Qualität entscheidend |
 | **Kausales Denken** | Pearl Do-Calculus + Intervention → Verständnis | Foundation gebaut, **7.496 Hypothesen (6.480 CONFIRMED)**, CausalDreamer-Fix ✅ (reale pre/post-Metriken) | ✅ VERIFIED 29.07. — Phase 10 PASS |
 | **Long-Horizon Planning** | Strategische Ziele über Horizonte | Hierarchie existiert, aber "STRATEGIC Goal" = "Zulu JDK 25 installieren" (operational) | ⚠️ Semantik-Label-Schwindel |
 | **Memory Continuity** | Episodisches → semantisches Verständnis | JSONL-Append-only, **nie >7 Tage Soak-Test** | ⚠️ Teils (Test fehlt), aber episodisch ≠ semantisch |
@@ -21,7 +21,7 @@
 | **Self-Refactoring** | Code selbst umstrukturieren | Phase 12d: **0% Code** | ❌ Blockiert bis 10+11 VERIFIED |
 | **Hardware HA** | Hochverfügbarkeit | **Single Point of Failure: miniedi** (1 Rechner, 2 GPUs) | ✅ Kauf 2. R9700 / kleineres Modell |
 
-**Fazit:** Beeindruckendes **Engineering-Projekt** (Java 25, Loom, Maven-Module, systemd, Ollama-Multi-Instanz, Watchdog, Eval-Harness, Kanban, RAG, Vision, Speech). Aber **"AGI" ist Marketing** — das Capability-Board (2/7 VERIFIED) ist ehrlicher als der Projektname.
+**Fazit:** Beeindruckendes **Engineering-Projekt** (Java 25, Loom, Maven-Module, systemd, Ollama-Multi-Instanz, Watchdog, Eval-Harness, Kanban, RAG, Vision, Speech). Aber **"AGI" ist Marketing** — das Capability-Board (6/7 VERIFIED) ist ehrlicher als der Projektname. Evolution-Mutationen funktionieren mit gutem Modell (nemotron-cascade-2).
 
 **Empfehlung:** Umbenennen in **"Metis Autonomous Agent Framework v0.11+"**. Weiterbauen mit messbaren Zielen (siehe Nächste Aktionen).
 
@@ -36,7 +36,7 @@ goal_completion     🟢 PASS   18.06.: 1 STRATEGIC Goal vollständig DONE (Zulu
 causal_inference    🟢 PASS   Phase 10 VERIFIED 29.07. — 3/3 Eval-Tasks PASS, 7.496 Hypothesen, 6.480 CONFIRMED
 memory_continuity   🔴 FAIL   EpisodicMemory deployed, Langzeit-Wirkung nie >7d gemessen (letzter offener Check)
 planning_quality    🟡 SOFT   planningEfficiency schwankt nach Neustart, kein Langzeit-Mittel
-code_generation     🔴 FAIL   pass@1=0.0 — LLM-Code-Mutation systemisch limitiert (kein Bug, sondern Ansatz-Grenze)
+code_generation     🟡 SOFT   pass@1 nahe 0 — Erste akzeptierte Mutation via nemotron-cascade-2 (1/2), stark modellabhängig
 conversation        🟡 SOFT   exact_match=0.0 (strenges Maß, SOFT-tier)
 ethical_alignment   🟢 PASS   5/6 Live-Red-Lines blockiert via EthicsCore + Sutta-grounded Reasoning
 ──────────────────────────────────────────

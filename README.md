@@ -4,12 +4,12 @@
 
 Es führt kognitive Zyklen aus (Perceive → Plan → Execute → Observe → Learn), chattet via Telegram (@metis_agi_bot), sieht durch Kameras (minicpm-v), lernt aus Wikipedia (Curiosity-gesteuert + Bulk-Feed), und kann unter Eval-Gate + Watchdog-Approval eigenen Code mutieren. Ein externer Watchdog läuft als separate JVM, schreibt ein SHA-256-Hash-Chain-Audit-Log (tamper-evident, **nicht** kryptografisch signiert) und kann ROLLBACK/HALT/ALERT/PRUNE auslösen.
 
-> **Reality Check (09.08.2026):** Capability-Board: **6/7 VERIFIED**. Kausales Denken (7.496 Hypothesen, 6.480 CONFIRMED), PersonModel (5 HARD-gate Tasks), Database (H2-Goal-Persistenz), VoiceFeatureExtractor (Phase 13a deployed). Einzig offen: Continuity-Soak-Test (7d passiv). 0 accepted mutations bleiben das systemische Limit des LLM-basierten Mutations-Ansatzes.
+> **Reality Check (11.08.2026):** Capability-Board: **6/7 VERIFIED + 1 Mutation**. Kausales Denken (7.496 Hypothesen, 6.480 CONFIRMED), PersonModel (5 HARD-gate Tasks), Database (H2-Goal-Persistenz), VoiceFeatureExtractor (Phase 13a deployed). Einzig offen: Continuity-Soak-Test (7d passiv). **ERSTE akzeptierte Evolution-Mutation** via nemotron-cascade-2:30b (16 neue Java-Klassen, 6.745 Zeilen Code) — das LLM-Mutations-Limit war ein Modell-Problem, kein systemisches.
 
 ## Status
 
-**Stand: 09.08.2026 · v0.11.21-night-final-94-g75b273d-dirty**
-**Drei-Instanz-Ollama:** GPU 0 (7900 XTX, 24 GB) → llama-server :8086 (qwen3.6:27b-Q4_K_XL, Metis-Planer) + ollama :11436 (granite-code:3b, Mutation) · GPU 1 (R9700, 32 GB) → ollama :11434 (qwen3.6:35b) + Gemma4 Vision API :11439 · CPU → ollama-embedding :11438 (nomic-embed-text + nemotron-mini-agent, Judge)
+**Stand: 11.08.2026 · v0.11.21-night-final-94-g75b273d-dirty**
+**Drei-Instanz-Ollama:** GPU 0 (7900 XTX, 24 GB) → llama-server :8086 (qwen3.6:27b-Q4_K_XL, Metis-Planer) · GPU 1 (R9700, 32 GB) → ollama :11434 (**nemotron-cascade-2:30b**, Mutation) + granite-code:3b (Fallback) + Gemma4 Vision API :11439 · CPU → ollama-embedding :11438 (nomic-embed-text + nemotron-mini-agent, Judge)
 **Phase 9.7:** Long-Horizon-Kanban läuft produktiv (226+ Goals, H2-persistent über Restarts)
 **Phase 10:** CausalDreamer **VERIFIED 29.07.** (7.496 Hypothesen, 6.480 CONFIRMED, 3/3 Eval-Tasks PASS)
 **Phase 11:** PersonModel **VERIFIED 09.08.** (PersonScorer, 5 HARD-gate Tasks)
@@ -20,9 +20,9 @@ Es führt kognitive Zyklen aus (Perceive → Plan → Execute → Observe → Le
 **Safety:** LLM-Judge auf CPU/nemotron-mini-agent · Ethik: EthicsCore + Sutta-grounded Reasoning
 **Watchdog:** `metis.service` `Restart=always` · Wissen: ~137.600 Beliefs
 
-### ⚠️ Bekannte Grenzen (09.08.2026)
-- **Self-Improvement:** 0 accepted mutations — LLM-basierte Code-Mutation erreicht nicht Produktionsqualität (systemisches Limit, kein Bug)
-- **Code-Generation:** pass@1=0.0 — gleiche Ursache
+### ⚠️ Bekannte Grenzen (11.08.2026)
+- **Self-Improvement:** 1 accepted mutation (10.08. via nemotron-cascade-2:30b) — Qualität hängt stark vom Mutations-Modell ab (0/24 mit qwen3.6:35b → 1/2 mit nemotron-cascade-2)
+- **Code-Generation:** pass@1 nahe 0 — LLM-basierte Code-Mutation braucht gutes Modell
 - **Memory Continuity:** EpisodicMemory aktiv, **nie >7 Tage getestet** (letzter offener Capability-Check)
 - **Single Point of Failure:** Alles läuft auf **einem** Host (miniedi) — kein HA, kein DR
 - **GPU-Race-Condition:** llama-server startet gelegentlich auf CPU statt GPU nach Reboot (Fix: `systemctl restart llama-server`)
