@@ -182,6 +182,29 @@ public class PersonStore {
             sn.put("at", s.at().toString());
             sh.add(sn);
         }
+        // Phase 13c: speakerProfile
+        if (p.speakerProfile() != null) {
+            ObjectNode spn = mapper.createObjectNode();
+            Person.SpeakerProfile sp = p.speakerProfile();
+            spn.put("stimmcharakter", sp.stimmcharakter());
+            spn.put("emotionaleVerfassung", sp.emotionaleVerfassung());
+            spn.put("aufrichtigkeit", sp.aufrichtigkeit());
+            spn.put("aufrichtigkeitBegruendung", sp.aufrichtigkeitBegruendung());
+            spn.put("archetyp", sp.archetyp());
+            spn.put("vignette", sp.vignette());
+            spn.put("analyzedAt", sp.analyzedAt().toString());
+            n.set("speakerProfile", spn);
+        }
+        // Phase 13c: voiceSentimentHistory
+        ArrayNode vsh = n.putArray("voiceSentimentHistory");
+        for (Person.VoiceSentimentSample vs : p.voiceSentimentHistory()) {
+            ObjectNode vsn = mapper.createObjectNode();
+            vsn.put("label", vs.label());
+            vsn.put("score", vs.score());
+            vsn.put("source", vs.source());
+            vsn.put("at", vs.at().toString());
+            vsh.add(vsn);
+        }
         return n;
     }
 
@@ -196,6 +219,32 @@ public class PersonStore {
             n.path("bannedTopics").forEach(j -> bt.add(j.asText()));
             List<String> kf = new ArrayList<>();
             n.path("knownFacts").forEach(j -> kf.add(j.asText()));
+            // Phase 13c: speakerProfile
+            Person.SpeakerProfile sp = null;
+            JsonNode spNode = n.get("speakerProfile");
+            if (spNode != null && !spNode.isNull()) {
+                sp = new Person.SpeakerProfile(
+                        spNode.path("stimmcharakter").asText(""),
+                        spNode.path("emotionaleVerfassung").asText(""),
+                        spNode.path("aufrichtigkeit").asText("unklar"),
+                        spNode.path("aufrichtigkeitBegruendung").asText(""),
+                        spNode.path("archetyp").asText(""),
+                        spNode.path("vignette").asText(""),
+                        spNode.hasNonNull("analyzedAt")
+                                ? Instant.parse(spNode.get("analyzedAt").asText())
+                                : Instant.now()
+                );
+            }
+            // Phase 13c: voiceSentimentHistory
+            List<Person.VoiceSentimentSample> vsh = new ArrayList<>();
+            for (JsonNode vs : n.path("voiceSentimentHistory")) {
+                vsh.add(new Person.VoiceSentimentSample(
+                        vs.path("label").asText(""),
+                        vs.path("score").asDouble(0.0),
+                        vs.path("source").asText("voice"),
+                        vs.hasNonNull("at") ? Instant.parse(vs.get("at").asText()) : Instant.now()
+                ));
+            }
             List<Person.SentimentSample> sh = new ArrayList<>();
             for (JsonNode sn : n.path("sentimentHistory")) {
                 sh.add(new Person.SentimentSample(
@@ -213,7 +262,9 @@ public class PersonStore {
                     n.hasNonNull("firstSeenAt") ? Instant.parse(n.get("firstSeenAt").asText()) : Instant.now(),
                     n.hasNonNull("lastSeenAt") ? Instant.parse(n.get("lastSeenAt").asText()) : null,
                     n.path("interactionCount").asLong(0),
-                    sh
+                    sh,
+                    sp,
+                    vsh
             );
         } catch (Exception e) {
             LOG.warning("PersonStore parse failed: " + e.getMessage());

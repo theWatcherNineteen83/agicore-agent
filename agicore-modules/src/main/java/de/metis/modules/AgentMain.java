@@ -37,6 +37,7 @@ import de.metis.modules.action.CameraSnapshotAction;
 import de.metis.modules.action.VideoAnalysisAction;
 import de.metis.modules.action.LusseyranEvaluatorAction;
 import de.metis.modules.action.LusseyranEvaluator;
+import de.metis.modules.action.LusseyranPersonIntegration;
 import de.metis.modules.events.ProactiveNotificationService;
 import de.metis.kernel.person.InitiativePolicy;
 import de.metis.modules.hardware.HardwareDiscovery;
@@ -1527,6 +1528,23 @@ public final class AgentMain {
             LOG.info("GoalHierarchy: seeded Phase-14 SQL-API goal");
         }
 
+        // Phase 13c: LusseyranPersonIntegration — voice → PersonModel
+        String personaVoiceTag = "phase-13c-persona-voice";
+        if (goalHierarchy.all().stream().noneMatch(g -> g.tags() != null && g.tags().contains(personaVoiceTag))) {
+            goalHierarchy.upsert(new LongHorizonGoal(
+                    null,
+                    "Integriere Lusseyran-Stimmprofil ins PersonModel",
+                    "Phase 13c: SpeakerProfile-Feld in Person, TrustLevel-Adjustment via VoiceSincerity, " +
+                    "EmpathySignal-Fusion (Text+Voice). Bridge: LusseyranEvaluator(13b) → PersonModel(11).",
+                    GoalHorizon.STRATEGIC,
+                    LongHorizonGoal.Status.ACTIVE,
+                    null, java.util.List.of(),
+                    null, null, null, null, 0.0,
+                    90, "metis",
+                    java.util.List.of(personaVoiceTag, "voice", "person", "lusseyran")));
+            LOG.info("GoalHierarchy: seeded Phase-13c PersonModel-Integration goal");
+        }
+
         // Phase 14: Belief-Store-Migration
         String beliefMigTag = "phase-14-belief-migration";
         if (goalHierarchy.all().stream().noneMatch(g -> g.tags() != null && g.tags().contains(beliefMigTag))) {
@@ -1712,6 +1730,13 @@ public final class AgentMain {
         LOG.info("Phase 11 wired — PersonStore=" + personStore.size()
                 + " persons, RelationshipMemory=" + relationshipMemory.size()
                 + " notes, trust-to-approval mapping active");
+
+        // Phase 13c: LusseyranPersonIntegration — bridges voice analysis (13b) → PersonModel (11)
+        agent.core().executor().register(new LusseyranPersonIntegration(
+                "", "", personStore));
+        LOG.info("Phase 13c: LusseyranPersonIntegration registered (PersonStore="
+                + personStore.size() + ")");
+
         // Phase 11 HARD verification: PersonScorer evaluates trust/empathy/memory directly
         if (evalRunnerRef.get() != null) {
             evalRunnerRef.get().setPersonScorer(personStore, empathySignal, relationshipMemory);
