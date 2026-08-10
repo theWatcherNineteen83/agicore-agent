@@ -27,7 +27,7 @@
 
 ---
 
-## 📊 Capability-Board (Live: 09.08.2026)
+## 📊 Capability-Board (Live: 11.08.2026)
 
 ```
 Capability          Status    Detail

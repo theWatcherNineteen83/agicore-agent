@@ -214,7 +214,7 @@ bash /home/prometheus/metis/backup-config.sh
 - **Tests:** GitHub Actions CI erkennt Kernel-Tests + Watchdog-Build (`mvn -pl agicore-kernel -am clean test` + `mvn -pl agicore-watchdog -am -DskipTests package`). Modules nur lokal testbar (MaryTTS-JARs, TornadoVM-GPU nicht auf CI verfügbar).
 - **Runbook:** [RUNBOOK.md](RUNBOOK.md) — 6 Failure-Modi + Deployment + Health-Check
 
-## Capability-Board (live 09.08.2026)
+## Capability-Board (live 11.08.2026)
 ```
 Capability          Status
 ──────────────────────────────────────────
