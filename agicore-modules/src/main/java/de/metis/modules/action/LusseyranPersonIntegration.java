@@ -75,7 +75,8 @@ public class LusseyranPersonIntegration implements Action {
                         Instant.now(), Instant.now(), 0, java.util.List.of());
                 return personStore.upsert(p);
             });
-            LOG.fine(() -> "LusseyranPersonIntegration: person=" + person.name()
+            String personName = person.name();
+            LOG.fine("LusseyranPersonIntegration: person=" + personName
                     + " trust=" + person.trustLevel());
 
             // 2. Parse Lusseyran evaluation JSON
@@ -87,7 +88,7 @@ public class LusseyranPersonIntegration implements Action {
 
             // 3. Set speaker profile on person
             person = person.withSpeakerProfile(profile);
-            LOG.info(() -> "LusseyranPersonIntegration: " + person.name()
+            LOG.info("LusseyranPersonIntegration: " + personName
                     + " speakerProfile=" + profile.stimmcharakter()
                     + " aufrichtigkeit=" + profile.aufrichtigkeit());
 
