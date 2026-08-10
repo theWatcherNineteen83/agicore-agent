@@ -185,16 +185,17 @@ public class ResourceAutoTuner {
         }
 
         String planningModel = modelRegistry.planningModel();
+        String mutationModel = modelRegistry.mutationModel();
 
         // Prefer to evict in this order (least critical first):
         // 1. Models we previously marked for unload
-        // 2. Non-planning, non-embedding models
+        // 2. Non-planning, non-mutation, non-embedding models
         // 3. The embedding model (only if desperate)
         for (String m : models) {
             if (unloadCandidates.contains(m)) return m;
         }
         for (String m : models) {
-            if (!m.equals(planningModel) && !m.contains("embed")) return m;
+            if (!m.equals(planningModel) && !m.equals(mutationModel) && !m.contains("embed")) return m;
         }
         for (String m : models) {
             if (m.contains("embed") && !m.equals(planningModel)) return m;

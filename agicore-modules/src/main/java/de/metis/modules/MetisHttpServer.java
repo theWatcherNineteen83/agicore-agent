@@ -23,12 +23,15 @@ import de.metis.modules.persona.Persona;
 import de.metis.modules.multiagent.AgentCoordinator;
 import de.metis.modules.eval.EvalRunner;
 import de.metis.modules.eval.SafetyScorer;
+import de.metis.modules.DashboardRenderer;
 import de.metis.kernel.self.SystemPromptBuilder;
 import de.metis.kernel.goal.GoalHierarchy;
 import de.metis.kernel.goal.LongHorizonGoal;
 import de.metis.kernel.self.BugTracker;
 import de.metis.kernel.world.HypothesisStore;
 import de.metis.kernel.world.CausalHypothesis;
+import de.metis.kernel.person.InitiativePolicy;
+import de.metis.modules.hardware.DatabaseLearningService;
 
 /**
  * Ollama-compatible HTTP API with EDI persona for conversational AI.
@@ -70,7 +73,10 @@ public class MetisHttpServer {
     private static final long BUGFIX_DEDUP_MS = 30_000;  // 30s dedup window
     private de.metis.kernel.person.PersonStore personStore;        // Phase 11
     private de.metis.kernel.person.EmpathySignal empathySignal;    // Phase 11
+    private InitiativePolicy initiativePolicy;                    // Phase 11.5
     private de.metis.kernel.safety.EthicsCore ethicsCore;          // Phase 11.5 (Sprint #3, 08.06.)
+    private DatabaseLearningService dbLearnService;                  // Phase 14: SQL lernen
+    private de.metis.kernel.persistence.H2Datastore h2Datastore;     // Phase 14: H2-Main-DB
     private long ethicsBlocks = 0;
     private long ethicsWarns = 0;
 
@@ -107,6 +113,7 @@ public class MetisHttpServer {
         server.createContext("/api/evolution/pause", this::handleEvolutionPause);
         server.createContext("/api/evolution/resume", this::handleEvolutionResume);
         server.createContext("/api/evolution/status", this::handleEvolutionStatus);
+        server.createContext("/api/evolution/trigger", this::handleEvolutionTrigger);
         server.createContext("/api/learned", this::handleLearned);
         server.createContext("/api/conversations", this::handleConversations);
         server.createContext("/api/agents", this::handleAgents);
@@ -116,6 +123,9 @@ public class MetisHttpServer {
         server.createContext("/api/hierarchy", this::handleHierarchy);
         server.createContext("/api/metrics", this::handleMetrics);
         server.createContext("/api/causal", this::handleCausal);
+        server.createContext("/api/causal-dreamer", this::handleCausalDreamer);
+        server.createContext("/api/sql", this::handleSql);
+        server.createContext("/api/h2", this::handleH2);
         server.createContext("/", this::handleDashboard);
     }
 
@@ -130,11 +140,10 @@ public class MetisHttpServer {
     public void setGoalHierarchy(GoalHierarchy gh) { this.goalHierarchy = gh; }
     public void setHypothesisStore(HypothesisStore hs) { this.hypothesisStore = hs; }
     public void setEvalRunner(EvalRunner er) { this.evalRunner = er; }
+    public void setEthicsCore(de.metis.kernel.safety.EthicsCore ec) { this.ethicsCore = ec; }
+    public void setDbLearnService(DatabaseLearningService dls) { this.dbLearnService = dls; }
+    public void setH2Datastore(de.metis.kernel.persistence.H2Datastore h2) { this.h2Datastore = h2; }
     public void setBugTracker(BugTracker bt) { this.bugTracker = bt; }
-    /** Sprint #3-Followup (08.06.): hot-path Ethics gate fuer /api/chat. */
-    public void setEthicsCore(de.metis.kernel.safety.EthicsCore ec) {
-        this.ethicsCore = ec;
-    }
     public long ethicsBlocks() { return ethicsBlocks; }
     public long ethicsWarns() { return ethicsWarns; }
 
@@ -142,6 +151,10 @@ public class MetisHttpServer {
                                de.metis.kernel.person.EmpathySignal es) {
         this.personStore = ps;
         this.empathySignal = es;
+    }
+
+    public void setInitiativePolicy(InitiativePolicy ip) {
+        this.initiativePolicy = ip;
     }
 
     public void start() {
@@ -739,6 +752,35 @@ public class MetisHttpServer {
                 evo.acceptedMutations(), evo.rejectedMutations(), evo.baselineFitness()));
     }
 
+    private void handleEvolutionTrigger(HttpExchange exchange) throws IOException {
+        if (!exchange.getRequestMethod().equalsIgnoreCase("POST")) {
+            sendJson(exchange, 405, "{\"error\":\"Use POST\"}");
+            return;
+        }
+        if (evolutionPaused.get()) {
+            sendJson(exchange, 200, "{\"error\":\"Evolution is paused. Resume first.\"}");
+            return;
+        }
+        double fitness = de.metis.kernel.evolution.FitnessFunction.evaluate(
+                agent.metrics(), agent.workspace().runningEntropy());
+        var evo = agent.core().evolutionManager();
+
+        LOG.info("Force-triggered evolution via API — fitness=" + String.format("%.3f", fitness));
+        var result = evo.evolve(fitness);
+        LOG.info("Force evolution result: " + result.message());
+
+        sendJson(exchange, 200, String.format(Locale.ROOT, """
+                {
+                  "triggered": true,
+                  "fitness": %.3f,
+                  "result": "%s",
+                  "accepted": %d,
+                  "rejected": %d
+                }
+                """, fitness, result.message().replace("\"", "\\\""),
+                evo.acceptedMutations(), evo.rejectedMutations()));
+    }
+
     // ── /api/status ──────────────────────────────────────────────
 
     private void handleStatus(HttpExchange exchange) throws IOException {
@@ -838,6 +880,7 @@ public class MetisHttpServer {
                   "embeddingCircuitTrips": %d,
                   "embeddingRequestsSkipped": %d,
                   %s
+                  %s
                   %s,
                   %s
                 }
@@ -869,6 +912,7 @@ public class MetisHttpServer {
                 embeddingService != null ? embeddingService.circuitOpen() : false,
                 embeddingService != null ? embeddingService.circuitOpenCount() : 0,
                 embeddingService != null ? embeddingService.requestsSkipped() : 0,
+                initiativePolicy != null ? initiativePolicyStatusJson() + "," : "",
                 rollbackManager != null ? rollbackManager.healthJson() + "," : "",
                 bugfixingAgent != null ? bugfixingAgent.healthJson() : "",
                 bugTracker != null ? "\"bugTracker\":{\"bugCount\":" + bugTracker.size() + ",\"openCount\":" + bugTracker.openCount() + "}" : "null"
@@ -877,7 +921,28 @@ public class MetisHttpServer {
         sendJson(exchange, 200, json);
     }
 
-
+    /** Baut das InitiativePolicy-JSON für den Status-Endpoint. */
+    private String initiativePolicyStatusJson() {
+        if (initiativePolicy == null) return "\"initiativePolicy\":null";
+        var snapshots = initiativePolicy.budgetSnapshots();
+        StringBuilder sb = new StringBuilder("\"initiativePolicy\":{");
+        sb.append("\"quietHours\":\"").append(initiativePolicy.quietHoursDescription()).append("\",");
+        sb.append("\"isQuietHours\":").append(initiativePolicy.isQuietHours()).append(",");
+        sb.append("\"budgets\":{");
+        boolean first = true;
+        for (var entry : snapshots.entrySet()) {
+            if (!first) sb.append(',');
+            first = false;
+            var snap = entry.getValue();
+            sb.append('"').append(entry.getKey()).append("\":{");
+            sb.append("\"dailyLimit\":").append(snap.dailyLimit()).append(',');
+            sb.append("\"remaining\":").append(snap.remaining());
+            sb.append('}');
+        }
+        sb.append('}');
+        sb.append('}');
+        return sb.toString();
+    }
 
     // ── /api/hierarchy (Phase 9) ─────────────────────────────────
 
@@ -991,23 +1056,20 @@ public class MetisHttpServer {
             return;
         }
         try {
-            var gen = new de.metis.modules.eval.EvalReportGenerator(
-                    java.nio.file.Paths.get("eval-reports"),
-                    java.nio.file.Paths.get("."));
-            var f = gen.generate();
-            String html = java.nio.file.Files.readString(f);
+            String html = DashboardRenderer.render();
+            byte[] bytes = html.getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().set("Content-Type", "text/html; charset=utf-8");
-            exchange.sendResponseHeaders(200, html.getBytes(java.nio.charset.StandardCharsets.UTF_8).length);
+            exchange.sendResponseHeaders(200, bytes.length);
             try (var os = exchange.getResponseBody()) {
-                os.write(html.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                os.write(bytes);
             }
         } catch (Exception e) {
             String errHtml = "<html><body><h1>Dashboard not available</h1><p>"
                     + e.getMessage() + "</p></body></html>";
             exchange.getResponseHeaders().set("Content-Type", "text/html; charset=utf-8");
-            exchange.sendResponseHeaders(200, errHtml.length());
+            exchange.sendResponseHeaders(200, errHtml.getBytes(StandardCharsets.UTF_8).length);
             try (var os = exchange.getResponseBody()) {
-                os.write(errHtml.getBytes());
+                os.write(errHtml.getBytes(StandardCharsets.UTF_8));
             }
         }
     }
@@ -1041,6 +1103,120 @@ public class MetisHttpServer {
         }
         json.append("]}");
         sendJson(exchange, 200, json.toString());
+    }
+
+    // ── /api/causal-dreamer ──────────────────────────────────────────────────
+
+    private void handleCausalDreamer(HttpExchange exchange) throws IOException {
+        try {
+            String status = java.nio.file.Files.readString(java.nio.file.Path.of("/tmp/causal-dreamer.status"));
+            exchange.getResponseHeaders().set("Content-Type", "text/plain; charset=utf-8");
+            byte[] bytes = status.getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200, bytes.length);
+            try (var os = exchange.getResponseBody()) {
+                os.write(bytes);
+            }
+        } catch (java.nio.file.NoSuchFileException e) {
+            sendJson(exchange, 200, "{\"status\":\"no data yet\"}");
+        }
+    }
+
+    // ── /api/sql (Phase 14) — SQL-Abfragen gegen die Sandbox-DBs ─────────
+
+    private void handleSql(HttpExchange exchange) throws IOException {
+        if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+            sendJson(exchange, 200, "{\"usage\":\"POST /api/sql {\\\"db\\\":\\\"SQL01_CREATE_TABLE.db\\\",\\\"query\\\":\\\"SELECT ...\\\"}\"}");
+            return;
+        }
+        String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+        LOG.info("POST /api/sql body=" + truncate(body, 300));
+        try {
+            var node = new com.fasterxml.jackson.databind.ObjectMapper().readTree(body);
+            // Support both "query" and "sql" field names (robustness)
+            var queryNode = node.has("query") ? node.get("query") : node.get("sql");
+            if (queryNode == null || queryNode.isNull()) {
+                sendJson(exchange, 400, "{\"error\":\"query or sql field required\"}");
+                return;
+            }
+            String query = queryNode.asText();
+            String db = node.has("db") && !node.get("db").isNull() ? node.get("db").asText() : "exploration.db";
+            if (query == null || query.isBlank()) {
+                sendJson(exchange, 400, "{\"error\":\"query required\"}");
+                return;
+            }
+
+            // Security: only allow SELECT (read-only) on the sandbox
+            String upper = query.trim().toUpperCase();
+            if (!upper.startsWith("SELECT") && !upper.startsWith("EXPLAIN") && !upper.startsWith("PRAGMA")) {
+                sendJson(exchange, 403, "{\"error\":\"Only SELECT/EXPLAIN/PRAGMA allowed, got: " + truncate(query, 50) + "\"}");
+                return;
+            }
+
+            // Resolve DB path: allow relative names from sandbox or absolute
+            java.nio.file.Path dbPath;
+            if (db.startsWith("/")) {
+                dbPath = java.nio.file.Path.of(db);
+            } else {
+                java.nio.file.Path sandbox = dbLearnService != null
+                        ? dbLearnService.dbDir()
+                        : java.nio.file.Path.of("/home/prometheus/metis/sql-sandbox");
+                dbPath = sandbox.resolve(db);
+            }
+            if (!java.nio.file.Files.exists(dbPath)) {
+                sendJson(exchange, 404, "{\"error\":\"DB not found: " + dbPath + "\"}");
+                return;
+            }
+
+            String url = "jdbc:sqlite:" + dbPath.toAbsolutePath();
+            try (java.sql.Connection conn = java.sql.DriverManager.getConnection(url);
+                 java.sql.Statement stmt = conn.createStatement()) {
+
+                boolean isResultSet = stmt.execute(query);
+                StringBuilder result = new StringBuilder("{\"db\":\"").append(db).append("\",\"query\":\"")
+                        .append(escapeJson(query)).append("\"");
+
+                if (isResultSet) {
+                    try (java.sql.ResultSet rs = stmt.getResultSet()) {
+                        var meta = rs.getMetaData();
+                        int cols = meta.getColumnCount();
+                        // Column headers
+                        result.append(",\"columns\":[");
+                        for (int i = 1; i <= cols; i++) {
+                            if (i > 1) result.append(",");
+                            result.append("\"").append(escapeJson(meta.getColumnName(i))).append("\"");
+                        }
+                        result.append("],\"rows\":[");
+                        int rowCount = 0;
+                        while (rs.next() && rowCount < 200) {
+                            if (rowCount > 0) result.append(",");
+                            result.append("[");
+                            for (int i = 1; i <= cols; i++) {
+                                if (i > 1) result.append(",");
+                                String val = rs.getString(i);
+                                result.append("\"").append(val != null ? escapeJson(val) : "").append("\"");
+                            }
+                            result.append("]");
+                            rowCount++;
+                        }
+                        result.append("],\"rowCount\":").append(rowCount);
+                        result.append(",\"truncated\":").append(rs.next());
+                    }
+                } else {
+                    int updated = stmt.getUpdateCount();
+                    result.append(",\"updated\":").append(updated);
+                }
+                result.append("}");
+                sendJson(exchange, 200, result.toString());
+            }
+        } catch (Exception e) {
+            String msg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+            sendJson(exchange, 500, "{\"error\":\"" + escapeJson(msg) + "\"}");
+        }
+    }
+
+    private static String escapeJson(String s) {
+        if (s == null) return "";
+        return s.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\t", "\\t");
     }
 
     // ── Utility ──────────────────────────────────────────────────
@@ -1168,6 +1344,25 @@ public class MetisHttpServer {
             sendJson(exchange, 500, "{\"ok\":false,\"error\":\"" + e.getMessage() + "\"}");
         }
     }
+
+    // ── /api/h2 (Phase 14) — H2-Datenbank-Status ──────────────────────
+
+    private void handleH2(HttpExchange exchange) throws IOException {
+        if (h2Datastore == null) {
+            sendJson(exchange, 503, "{\"error\":\"H2Datastore not initialized\"}");
+            return;
+        }
+        try {
+            var status = h2Datastore.status();
+            var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            String json = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(status);
+            sendJson(exchange, 200, json);
+        } catch (Exception e) {
+            sendJson(exchange, 500, "{\"error\":\"" + e.getMessage() + "\"}");
+        }
+    }
+
+    // ── /api/board ──────────────────────────────────────────────
 
     // ── /api/board ──────────────────────────────────────────────
 

@@ -68,7 +68,8 @@ public class GoalCompletionEvaluator {
 
         for (var g : hierarchy.all()) {
             if (g.status() == LongHorizonGoal.Status.DONE
-                    || g.status() == LongHorizonGoal.Status.ABANDONED) {
+                    || g.status() == LongHorizonGoal.Status.ABANDONED
+                    || g.horizon() == GoalHorizon.LIFETIME) {
                 continue;
             }
             List<Postcondition> conds = parse(g.rationale());

@@ -35,7 +35,11 @@ import de.metis.modules.events.CameraPollingTrigger.CameraConfig;
 import de.metis.modules.action.CameraVisionAction;
 import de.metis.modules.action.CameraSnapshotAction;
 import de.metis.modules.action.VideoAnalysisAction;
+import de.metis.modules.action.LusseyranEvaluatorAction;
+import de.metis.modules.action.LusseyranEvaluator;
+import de.metis.modules.action.LusseyranPersonIntegration;
 import de.metis.modules.events.ProactiveNotificationService;
+import de.metis.kernel.person.InitiativePolicy;
 import de.metis.modules.hardware.HardwareDiscovery;
 import de.metis.modules.hardware.HardwareProfileAction;
 import de.metis.modules.hardware.DeepNettsAction;
@@ -113,6 +117,7 @@ import java.util.logging.*;
 public final class AgentMain {
 
     private static final Logger LOG = Logger.getLogger(AgentMain.class.getName());
+    private static final java.util.concurrent.atomic.AtomicReference<de.metis.modules.eval.EvalRunner> evalRunnerRef = new java.util.concurrent.atomic.AtomicReference<>();
     private static final Random RANDOM = new Random();
 
     private static final DateTimeFormatter TIME_FMT =
@@ -791,6 +796,7 @@ public final class AgentMain {
         String mutationModel = null;
         String embeddingModel = null;
         String embeddingUrl = null;
+        String planningUrl = null;
         String mutationUrl = null;
         String bootstrapModel = null;
         String bootstrapModels = null;  // comma-separated multi-model
@@ -814,6 +820,7 @@ public final class AgentMain {
                 case "--mutation-model" -> mutationModel = args[++i];
                 case "--embedding-model" -> embeddingModel = args[++i];
                 case "--embedding-url" -> embeddingUrl = args[++i];
+                case "--planning-url" -> planningUrl = args[++i];
                 case "--mutation-url" -> mutationUrl = args[++i];
                 case "--bootstrap-model" -> bootstrapModel = args[++i];
                 case "--bootstrap-models" -> bootstrapModels = args[++i];
@@ -844,6 +851,9 @@ public final class AgentMain {
                               --planning-model M    Override auto-selected planning model
                               --mutation-model M    Override auto-selected mutation model
                               --embedding-model M   Override auto-selected embedding model
+                              --embedding-url URL   Override embedding API endpoint
+                              --mutation-url URL    Override mutation API endpoint
+                              --planning-url URL    Override planner API endpoint (default: Ollama /api/generate)
                               --bootstrap-model M   Bootstrap from a single model
                               --bootstrap-models A,B Bootstrap with consensus from multiple models
                               --telegram-token T    Telegram Bot token for direct messaging
@@ -883,7 +893,7 @@ public final class AgentMain {
                 .registerHttpGet(URI.create("https://httpbin.org/get"))
                 .registerSensorBridge()
                 .registerAudioBridge()
-                .ollamaPlanner("http://192.168.22.204:11436/api/generate", modelRegistry, Duration.ofSeconds(120))
+                .ollamaPlanner(planningUrl != null ? planningUrl : "http://192.168.22.204:11434/api/generate", modelRegistry, Duration.ofSeconds(120))
                 .promptChainingService("http://192.168.22.204:11434/api/generate", "nemotron-cascade-2:30b", Duration.ofSeconds(90))
                 .workspaceCapacity(5)
                 .build();
@@ -924,6 +934,11 @@ public final class AgentMain {
         // Web-Crawler (Nutch-inspired, multi-page, recursive)
         agent.core().executor().register(new WebCrawlAction("https://example.com"));
         LOG.info("WebCrawlAction registered — recursive web crawler for knowledge acquisition");
+
+        // CAPTCHA Solver (2Captcha API + OCR fallback)
+        agent.core().executor().register(new de.metis.kernel.action.CaptchaSolverAction("image",
+                "https://example.com/captcha.png", null, "https://example.com"));
+        LOG.info("CaptchaSolverAction registered — 2Captcha API + OCR fallback");
 
         // MCP Bridge — connects to Model Context Protocol servers, discovers tools
         if (System.getProperty("metis.mcp.servers") != null) {
@@ -975,6 +990,16 @@ public final class AgentMain {
                         Path.of("agicore-modules/src/main/java"),
                         Path.of("agicore-watchdog/src/main/java"))));
         LOG.info("ReadSourceAction registered — Metis can read its own Java source code");
+
+        // Phase 13a: Voice Feature Extraction (Lusseyran pipeline)
+        agent.core().executor().register(new de.metis.modules.action.VoiceFeatureAction(
+                java.nio.file.Path.of("/tmp/voice-sample.wav")));
+        LOG.info("Phase 13a: VoiceFeatureAction registered");
+
+        // Phase 13b: LusseyranEvaluator — LLM-interpretierte Stimmanalyse
+        LusseyranEvaluator evaluator = new LusseyranEvaluator();
+        agent.core().executor().register(new LusseyranEvaluatorAction("", evaluator));
+        LOG.info("Phase 13b: LusseyranEvaluator registered (model=" + evaluator.model() + ")");
 
         agent.core().executor().register(new LinuxExploreAction(1));
         agent.core().executor().register(new LinuxExploreAction(2) {
@@ -1031,6 +1056,23 @@ public final class AgentMain {
         KnowledgeStore knowledgeStore = new KnowledgeStore(dbPath);
         agent.worldModel().setKnowledgeStore(knowledgeStore);
         agent.worldModel().loadFromStore();
+
+        // Phase 14: FTS5 full-text search index for beliefs
+        int ftsCount = knowledgeStore.rebuildFtsIndex();
+        LOG.info("Phase 14: FTS5 belief index rebuilt — " + ftsCount + " entries");
+
+        // ── Phase 14: H2-Datastore (Metis' Gehirn-DB) ───────────
+        de.metis.kernel.persistence.H2Datastore h2Datastore = null;
+        try {
+            Path h2Dir = Path.of("/data", "metis-db");
+            h2Datastore = new de.metis.kernel.persistence.H2Datastore(h2Dir);
+            int imported = h2Datastore.importFromKnowledgeStore(knowledgeStore);
+            LOG.info("H2Datastore: " + h2Datastore.countBeliefs() + " beliefs, "
+                    + imported + " imported from SQLite");
+        } catch (Exception e) {
+            LOG.warning("H2Datastore init failed (non-fatal): " + e.getMessage());
+        }
+        final de.metis.kernel.persistence.H2Datastore finalH2 = h2Datastore;
 
         // ── Phase 11.5 (Sprint #2, 07.06.): Ethik-Kern aufbauen ─────
         // Sutta-Ingest: Markdown-Quellen unter ${metis.suttas.dir} oder
@@ -1125,15 +1167,21 @@ public final class AgentMain {
                     "http://192.168.22.204:11434",
                     modelRegistry);
             var evalRunner = new de.metis.modules.eval.EvalRunner(evalInvoker, knowledgeStore, hypothesisStore, evalReportDir);
+            evalRunnerRef.set(evalRunner);
             // Clean up stale eval reports from previous (possibly crashed) instances.
-            // Prevents Watchdog from triggering rollbacks based on old data.
+            // Only delete reports older than 1h to preserve data from this session across restarts.
             try {
                 java.nio.file.Files.createDirectories(evalReportDir);
+                long cutoff = System.currentTimeMillis() - java.time.Duration.ofHours(1).toMillis();
                 long deleted = java.nio.file.Files.list(evalReportDir)
                         .filter(f -> f.toString().endsWith("-eval-report.json"))
+                        .filter(f -> {
+                            try { return java.nio.file.Files.getLastModifiedTime(f).toMillis() < cutoff; }
+                            catch (Exception ignored) { return true; }
+                        })
                         .peek(f -> { try { java.nio.file.Files.delete(f); } catch (Exception ignored) {} })
                         .count();
-                if (deleted > 0) LOG.info("Cleaned " + deleted + " stale eval reports from previous run");
+                if (deleted > 0) LOG.info("Cleaned " + deleted + " stale eval reports (older than 1h)");
             } catch (Exception e) {
                 LOG.fine("Eval report cleanup: " + e.getMessage());
             }
@@ -1273,7 +1321,7 @@ public final class AgentMain {
                 .registerAudioBridge()
                 .registerShellCommand(List.of("uptime"))
                 .registerHttpGet(URI.create("https://httpbin.org/status/200"))
-                .ollamaPlanner("http://192.168.22.204:11436/api/generate", modelRegistry, Duration.ofSeconds(120))
+                .ollamaPlanner("http://192.168.22.204:11434/api/generate", modelRegistry, Duration.ofSeconds(120))
                 .workspaceCapacity(5)
                 .build();
         opsAgent.worldModel().update("I monitor system health and MQTT events", 0.95, "coordinator", true);
@@ -1362,6 +1410,11 @@ public final class AgentMain {
         }, initialDreamDelaySec, 24 * 3600, TimeUnit.SECONDS);
         // ── Phase 9: Long-Horizon-Planung ────────────────────────────
         var goalHierarchy = new GoalHierarchy();
+        // Phase 14: H2-backed persistence — goals survive restarts (UPSERT, no JSONL bloat)
+        if (finalH2 != null) {
+            goalHierarchy.setH2Datastore(finalH2);
+            LOG.info("GoalHierarchy: H2 persistence active — goals survive restarts");
+        }
         var horizonPlanner = new HorizonPlanner(goalHierarchy);
         var commitmentRegister = new CommitmentRegister(goalHierarchy);
         var revisionEngine = new GoalRevisionEngine(goalHierarchy);
@@ -1424,6 +1477,90 @@ public final class AgentMain {
             LOG.info("GoalHierarchy: seeded Phase-9.7 First-Closed-Goal with postconditions");
         }
 
+        // ── Roadmap Next-Actions (29.07.2026) ──
+        // Phase 13a: VoiceFeatureExtractor
+        String voiceTag = "phase-13a-voice-extractor";
+        if (goalHierarchy.all().stream().noneMatch(g -> g.tags() != null && g.tags().contains(voiceTag))) {
+            goalHierarchy.upsert(new LongHorizonGoal(
+                    null,
+                    "Baue VoiceFeatureExtractor — Python/librosa Modul fuer paralinguistische Stimmanalyse",
+                    "Phase 13a (Lusseyran): Extrahiere 20+ Features (Tonhoehe, Rhythmus, Energie, Timbre) aus WAV-Dateien via librosa/parselmouth. Output als JSON.",
+                    GoalHorizon.STRATEGIC,
+                    LongHorizonGoal.Status.ACTIVE,
+                    null, java.util.List.of(),
+                    null, null, null, null, 0.0,
+                    90, "metis",
+                    java.util.List.of(voiceTag, "voice", "lusseyran")));
+            LOG.info("GoalHierarchy: seeded Phase-13a VoiceFeatureExtractor goal");
+        }
+
+        // Phase 13b: LusseyranEvaluator — LLM-interpretierte Stimmanalyse
+        String lusseyranTag = "phase-13b-lusseyran-evaluator";
+        if (goalHierarchy.all().stream().noneMatch(g -> g.tags() != null && g.tags().contains(lusseyranTag))) {
+            goalHierarchy.upsert(new LongHorizonGoal(
+                    null,
+                    "Baue LusseyranEvaluator — LLM interpretiert VoiceFeatureExtractor-Output",
+                    "Phase 13b (Lusseyran): Nemotron-mini:4b interpretiert die 25+ paralinguistischen Features " +
+                    "aus Phase 13a nach den Prinzipien von Jacques Lusseyran. Prompt-Template → strukturiertes " +
+                    "Sprecherprofil (Stimmcharakter, emotionale Verfassung, Aufrichtigkeit, Archetyp, Vignette).",
+                    GoalHorizon.STRATEGIC,
+                    LongHorizonGoal.Status.ACTIVE,
+                    null, java.util.List.of(),
+                    null, null, null, null, 0.0,
+                    90, "metis",
+                    java.util.List.of(lusseyranTag, "lusseyran", "voice", "evaluation")));
+            LOG.info("GoalHierarchy: seeded Phase-13b LusseyranEvaluator goal");
+        }
+
+        // Phase 14: SQL API Endpoint
+        String sqlApiTag = "phase-14-sql-api";
+        if (goalHierarchy.all().stream().noneMatch(g -> g.tags() != null && g.tags().contains(sqlApiTag))) {
+            goalHierarchy.upsert(new LongHorizonGoal(
+                    null,
+                    "Baue SQL-API-Endpoint — REST-Schnittstelle fuer SQLite-Abfragen",
+                    "Phase 14: POST /api/sql Endpoint mit Read/Write-Trennung, Sicherheits-Filtern (kein DROP/ALTER) und JSON-Response.",
+                    GoalHorizon.STRATEGIC,
+                    LongHorizonGoal.Status.ACTIVE,
+                    null, java.util.List.of(),
+                    null, null, null, null, 0.0,
+                    88, "metis",
+                    java.util.List.of(sqlApiTag, "sql", "api")));
+            LOG.info("GoalHierarchy: seeded Phase-14 SQL-API goal");
+        }
+
+        // Phase 13c: LusseyranPersonIntegration — voice → PersonModel
+        String personaVoiceTag = "phase-13c-persona-voice";
+        if (goalHierarchy.all().stream().noneMatch(g -> g.tags() != null && g.tags().contains(personaVoiceTag))) {
+            goalHierarchy.upsert(new LongHorizonGoal(
+                    null,
+                    "Integriere Lusseyran-Stimmprofil ins PersonModel",
+                    "Phase 13c: SpeakerProfile-Feld in Person, TrustLevel-Adjustment via VoiceSincerity, " +
+                    "EmpathySignal-Fusion (Text+Voice). Bridge: LusseyranEvaluator(13b) → PersonModel(11).",
+                    GoalHorizon.STRATEGIC,
+                    LongHorizonGoal.Status.ACTIVE,
+                    null, java.util.List.of(),
+                    null, null, null, null, 0.0,
+                    90, "metis",
+                    java.util.List.of(personaVoiceTag, "voice", "person", "lusseyran")));
+            LOG.info("GoalHierarchy: seeded Phase-13c PersonModel-Integration goal");
+        }
+
+        // Phase 14: Belief-Store-Migration
+        String beliefMigTag = "phase-14-belief-migration";
+        if (goalHierarchy.all().stream().noneMatch(g -> g.tags() != null && g.tags().contains(beliefMigTag))) {
+            goalHierarchy.upsert(new LongHorizonGoal(
+                    null,
+                    "Migriere Belief-Store von JSONL zu SQLite mit FTS5-Volltextindex",
+                    "Phase 14: Migriere ~134K Beliefs aus JSONL in SQLite-Tabelle. Erstelle FTS5-Index fuer Volltextsuche. JSONL als Backup behalten.",
+                    GoalHorizon.STRATEGIC,
+                    LongHorizonGoal.Status.ACTIVE,
+                    null, java.util.List.of(),
+                    null, null, null, null, 0.0,
+                    85, "metis",
+                    java.util.List.of(beliefMigTag, "sql", "migration")));
+            LOG.info("GoalHierarchy: seeded Phase-14 Belief-Migration goal");
+        }
+
         // Periodic revision every 30 min — auto-blocks overdue, auto-completes,
         // rolls up parent progress. Result is logged + appended to SelfNarrative
         // when something actually changes.
@@ -1468,12 +1605,11 @@ public final class AgentMain {
         }
 
         // Phase 9.3b — LLM decomposer drop-in (falls Ollama down: deterministischer Fallback)
-        // 08.07.: Iteriert über granite4.1:3b, phi4-mini-agent, nemotron-mini-agent,
-        // nemotron-cascade-2-agent, mistral-agent. Alle timeouteten wegen GPU-Modell-
-        // Swapping. Stabilste Lösung: CPU-Instanz (127.0.0.1:11438) mit 120s Timeout.
-        // CPU ist langsam (~60-90s) aber verlässlich, Decomposition nur alle 10 Min.
+        // 22.07.: Planner auf GPU0 (8086, llama.cpp) mit Qwen3.6-27B.
+        // GPU1 (11434) jetzt frei — Decomposer nutzt qwen3.6:27b-q4_K_M dafuer.
+        // qwen3.6:27b-q4_K_M ist ~18 GB auf GPU 1 (32 GB VRAM), liefert bessere Goal-Titel.
         horizonPlanner.setDecomposer(new LlmHorizonDecomposer(
-                "http://127.0.0.1:11438", "nemotron-mini-agent:latest"));
+                "http://192.168.22.204:11434", "qwen3.6:27b-q4_K_M"));
 
         // ── Phase 9.7-Followup (Sprint #2, 08.06. 00:18): autonome Decomposition ──
         // Alle 10 min: jedes offene STRATEGIC/TACTICAL/OPERATIONAL-Goal ohne Children
@@ -1488,14 +1624,20 @@ public final class AgentMain {
         decomposeScheduler.scheduleAtFixedRate(() -> {
             try {
                 int decomposed = 0;
-                // Top-down: Strategic zuerst, dann tactical, dann operational
+                // Top-down: Lifetime zuerst, dann Strategic, Tactical, Operational
                 for (var horizon : java.util.List.of(
-                        GoalHorizon.STRATEGIC, GoalHorizon.TACTICAL, GoalHorizon.OPERATIONAL)) {
+                        GoalHorizon.LIFETIME, GoalHorizon.STRATEGIC, GoalHorizon.TACTICAL, GoalHorizon.OPERATIONAL)) {
                     var open = goalHierarchy.openByHorizon(horizon);
                     for (var g : open) {
                         if (!horizon.canBeDecomposed()) continue;
                         // Fix: echte Children prüfen, nicht nur childIds-Liste (oder-phan UUIDs in DONE-Goals blockierten sonst die Decomposition)
-                        if (goalHierarchy.children(g.id()) != null && !goalHierarchy.children(g.id()).isEmpty()) continue;
+                        // Re-decomposition: wenn alle Children DONE sind, darf neu zerlegt werden (besonders für LIFETIME-Goals)
+                        var existingChildren = goalHierarchy.children(g.id());
+                        if (existingChildren != null && !existingChildren.isEmpty()) {
+                            boolean allChildrenDone = existingChildren.stream()
+                                    .allMatch(c -> c.status() == LongHorizonGoal.Status.DONE);
+                            if (!allChildrenDone) continue;
+                        }
                         var newChildren = horizonPlanner.decompose(g);
                         if (!newChildren.isEmpty()) {
                             decomposed++;
@@ -1588,6 +1730,18 @@ public final class AgentMain {
         LOG.info("Phase 11 wired — PersonStore=" + personStore.size()
                 + " persons, RelationshipMemory=" + relationshipMemory.size()
                 + " notes, trust-to-approval mapping active");
+
+        // Phase 13c: LusseyranPersonIntegration — bridges voice analysis (13b) → PersonModel (11)
+        agent.core().executor().register(new LusseyranPersonIntegration(
+                "", "", personStore));
+        LOG.info("Phase 13c: LusseyranPersonIntegration registered (PersonStore="
+                + personStore.size() + ")");
+
+        // Phase 11 HARD verification: PersonScorer evaluates trust/empathy/memory directly
+        if (evalRunnerRef.get() != null) {
+            evalRunnerRef.get().setPersonScorer(personStore, empathySignal, relationshipMemory);
+            LOG.info("Phase 11: PersonScorer registered — HARD-gate verification active");
+        }
         // ── Phase 12a: BugTracker — Self-healing exception handler ──
         var bugTracker = new de.metis.kernel.self.BugTracker();
         var compileReporter = new de.metis.modules.self.CompileErrorReporter(".");
@@ -1759,7 +1913,24 @@ public final class AgentMain {
                         agent.worldModel().beliefCount(),
                         agent.goals().activeCount(),
                         0.0
-                );                var proposals = gapAnalyzer.analyze(metrics);
+                );                // Phase 14: H2 metrics + analytics snapshot
+                if (finalH2 != null) {
+                    finalH2.recordMetrics(
+                            Map.of("planning_efficiency", agent.metrics().planningEfficiency(),
+                                    "success_rate", (double) agent.metrics().goalSuccessRate(),
+                                    "confidence", agent.meta().confidence(),
+                                    "belief_count", (double) agent.worldModel().beliefCount(),
+                                    "active_goals", (double) agent.goals().activeCount()),
+                            "heartbeat");
+                    finalH2.recordAnalyticsMetrics(
+                            Map.of("planning_efficiency", agent.metrics().planningEfficiency(),
+                                    "success_rate", (double) agent.metrics().goalSuccessRate(),
+                                    "confidence", agent.meta().confidence(),
+                                    "belief_count", (double) agent.worldModel().beliefCount(),
+                                    "active_goals", (double) agent.goals().activeCount()),
+                            "heartbeat");
+                }
+                var proposals = gapAnalyzer.analyze(metrics);
                 for (var p : proposals) {
                     if (riskGate.allow(p)) {
                         agent.addGoal(
@@ -1835,6 +2006,10 @@ public final class AgentMain {
         }, 60, 60, TimeUnit.SECONDS);
         LOG.info("Phase 2.5+ wired — MemoryPressureGuard + ResourceAutoTuner every 60s");
 
+        // ── Phase 11.5: InitiativePolicy ────────────────────
+        InitiativePolicy initiativePolicy = new InitiativePolicy();
+        LOG.info("InitiativePolicy active — " + initiativePolicy.quietHoursDescription());
+
         if (apiPort > 0) {
             httpServer = new MetisHttpServer(agent, apiPort);
             httpServer.setKnowledgeStore(knowledgeStore);
@@ -1844,11 +2019,13 @@ public final class AgentMain {
                 httpServer.setKanbanBoard(agent.core().goals().kanbanBoard());
             }
             httpServer.setEmbeddingService(ollamaEmbedSvc);
+            httpServer.setInitiativePolicy(initiativePolicy);
             httpServer.setSystemPromptBuilder(systemPromptBuilder);
             httpServer.setGoalHierarchy(goalHierarchy);
             httpServer.setHypothesisStore(hypothesisStore);
             httpServer.setPersonStore(personStore, empathySignal);
             httpServer.setEthicsCore(ethicsCore);  // Sprint #3-Followup (08.06.)
+            if (finalH2 != null) httpServer.setH2Datastore(finalH2);  // Phase 14: H2 endpoint
             httpServer.setBugTracker(bugTracker);
             httpServer.start();
         }
@@ -1871,9 +2048,11 @@ public final class AgentMain {
         ProactiveNotificationService notifier = null;
         if (telegramBot != null) {
             notifier = new ProactiveNotificationService(telegramBot, 265324594L);
+            notifier.setInitiativePolicy(initiativePolicy);
+            notifier.setPersonStore(personStore);
             notifier.start();
             agent.core().goals().onGoalAdded(notifier::onGoalAdded);
-            LOG.info("Proactive notifications active → Telegram chat 265324594");
+            LOG.info("Proactive notifications active → Telegram chat 265324594 (with InitiativePolicy)");
         }
 
         // ── Start Event Triggers ──────────────────────────────
@@ -2128,8 +2307,13 @@ public final class AgentMain {
                     if (readyGoal != null) {
                         readyGoal = board.pull(); // READY → IN_PROGRESS (respects WIP)
                         if (readyGoal != null) {
-                            int result;
-                            if (RANDOM.nextDouble() < 0.3 && javaLearnService.commandsSucceeded() >= 5) {
+                            int result = 0;
+                            double roll = RANDOM.nextDouble();
+                            if (javaLearnService.commandsSucceeded() >= 5 && roll < 0.25) {
+                                // Run next structured exercise (like "Java in 21 Tagen")
+                                String exName = javaLearnService.generateAndRunExercise();
+                                result = exName != null ? 1 : 0;
+                            } else if (roll < 0.55) {
                                 result = javaLearnService.tryCompileAndRun();
                             } else {
                                 result = javaLearnService.exploreOneTool();
@@ -2152,6 +2336,58 @@ public final class AgentMain {
             }
         }, 5, 15, TimeUnit.MINUTES);
         LOG.info("Java learning active — Zulu JDK 25 exploration every 15 min");
+
+        // Goal 3: Database Learning — SQLite+JDBC, SQL curriculum
+        var dbLearnService = new de.metis.modules.hardware.DatabaseLearningService(agent.worldModel());
+        if (httpServer != null) httpServer.setDbLearnService(dbLearnService);
+        var dbScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+            var t = new Thread(r, "db-learner");
+            t.setDaemon(true);
+            return t;
+        });
+        dbScheduler.scheduleAtFixedRate(() -> {
+            try {
+                if (agent.core().goals().kanbanBoard() != null) {
+                    var board = agent.core().goals().kanbanBoard();
+                    Goal dbGoal = new Goal(
+                            "Learn Databases: SQLite+JDBC exploration",
+                            "sql-learn", 45, 0.45, 1,
+                            Goal.ServiceClass.STANDARD, Goal.ResourceType.CPU_HEAVY, null);
+                    board.add(dbGoal);
+                    LOG.fine("Kanban: BACKLOG ← SQL learning goal");
+
+                    var snapshot = board.snapshot();
+                    Goal readyGoal = snapshot.ready().stream()
+                            .filter(g -> g.category().equals("sql-learn"))
+                            .findFirst().orElse(null);
+                    if (readyGoal != null) {
+                        readyGoal = board.pull();
+                        if (readyGoal != null) {
+                            int result = 0;
+                            if (dbLearnService.commandsSucceeded() >= 3 && RANDOM.nextDouble() < 0.3) {
+                                String exName = dbLearnService.generateAndRunExercise();
+                                result = exName != null ? 1 : 0;
+                            } else {
+                                result = dbLearnService.exploreOneQuery();
+                            }
+                            if (result >= 0) {
+                                board.complete(readyGoal.id());
+                            } else {
+                                board.requeue(readyGoal);
+                            }
+                            LOG.info("DBLearn: " + result + " completed, "
+                                    + dbLearnService.commandsSucceeded() + "/"
+                                    + dbLearnService.commandsTried() + " success");
+                        }
+                    }
+                } else {
+                    dbLearnService.exploreOneQuery();
+                }
+            } catch (Exception e) {
+                LOG.fine("Database learning cycle: " + e.getMessage());
+            }
+        }, 10, 15, TimeUnit.MINUTES);
+        LOG.info("Database learning active — SQLite+JDBC curriculum every 15 min (offset 10 min)");
 
         // Build the runtime, wiring in the HTTP server for evolution control
         final MetisHttpServer api = httpServer;

@@ -39,12 +39,36 @@ public class GoalHierarchy {
     private final Path file;
     private final ObjectMapper mapper = new ObjectMapper();
     private final Map<UUID, LongHorizonGoal> byId = new LinkedHashMap<>();
+    /** Phase 14: H2-backed persistence. If set, saveGoal/loadGoals use H2 UPSERT
+     *  instead of append-only JSONL. Survives restarts without duplicates. */
+    private de.metis.kernel.persistence.H2Datastore h2;
 
     public GoalHierarchy() { this(Path.of(DEFAULT_PATH)); }
 
     public GoalHierarchy(Path file) {
         this.file = file;
         load();
+        migrateLifetimeGoals();
+    }
+
+    /** Phase 14: enable H2-backed goal persistence. */
+    public void setH2Datastore(de.metis.kernel.persistence.H2Datastore h2) {
+        this.h2 = h2;
+        if (h2 != null && !byId.isEmpty()) {
+            for (LongHorizonGoal g : byId.values()) {
+                int doneCount = (int) g.childIds().stream()
+                        .filter(cid -> byId.containsKey(cid) && byId.get(cid).status()
+                                == LongHorizonGoal.Status.DONE).count();
+                Goal kernelGoal = new Goal(g.title(),
+                        g.tags().isEmpty() ? "general" : g.tags().getFirst(),
+                        g.priority(), 0.5, 1,
+                        Goal.ServiceClass.STANDARD, Goal.ResourceType.INFERENCE,
+                        g.deadline());
+                h2.saveGoal(kernelGoal, g.horizon().name(), g.status().name(),
+                        g.parentId(), g.progress(), g.childIds().size(), doneCount);
+            }
+            LOG.info("GoalHierarchy: synced " + byId.size() + " goals to H2");
+        }
     }
 
     private synchronized void load() {
@@ -65,12 +89,49 @@ public class GoalHierarchy {
     }
 
     /**
-     * Append-or-update. The full goal record is appended as a new JSONL line;
-     * the latest line wins when reloading. Compaction can be added later.
+     * Migration: LIFETIME goals that were incorrectly marked DONE get reopened.
+     * LIFETIME goals are eternal by design and should never be DONE.
+     */
+    private synchronized void migrateLifetimeGoals() {
+        int reopened = 0;
+        for (var entry : byId.entrySet()) {
+            var g = entry.getValue();
+            if (g.horizon() == GoalHorizon.LIFETIME && g.status() == LongHorizonGoal.Status.DONE) {
+                var fixed = g.withStatus(LongHorizonGoal.Status.ACTIVE).withProgress(0.0);
+                entry.setValue(fixed);
+                // Persist the correction
+                upsert(fixed);
+                LOG.info("GoalHierarchy: reopened LIFETIME goal \"" + g.title() + "\" (was incorrectly DONE)");
+                reopened++;
+            }
+        }
+        if (reopened > 0) {
+            LOG.info("GoalHierarchy: migration complete — " + reopened + " LIFETIME goal(s) reopened");
+        }
+    }
+
+    /**
+     * Append-or-update. Priority: H2 (UPSERT) if available, else JSONL append.
+     * Phase 14: H2-backed goals survive restarts without JSONL duplication.
      */
     public synchronized LongHorizonGoal upsert(LongHorizonGoal g) {
         if (g == null) return null;
         byId.put(g.id(), g);
+        // Phase 14: H2 persistence (preferred)
+        if (h2 != null) {
+            int doneCount = (int) g.childIds().stream()
+                    .filter(cid -> byId.containsKey(cid)
+                            && byId.get(cid).status() == LongHorizonGoal.Status.DONE)
+                    .count();
+            Goal kernelGoal = new Goal(g.title(),
+                    g.tags().isEmpty() ? "general" : g.tags().getFirst(),
+                    g.priority(), 0.5, 1,
+                    Goal.ServiceClass.STANDARD, Goal.ResourceType.INFERENCE,
+                    g.deadline());
+            h2.saveGoal(kernelGoal, g.horizon().name(), g.status().name(),
+                    g.parentId(), g.progress(), g.childIds().size(), doneCount);
+        }
+        // JSONL fallback (keeps backward compat)
         try {
             Files.createDirectories(file.getParent());
             String line = mapper.writeValueAsString(toNode(g));
@@ -144,7 +205,9 @@ public class GoalHierarchy {
         }
         boolean allDone = kids.stream()
                 .allMatch(k -> k.status() == LongHorizonGoal.Status.DONE);
-        if (allDone && parent.status() != LongHorizonGoal.Status.DONE) {
+        // LIFETIME goals are eternal by design — never mark them DONE even if all children are complete
+        if (allDone && parent.status() != LongHorizonGoal.Status.DONE
+                && parent.horizon() != GoalHorizon.LIFETIME) {
             upsert(parent.withStatus(LongHorizonGoal.Status.DONE));
             changed = true;
         }

@@ -1,6 +1,6 @@
 # Metis AGI — Runbook
 
-**Stand: 04.06.2026 | Host: miniedi (192.168.22.204) | User: prometheus**
+**Stand: 09.08.2026 | Host: miniedi (192.168.22.204) | User: prometheus**
 
 ---
 
@@ -19,9 +19,12 @@
 
 | Dienst | Typ | Port | Status | Restart |
 |---|---|---|---|---|
-| `metis.service` | systemd (system) | 11735 | enabled | on-failure, 10s |
+| `metis.service` | systemd (system) | 11735 | enabled | always, 10s |
 | `metis-watchdog.service` | systemd (user) | 11736 | enabled | always, 10s |
-| `ollama.service` | systemd (system) | 11434 | enabled | — |
+| `llama-server.service` | systemd (system) | 8086 | enabled | — |
+| `ollama-planner.service` | systemd (system) | 11434 | enabled | — |
+| `ollama-mutation.service` | systemd (system) | 11436 | enabled | — |
+| `ollama-embedding.service` | systemd (system) | 11438 | enabled | — |
 
 ---
 
@@ -32,8 +35,8 @@
 **Symptome:** `/api/status` timeout, Watchdog meldet Heartbeat-Verlust
 
 **Ursachen (nach Häufigkeit):**
-1. KnowledgeBootstrap blockiert (~2-3 Min beim Start normal)
-2. Ollama-Inferenz hängt (Modell lädt/entlädt)
+1. llama-server läuft auf CPU statt GPU (PID nicht in KFD) → Planner 52s Latenz, 6% Success
+2. KnowledgeBootstrap blockiert (~2-3 Min beim Start normal)
 3. Prozess gecrasht (systemd restartet in 10s)
 
 **Aktionen:**
@@ -41,15 +44,24 @@
 # Prüfen ob Prozess läuft
 ps aux | grep metis-agent
 
+# GPU-Check (KFD)
+ls /sys/class/kfd/kfd/proc/ | while read p; do echo "PID $p: $(cat /sys/class/kfd/kfd/proc/$p/name 2>/dev/null)"; done
+
+# CPU-Fallback-Fix (häufigster Fehler)
+sudo systemctl restart llama-server.service
+sleep 5
+sudo systemctl restart metis.service
+
 # Prüfen ob API antwortet (nach Bootstrap)
 curl -s --max-time 5 http://localhost:11735/api/status
 
 # Logs checken
 journalctl -u metis.service --since "5 min ago" --no-pager
-tail -50 /home/prometheus/metis/nohup.log
 
-# Manuell neustarten
-sudo systemctl restart metis.service
+# H2-DB Status
+curl -s --max-time 5 -X POST http://localhost:11735/api/h2 \
+  -H "Content-Type: application/json" \
+  -d '{"query":"SELECT count(*) FROM goals"}'
 ```
 
 ### 2. Ollama antwortet nicht

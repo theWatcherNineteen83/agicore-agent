@@ -25,7 +25,7 @@ import java.util.logging.Logger;
 public class LlmHorizonDecomposer implements HorizonPlanner.DecomposeFunction {
 
     private static final Logger LOG = Logger.getLogger(LlmHorizonDecomposer.class.getName());
-    private static final Duration TIMEOUT = Duration.ofSeconds(120);
+    private static final Duration TIMEOUT = Duration.ofSeconds(90);
 
     private final String ollamaUrl;
     private final String model;
@@ -45,7 +45,7 @@ public class LlmHorizonDecomposer implements HorizonPlanner.DecomposeFunction {
             String body = """
                     {"model":"%s","prompt":%s,"stream":false,
                      "options":{"temperature":0.3,"num_predict":350},
-                     "keep_alive":0}
+                     "keep_alive":"30m"}
                     """.formatted(model, escapeJson(prompt));
             HttpRequest req = HttpRequest.newBuilder()
                     .uri(URI.create(ollamaUrl + "/api/generate"))

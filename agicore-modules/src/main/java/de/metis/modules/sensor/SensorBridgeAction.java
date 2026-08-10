@@ -50,7 +50,10 @@ public class SensorBridgeAction implements Action {
                         @Override
                         public CompletionStage<?> onText(WebSocket webSocket, CharSequence data, boolean last) {
                             buf.append(data);
-                            if (last) { result.complete(buf.toString()); webSocket.sendClose(1000, "done"); }
+                            // Each sensor frame is a complete JSON message — complete on first frame.
+                            // Streaming bridges don't set 'last' flag, causing infinite wait.
+                            result.complete(buf.toString());
+                            webSocket.sendClose(1000, "received");
                             return null;
                         }
 

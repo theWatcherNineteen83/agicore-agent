@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="refresh" content="30">
+<title>Metis AGI — Live Dashboard</title>
+<style>
+body{font-family:system-ui,sans-serif;background:#0d1117;color:#c9d1d9;padding:20px;margin:0}
+h1{color:#58a6ff;margin:0}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin:16px 0}
+.card{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:14px}
+.card h3{color:#58a6ff;margin:0 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:0.5px}
+.card .value{font-size:2em;font-weight:bold}
+.card .sub{font-size:12px;color:#8b949e;margin-top:4px}
+.green{color:#3fb950}
+.red{color:#f85149}
+.yellow{color:#d2991d}
+.blue{color:#58a6ff}
+table{width:100%;border-collapse:collapse;margin-top:16px;font-size:13px}
+th,td{padding:6px 10px;text-align:left;border-bottom:1px solid #30363d}
+th{background:#161b22;color:#58a6ff;position:sticky;top:0}
+tr:hover{background:#1c2128}
+.badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:bold}
+.badge-ok{background:#3fb95022;color:#3fb950;border:1px solid #3fb950}
+.badge-warn{background:#d2991d22;color:#d2991d;border:1px solid #d2991d}
+.badge-crit{background:#f8514922;color:#f85149;border:1px solid #f85149}
+a{color:#58a6ff}
+.footer{font-size:11px;color:#484f58;margin-top:20px;text-align:center}
+.error{color:#f85149;font-size:12px}
+</style>
+</head>
+<body>
+<div style="display:flex;justify-content:space-between;align-items:center">
+<h1>&#x1f525; Metis AGI Dashboard</h1>
+<div style="font-size:12px;color:#8b949e">
+  <span id="clock">--</span> &middot; Auto-refresh 30s &middot;
+  <a href="/api/status">JSON</a> | <a href="/api/board">Board</a> | <a href="/api/causal">Causal</a>
+</div>
+</div>
+
+<div id="loading" style="color:#8b949e;padding:40px;text-align:center">Loading data...</div>
+
+<div id="content" style="display:none">
+
+<!-- Status Cards -->
+<div class="grid">
+  <div class="card"><h3>Judge Evaluations</h3><div class="value blue" id="s_judge">-</div><div class="sub" id="s_judge_sub"></div></div>
+  <div class="card"><h3>Plans Generated</h3><div class="value" id="s_plans">-</div><div class="sub" id="s_plans_sub"></div></div>
+  <div class="card"><h3>Active Goals</h3><div class="value yellow" id="s_active">-</div><div class="sub" id="s_active_sub"></div></div>
+  <div class="card"><h3>Planner Health</h3><div class="value" id="s_health">-</div></div>
+  <div class="card"><h3>Beliefs</h3><div class="value" id="s_beliefs">-</div></div>
+  <div class="card"><h3>Mutations</h3><div class="value" id="s_mutations">-</div></div>
+</div>
+
+<!-- CausalDreamer -->
+<h2 style="color:#58a6ff;margin-top:24px">&#x1f52c; CausalDreamer</h2>
+<div class="grid">
+  <div class="card"><h3>Dreams Run</h3><div class="value green" id="cd_dreams">-</div></div>
+  <div class="card"><h3>Hypotheses Created</h3><div class="value blue" id="cd_created">-</div></div>
+  <div class="card"><h3>Completed</h3><div class="value" id="cd_completed">-</div></div>
+  <div class="card"><h3>In Testing</h3><div class="value yellow" id="cd_testing">-</div></div>
+  <div class="card"><h3>Open (PROPOSED)</h3><div class="value" id="cd_open">-</div></div>
+  <div class="card"><h3>WIP</h3><div class="value" id="cd_wip">-</div></div>
+</div>
+
+<!-- Hypotheses Summary -->
+<h2 style="color:#58a6ff;margin-top:24px">&#x1f9ea; Hypotheses</h2>
+<div class="grid">
+  <div class="card"><h3>&#x2705; CONFIRMED</h3><div class="value green" id="h_confirmed">-</div></div>
+  <div class="card"><h3>&#x274c; REFUTED</h3><div class="value red" id="h_refuted">-</div></div>
+  <div class="card"><h3>&#x1f4dd; PROPOSED</h3><div class="value blue" id="h_proposed">-</div></div>
+  <div class="card"><h3>&#x23f3; TESTING</h3><div class="value yellow" id="h_testing">-</div></div>
+  <div class="card"><h3>Total Unique</h3><div class="value" id="h_total">-</div></div>
+</div>
+
+<!-- Kanban -->
+<h2 style="color:#58a6ff;margin-top:24px">&#x1f4cb; Kanban Board</h2>
+<div class="grid">
+  <div class="card"><h3>Ready</h3><div class="value blue" id="k_ready">-</div></div>
+  <div class="card"><h3>In Progress</h3><div class="value yellow" id="k_wip">-</div></div>
+  <div class="card"><h3>Done</h3><div class="value green" id="k_done">-</div></div>
+  <div class="card"><h3>WIP %</h3><div class="value" id="k_wip_pct">-</div></div>
+</div>
+
+<!-- In Progress List -->
+<table><thead><tr><th>In Progress</th></tr></thead><tbody id="k_inprog"></tbody></table>
+
+<!-- Done List -->
+<h2 style="color:#58a6ff;margin-top:24px">&#x2714; Recently Done</h2>
+<table><thead><tr><th>Goal</th></tr></thead><tbody id="k_done_list"></tbody></table>
+
+</div>
+
+<div class="footer">Metis AGI Dashboard &middot; <span id="version">v?</span></div>
+
+<script>
+async function fetchJSON(url) {
+  try { const r = await fetch(url); return r.ok ? r.json() : null; }
+  catch(e) { return null; }
+}
+
+async function refresh() {
+  const [status, board, causal] = await Promise.all([
+    fetchJSON('/api/status'),
+    fetchJSON('/api/board'),
+    fetchJSON('/api/causal')
+  ]);
+
+  const content = document.getElementById('content');
+  const loading = document.getElementById('loading');
+
+  if (!status) { loading.textContent = 'API not reachable — retrying...'; return; }
+
+  loading.style.display = 'none';
+  content.style.display = 'block';
+
+  // Version
+  document.getElementById('version').textContent = status.version || '?';
+
+  // Status cards
+  const judgeEv = status.llmJudgeEvaluations || 0;
+  const judgeAvg = status.llmJudgeAvgScore || 0;
+  document.getElementById('s_judge').textContent = judgeEv;
+  document.getElementById('s_judge_sub').textContent = 'Avg Score: ' + judgeAvg.toFixed(2);
+
+  document.getElementById('s_plans').textContent = status.totalPlansGenerated || 0;
+  document.getElementById('s_plans_sub').textContent = 'Valid: ' + (status.validPlanCount || 0) + ' | Empty: ' + (status.emptyPlanCount || 0);
+
+  document.getElementById('s_active').textContent = status.activeGoals || 0;
+
+  const h = status.plannerHealth;
+  const hEl = document.getElementById('s_health');
+  if (h) {
+    hEl.textContent = h.severity || '?';
+    hEl.className = 'value ' + ((h.severity||'').includes('CRIT') ? 'red' : (h.severity||'').includes('WARN') ? 'yellow' : 'green');
+  }
+
+  document.getElementById('s_beliefs').textContent = (status.beliefCount || 0).toLocaleString();
+  document.getElementById('s_mutations').textContent = (status.acceptedMutations||0) + ' / ' + (status.rejectedMutations||0);
+
+  // CausalDreamer (from /tmp/causal-dreamer.status via API)
+  // We embed this via a separate text endpoint — for now, parse from /api/causal
+  let cd = null;
+  try {
+    const cdResp = await fetch('/api/causal-dreamer');
+    if (cdResp.ok) cd = Object.fromEntries((await cdResp.text()).trim().split(/\s+/).map(p => p.split('=')));
+  } catch(e) {}
+
+  if (cd) {
+    document.getElementById('cd_dreams').textContent = cd.dreamsRun || 0;
+    document.getElementById('cd_created').textContent = cd.hypothesesCreated || 0;
+    document.getElementById('cd_completed').textContent = cd.hypothesesCompleted || 0;
+    document.getElementById('cd_testing').textContent = cd.testing || 0;
+    document.getElementById('cd_open').textContent = cd.open || 0;
+    document.getElementById('cd_wip').textContent = cd.wip || 0;
+  } else {
+    ['cd_dreams','cd_created','cd_completed','cd_testing','cd_open','cd_wip'].forEach(id => document.getElementById(id).textContent = '?');
+  }
+
+  // Hypotheses summary (from /api/causal)
+  if (causal && causal.hypotheses) {
+    const latest = {};
+    causal.hypotheses.forEach(h => { latest[h.id] = h; });
+    let confirmed=0, refuted=0, proposed=0, testing=0;
+    Object.values(latest).forEach(h => {
+      if (h.status==='CONFIRMED') confirmed++;
+      else if (h.status==='REFUTED') refuted++;
+      else if (h.status==='PROPOSED') proposed++;
+      else if (h.status==='TESTING') testing++;
+    });
+    document.getElementById('h_confirmed').textContent = confirmed;
+    document.getElementById('h_refuted').textContent = refuted;
+    document.getElementById('h_proposed').textContent = proposed;
+    document.getElementById('h_testing').textContent = testing;
+    document.getElementById('h_total').textContent = Object.keys(latest).length;
+  }
+
+  // Kanban
+  if (board) {
+    document.getElementById('k_ready').textContent = board.ready || 0;
+    document.getElementById('k_wip').textContent = board.inProgress || 0;
+    document.getElementById('k_done').textContent = board.done || 0;
+    document.getElementById('k_wip_pct').textContent = (board.wipPercent || 0) + '%';
+
+    const inprog = document.getElementById('k_inprog');
+    inprog.innerHTML = '';
+    (board.inProgressGoals || []).forEach(g => {
+      inprog.innerHTML += '<tr><td>&#x1f7e1; ' + g.description + '</td></tr>';
+    });
+
+    const doneList = document.getElementById('k_done_list');
+    doneList.innerHTML = '';
+    (board.recentDone || []).slice(0,10).forEach(g => {
+      doneList.innerHTML += '<tr><td>&#x2705; ' + g.description + '</td></tr>';
+    });
+  }
+
+  // Clock
+  document.getElementById('clock').textContent = new Date().toLocaleTimeString();
+}
+
+refresh();
+setInterval(refresh, 30000);
+</script>
+</body>
+</html>

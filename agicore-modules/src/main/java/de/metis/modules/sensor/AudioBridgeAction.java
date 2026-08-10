@@ -51,6 +51,13 @@ public class AudioBridgeAction implements Action {
     @Override
     public ActionResult execute() {
         Instant start = Instant.now();
+
+        // Pre-flight: check if bridge server is reachable (fast-fail if not)
+        if (!bridgeReachable()) {
+            return ActionResult.fail(NAME,
+                    "Audio bridge not reachable — S9 phone / WebSocket server offline? (no capture attempted)", start);
+        }
+
         ByteArrayOutputStream oggBuffer = new ByteArrayOutputStream();
         CompletableFuture<String> result = new CompletableFuture<>();
 
@@ -208,6 +215,20 @@ public class AudioBridgeAction implements Action {
         } catch (Exception e) {
             LOG.warning(() -> "AudioBridgeAction Vosk error: " + e.getMessage());
             return null;
+        }
+    }
+
+    /** Quick TCP check — fail fast if bridge server isn't listening. */
+    private boolean bridgeReachable() {
+        try {
+            var socket = new java.net.Socket();
+            var uri = URI.create(wsUrl);
+            socket.connect(new java.net.InetSocketAddress(uri.getHost(), uri.getPort()), 2000);
+            socket.close();
+            return true;
+        } catch (Exception e) {
+            LOG.fine(() -> "AudioBridgeAction: bridge unreachable — " + e.getMessage());
+            return false;
         }
     }
 }

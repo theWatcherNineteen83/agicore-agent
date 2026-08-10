@@ -99,6 +99,29 @@ public class KnowledgeStore implements AutoCloseable {
             stmt.execute("CREATE INDEX IF NOT EXISTS idx_experiences_time ON experiences(timestamp DESC)");
             stmt.execute("CREATE INDEX IF NOT EXISTS idx_experiences_action ON experiences(action_name)");
 
+            // Phase 14: FTS5 full-text search for beliefs
+            stmt.execute("""
+                    CREATE VIRTUAL TABLE IF NOT EXISTS beliefs_fts
+                    USING fts5(statement, content='beliefs', content_rowid='id')
+                    """);
+            // Triggers to keep FTS5 in sync with beliefs table
+            stmt.execute("""
+                    CREATE TRIGGER IF NOT EXISTS beliefs_ai AFTER INSERT ON beliefs BEGIN
+                        INSERT INTO beliefs_fts(rowid, statement) VALUES (new.id, new.statement);
+                    END
+                    """);
+            stmt.execute("""
+                    CREATE TRIGGER IF NOT EXISTS beliefs_ad AFTER DELETE ON beliefs BEGIN
+                        INSERT INTO beliefs_fts(beliefs_fts, rowid, statement) VALUES ('delete', old.id, old.statement);
+                    END
+                    """);
+            stmt.execute("""
+                    CREATE TRIGGER IF NOT EXISTS beliefs_au AFTER UPDATE ON beliefs BEGIN
+                        INSERT INTO beliefs_fts(beliefs_fts, rowid, statement) VALUES ('delete', old.id, old.statement);
+                        INSERT INTO beliefs_fts(rowid, statement) VALUES (new.id, new.statement);
+                    END
+                    """);
+
             // Conversation support (Phase 2)
             stmt.execute("""
                     CREATE TABLE IF NOT EXISTS conversation_messages (
@@ -187,6 +210,89 @@ public class KnowledgeStore implements AutoCloseable {
         } catch (SQLException e) {
             LOG.fine("Failed to clean weak beliefs: " + e.getMessage());
         }
+    }
+
+    /**
+     * Phase 14: Populate FTS5 index from existing beliefs.
+     * Called on first run after upgrade. Idempotent — skips if already populated.
+     */
+    public int rebuildFtsIndex() {
+        try {
+            // Check if FTS already has data
+            try (Statement stmt = conn.createStatement();
+                 ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM beliefs_fts")) {
+                if (rs.next() && rs.getInt(1) > 0) {
+                    LOG.info("FTS5 index already populated (" + rs.getInt(1) + " entries)");
+                    return rs.getInt(1);
+                }
+            }
+            // Rebuild: INSERT all existing beliefs into FTS
+            try (Statement stmt = conn.createStatement()) {
+                stmt.execute("INSERT INTO beliefs_fts(rowid, statement) SELECT id, statement FROM beliefs");
+            }
+            try (Statement stmt = conn.createStatement();
+                 ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM beliefs_fts")) {
+                int count = rs.next() ? rs.getInt(1) : 0;
+                LOG.info("FTS5 index rebuilt: " + count + " beliefs indexed");
+                return count;
+            }
+        } catch (SQLException e) {
+            LOG.warning("FTS5 rebuild failed: " + e.getMessage());
+            return -1;
+        }
+    }
+
+    /**
+     * Phase 14: Full-text search beliefs using FTS5 with BM25 ranking.
+     * Falls back to SQL LIKE if FTS5 is unavailable.
+     *
+     * @param query natural language query (e.g. "GPU status")
+     * @param limit max results
+     * @return ranked belief results, best match first
+     */
+    public List<Belief> searchBeliefsFts(String query, int limit) {
+        List<Belief> results = new ArrayList<>();
+        if (query == null || query.isBlank()) return results;
+
+        // FTS5 syntax: tokenize and join with OR
+        String ftsQuery = query.trim().replaceAll("[^\\p{L}\\p{N}\\s-]", "");
+        ftsQuery = ftsQuery.replaceAll("\\s+", " OR ");
+        if (ftsQuery.isBlank()) return results;
+
+        try {
+            String sql = """
+                    SELECT b.statement, b.confidence, b.source, b.evidence,
+                           rank AS fts_rank
+                    FROM beliefs_fts f
+                    JOIN beliefs b ON f.rowid = b.id
+                    WHERE beliefs_fts MATCH ?
+                    ORDER BY rank
+                    LIMIT ?
+                    """;
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, ftsQuery);
+                ps.setInt(2, limit);
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        Belief b = new Belief(
+                                rs.getString("statement"),
+                                rs.getDouble("confidence"),
+                                rs.getString("source"));
+                        results.add(b);
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            LOG.fine("FTS5 search failed, falling back to LIKE: " + e.getMessage());
+            // Fallback to LIKE-based search
+            return searchBeliefs(List.of(query.split("\\s+")), limit);
+        }
+
+        // Fallback: if FTS returned nothing, try LIKE
+        if (results.isEmpty()) {
+            return searchBeliefs(List.of(query.split("\\s+")), limit);
+        }
+        return results;
     }
 
     /**
