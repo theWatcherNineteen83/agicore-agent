@@ -19,7 +19,9 @@ class Phase9LongHorizonTest {
         assertEquals(GoalHorizon.OPERATIONAL, GoalHorizon.TACTICAL.nextDown());
         assertEquals(GoalHorizon.TICK, GoalHorizon.OPERATIONAL.nextDown());
         assertNull(GoalHorizon.TICK.nextDown());
-        assertFalse(GoalHorizon.LIFETIME.canBeDecomposed());
+        // 34bbd412: LIFETIME ist seitdem zerlegbar (LIFETIME -> STRATEGIC)
+        assertTrue(GoalHorizon.LIFETIME.canBeDecomposed());
+        assertEquals(GoalHorizon.STRATEGIC, GoalHorizon.LIFETIME.nextDown());
     }
 
     @Test

@@ -27,8 +27,17 @@ class OutputValidatorTest {
     @Test
     void rejectsCodeInjection() {
         OutputValidator v = new OutputValidator();
-        assertFalse(v.validateOutput("<script>alert(1)</script>").valid());
-        assertFalse(v.validateOutput("Runtime.exec(\"rm -rf /\")").valid());
+        assertFalse(v.validateOutput("eval('alert(1)')").valid());
+        assertFalse(v.validateOutput("DROP TABLE users; --").valid());
+    }
+
+    @Test
+    void allowsCodeMentionsInThoughts() {
+        // 34bbd412: <script>/Runtime.exec tauchen natürlich in LLM-Thoughts
+        // und Plan-Beschreibungen auf → bewusst kein Block, nur eval/SQL.
+        OutputValidator v = new OutputValidator();
+        assertTrue(v.validateOutput("<script>alert(1)</script>").valid());
+        assertTrue(v.validateOutput("Runtime.exec(\"rm -rf /\")").valid());
     }
 
     @Test

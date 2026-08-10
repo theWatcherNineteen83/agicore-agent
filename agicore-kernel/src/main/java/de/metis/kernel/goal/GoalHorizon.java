@@ -15,8 +15,8 @@ package de.metis.kernel.goal;
  * </ul>
  *
  * <p>Decomposition geht <em>nur</em> Top-Down:
- * STRATEGIC → TACTICAL → OPERATIONAL → TICK. LIFETIME ist parallel und
- * beeinflusst Priorisierung, wird aber nicht direkt zerlegt.
+ * LIFETIME → STRATEGIC → TACTICAL → OPERATIONAL → TICK.
+ * Seit 34bbd412 wird auch LIFETIME zerlegt (Auto-Decomposer).
  */
 public enum GoalHorizon {
     TICK,
