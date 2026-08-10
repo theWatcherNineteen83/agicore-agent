@@ -1056,6 +1056,10 @@ public final class AgentMain {
         agent.worldModel().setKnowledgeStore(knowledgeStore);
         agent.worldModel().loadFromStore();
 
+        // Phase 14: FTS5 full-text search index for beliefs
+        int ftsCount = knowledgeStore.rebuildFtsIndex();
+        LOG.info("Phase 14: FTS5 belief index rebuilt — " + ftsCount + " entries");
+
         // ── Phase 14: H2-Datastore (Metis' Gehirn-DB) ───────────
         de.metis.kernel.persistence.H2Datastore h2Datastore = null;
         try {
