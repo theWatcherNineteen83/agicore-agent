@@ -20,7 +20,7 @@ ExecStart=/opt/zing25-jdk/bin/java \
     --api-port 11735 \
     --planning-model qwen3_6-27b-agent --planning-url http://127.0.0.1:8086/v1/chat/completions \
     --embedding-url http://127.0.0.1:11438/api/embeddings --embedding-model nomic-embed-text \
-    --mutation-url http://127.0.0.1:11434 --mutation-model qwen3.6:35b \
+    --mutation-url http://127.0.0.1:11434 --mutation-model nemotron-cascade-2:30b \
     --telegram-token 8334147633:AAEoXX7LS8pDe_gWXO8mUav8i0SGmEPnVLU \
     --weather-api-key 0352c669d7d0422d92c669d7d0522d9a \
     --ha-url http://192.168.22.200:8123 \
