@@ -1782,7 +1782,7 @@ public final class AgentMain {
         });
         LOG.info("Phase 12a wired — BugTracker active, self-healing exception handler");
         var fixAction = new de.metis.modules.action.SelfFixAction(
-                "http://192.168.22.204:11434/api/generate", "nemotron:latest", ".");
+                "http://192.168.22.204:11434/api/generate", "granite-code:3b", ".");
         agent.core().executor().register(fixAction);
         LOG.info("Phase 12a: SelfFixAction registered — self-fix action available");
         var branchManager = new de.metis.modules.evolution.FeatureBranchManager(
@@ -1797,7 +1797,7 @@ public final class AgentMain {
         LOG.info("Phase 12d: CompileRepairLoop connected to SelfFixAction (gemma4:31b)");
         LOG.info("Phase 12b: RiskGate + FeatureBranchManager connected to SelfFixAction");
         var featureGenAction = new de.metis.modules.action.FeatureGenAction(
-                "http://192.168.22.204:11434/api/generate", "nemotron:latest", ".");
+                "http://192.168.22.204:11434/api/generate", "granite-code:3b", ".");
         agent.core().executor().register(featureGenAction);
         LOG.info("Phase 12b: FeatureGenAction registered");
 

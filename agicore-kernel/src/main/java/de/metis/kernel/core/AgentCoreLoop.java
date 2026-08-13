@@ -349,7 +349,7 @@ public class AgentCoreLoop {
 
         // ── EXECUTE ──────────────────────────────────────────────
         currentPhase = CognitiveCycle.EXECUTE;
-        ActionResult result = executor.execute(actionName);
+        ActionResult result = executor.execute(actionName, currentGoal);
 
         // ── OBSERVE ──────────────────────────────────────────────
         currentPhase = CognitiveCycle.OBSERVE;

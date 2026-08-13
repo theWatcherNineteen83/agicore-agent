@@ -433,7 +433,8 @@ public class OllamaPlanner implements Planner {
                 - mcp-bridge: connect to MCP (Model Context Protocol) tool servers — discovers and invokes external tools like filesystem, browser, database, Slack, etc.
                 - javasandbox: execute safe, sandboxed Java code experiments
                 - prompt-chain: decompose complex multi-step goals into sequential sub-goals, execute each with context from previous results, and synthesize final answer (Pattern: Decompose→Execute→Aggregate)
-sb.append("- git-feature-branch: scan the Git repo for TODOs, generate optimisations via LLM, create a feature branch, compile-check, and push to origin. Best for automated code improvement tasks.\n");
+                - feature-gen: generate a NEW Java class for a "STRATEGIC: Baue X — … package Y" goal, write it into the real source tree (agicore-modules/src/main/java/…), and compile-check it. BEST for module-building goals (MathCore, CharCounter, RoadmapReader, RepoIndex, …).
+                - git-feature-branch: scan the Git repo for TODOs, generate optimisations via LLM, create a feature branch, compile-check, and push to origin. Best for automated code improvement tasks.
                 """;
     }
 
@@ -453,6 +454,7 @@ sb.append("- git-feature-branch: scan the Git repo for TODOs, generate optimisat
                 - webscrape [LOW risk]: extract text from web — BEST for article/content retrieval
                 - api-explore [MEDIUM risk]: probe HTTP endpoints — BEST for API discovery
                 - javasandbox [MEDIUM risk]: sandboxed Java execution — BEST for safe code experiments
+                - feature-gen [MEDIUM risk]: generate a NEW Java class for a "STRATEGIC: Baue X — … package Y" goal, write it into the real source tree, and compile-check it. BEST for module-building goals (MathCore, CharCounter, RoadmapReader, RepoIndex, …)
                 - linux-explore-system [MEDIUM risk]: deep system probe — BEST for comprehensive resource analysis
                 - prompt-chain [MEDIUM risk]: multi-step task decomposition — BEST for complex workflows (Decompose→Execute→Aggregate)
                 - shell [HIGH risk]: raw Linux commands — LAST RESORT only, use when NO specialized action fits

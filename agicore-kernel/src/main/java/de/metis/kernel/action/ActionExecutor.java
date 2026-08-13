@@ -36,10 +36,31 @@ public class ActionExecutor {
      * @return result or a failure envelope if the action is unknown
      */
     public ActionResult execute(String name) {
+        return execute(name, null);
+    }
+
+    /**
+     * Execute a named action with the goal that triggered it.
+     * <p>
+     * If the action implements {@link GoalAwareAction}, the goal is injected
+     * via {@link GoalAwareAction#setCurrentGoal(de.metis.kernel.goal.Goal)}
+     * right before execution. This closes the planner→effector loop: code-
+     * generating actions finally know WHAT they are supposed to build.
+     *
+     * @param name the action's registered name
+     * @param goal the currently processed goal (nullable for generic exec)
+     * @return result or a failure envelope if the action is unknown
+     */
+    public ActionResult execute(String name, de.metis.kernel.goal.Goal goal) {
         Action action = registry.get(name);
         if (action == null) {
             LOG.warning(() -> "Unknown action requested: " + name);
             return ActionResult.fail(name, "Unknown action: " + name, java.time.Instant.now());
+        }
+        if (goal != null && action instanceof GoalAwareAction gaa) {
+            gaa.setCurrentGoal(goal);
+            LOG.fine(() -> "Goal context injected into action: " + name
+                    + " (goal=" + goal.description() + ")");
         }
         LOG.info(() -> "Executing action: " + name);
         return action.execute();
