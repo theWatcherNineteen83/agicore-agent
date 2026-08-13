@@ -3,8 +3,14 @@
 **Ziel:** EDI-ähnliche KI (Mass Effect 3) - eigenständig, per Sprache und Text ansprechbar,
 mit eigenem Wissen, Persönlichkeit, narrativem Selbstmodell und der Fähigkeit, sich selbst zu verbessern.
 
-**Stand: 11.08.2026** — Version v0.11.21-night-final-124, Phasen 1–9 ✅, Phase 10 Hot-Path ✅,
-Phase 11 ✅, Phase 12d Deployed, Phase 13a+14 Deployed, 1 Evolution-Mutation accepted, 138K Beliefs.
+**Stand: 13.08.2026** — Version v0.11.21-night-final-124-g4a66e87, Phasen 1–9 ✅, Phase 10 Hot-Path ✅,
+Phase 11 ✅, Phase 12d Deployed, Phase 13a+14 Deployed, 1 Evolution-Mutation accepted, 139K Beliefs.
+
+> **13.08.2026 — GPU-Fix:** llama-server.service braucht `HSA_OVERRIDE_GFX_VERSION=11.0.0`
+> zusätzlich zu `HIP_VISIBLE_DEVICES=0` (ohne: „no ROCm-capable device detected“ → CPU-Fallback →
+> 1.7 tok/s, Planner-Success 5%). Nach Fix: 31.7 tok/s, Success 68-100%. Neue STRATEGIC-Goals
+> injiziert: RoadmapReader, RepoIndex, PhaseCompletionEvaluator (Phase 12a Foundation, Metis
+> arbeitet sie selbst im Kanban ab).
 
 > **Alles Details:** Siehe [FEATURES.md](FEATURES.md) (vollständiger Feature-Katalog).
 > **Betrieb:** Siehe [README.md](README.md) (Deployment, API, Hardware).

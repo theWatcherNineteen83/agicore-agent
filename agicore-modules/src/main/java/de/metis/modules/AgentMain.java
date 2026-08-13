@@ -1259,6 +1259,14 @@ public final class AgentMain {
         agent.addGoal("STRATEGIC: Baue CharCounter — Buchstabenzaehler (Unicode-Frequenz, N-Gramme, Sprachdetektion, package de.metis.modules.text)",
                 "java", 95, 0.9, 4);
 
+        // ── Phase 12d: Selbst-Refactoring Foundation (Roadmap 13.08.2026) ──
+        agent.addGoal("STRATEGIC: Baue RoadmapReader — Markdown-Parser fuer AGI_EDI_ROADMAP.md mit Phasen-/Todo-/Coverage-Tracking pro Phase (Phase 12a Foundation, package de.metis.modules.selfrefactor)",
+                "java", 90, 0.9, 5);
+        agent.addGoal("STRATEGIC: Baue RepoIndex — AST-basierter Index aller Java-Klassen mit Dependency-Graph (Phase 12a Foundation, package de.metis.modules.selfrefactor)",
+                "java", 90, 0.9, 6);
+        agent.addGoal("STRATEGIC: Baue PhaseCompletionEvaluator — prueft strukturiert ob Phase X der Roadmap wirklich DONE ist (Phase 12a, Watchdog-Komponente, package de.metis.modules.selfrefactor)",
+                "java", 85, 0.9, 7);
+
         // ── Hardware Discovery + Self-Awareness ──────────────────
         HardwareDiscovery.HardwareProfile hw = HardwareDiscovery.discover();
         LOG.info("Hardware discovered:\n" + hw.summary());
