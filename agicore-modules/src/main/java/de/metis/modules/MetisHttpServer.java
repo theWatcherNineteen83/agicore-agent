@@ -14,6 +14,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Logger;
 
 import de.metis.kernel.persistence.KnowledgeStore;
+import de.metis.kernel.safety.ClaimVerifier;
 import de.metis.kernel.safety.OutputValidator;
 import de.metis.kernel.goal.KanbanBoard;
 import de.metis.kernel.goal.Goal;
@@ -57,6 +58,7 @@ public class MetisHttpServer {
     private static final int MAX_HISTORY = 50;
     private final AtomicBoolean evolutionPaused = new AtomicBoolean(false);
     private final OutputValidator outputValidator = new OutputValidator();
+    private final ClaimVerifier claimVerifier = new ClaimVerifier();
     private KnowledgeStore knowledgeStore; // set via setter for conversation persistence
     private de.metis.modules.evolution.ModelRegistry modelRegistry; // Phase 7: model prune
     private AgentCoordinator coordinator;
@@ -374,6 +376,16 @@ public class MetisHttpServer {
                 outputValidator.recordValidation(false);
             } else {
                 outputValidator.recordValidation(true);
+            }
+
+            // Factuality gate (Whittaker-Methode): unsupported claims → re-think
+            // before emitting. Soft signal: append a caution marker rather than
+            // blocking, so Metis learns without being punished.
+            ClaimVerifier.ClaimVerification claim = claimVerifier.verify(response);
+            if (claim.needsRethink()) {
+                LOG.warning("ClaimVerifier flagged unsupported claim(s): "
+                        + claim.flaggedClaims());
+                response = response + "\n\n[Unbelegte Behauptung erkannt — bitte mit Quelle/Beleg prüfen.]";
             }
         } catch (Exception e) {
             response = "I encountered an error: " + e.getMessage();
