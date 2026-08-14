@@ -107,6 +107,41 @@ STRANGER(0) → AUTO      (strenger Allow-List-Modus)
 - Ohne Kausale Hypothesen (10): blindes Trial-Error
 - Ohne Beziehungs-Modell (11): Intention nicht verstanden
 
+### Phase 12e: Epistemische Provenienz 🟡 0% (geplant, 14.08.2026)
+
+**Ziel:** Metis unterscheidet selbst, ob eine Aussage **belegt** ist oder „aus der
+Luft gegriffen" — und lernt aus Korrekturen, statt nur auf den fest verdrahteten
+`ClaimVerifier` angewiesen zu sein.
+
+**Warum:** Der `ClaimVerifier` (14.08.2026, Option A+B deployt) ist ein fester
+Instinkt im Kernel — er fängt unbelegte Verfügbarkeits-/Preis-Behauptungen
+deterministisch. Aber er **lernt nicht**. Damit Metis *selbst* auf die Einsicht
+kommt (Whittaker: „Marketing ≠ Realität prüfen"), braucht es drei Bausteine:
+
+1. **Provenienz-Taxonomie.** `Belief.source` existiert bereits, ist aber ein
+   freier String („observation", „inference", „user") ohne feste Werte. → Definiere
+   enum `Provenance`: `OBSERVED` (Link abgerufen, Status 200, Preis gesehen),
+   `INFERRED` (LLM-Plausibilität), `QUOTED` (Hörensagen/Marketing-Copy), `USER`
+   (Georg hat es gesagt). Belief/Claim bekommen dieses Feld verpflichtend.
+
+2. **Korrektur als Lernsignal.** Heute lernt Metis nur über Erfolgsquoten
+   („Action X → hat funktioniert"). Eine zurückgewiesene Aussage („stimmt nicht,
+   da ist kein Preis") verpufft. → Neue `Experience`-Variante `correction`: Wenn
+   Georg eine Antwort korrigiert, wird das als negative Erfahrung mit hoher
+   Salience gespeichert. Das Learned-Mapping (Tier 2 im Planner) leitet daraus ab:
+   „Verfügbarkeits-Behauptung ohne `OBSERVED`-Provenienz → erst prüfen."
+
+3. **Kausale Verallgemeinerung (Phase 10 nutzen).** Die CausalDreamer-Pipeline
+   existiert bereits. Die Regel `IF „unbelegte Behauptung" THEN „Korrektur"` ist
+   eine kausale Hypothese — sie braucht nur die Korrektur-Ereignisse aus Baustein 2
+   als Futter. Dann formt Metis die Whittaker-Regel selbst als Hypothese.
+
+**Aufwand:** Baustein 1+2 ~2 Tage (enum + Belief-Anreicherung + Correction-Feedback),
+Baustein 3 ~1 Woche (CausalDreamer-Feed).
+**Risiko:** niedrig — baut auf bestehender, verifizierter Infrastruktur auf
+(Phase 10 kausal ✅, Phase 11 Person/Feedback-Quelle ✅).
+**Abhängigkeit:** Phase 10 + Phase 11 — beide erreicht.
+
 ### Sicherheitsarchitektur (Voraussetzung, nicht verhandelbar)
 ```
 ┌─────────────────────────────────────────────────┐
