@@ -378,14 +378,24 @@ public class MetisHttpServer {
                 outputValidator.recordValidation(true);
             }
 
-            // Factuality gate (Whittaker-Methode): unsupported claims → re-think
-            // before emitting. Soft signal: append a caution marker rather than
-            // blocking, so Metis learns without being punished.
+            // Factuality gate (Whittaker-Methode): unsupported claims → re-think.
+            // Option B: re-generate with a corrective prompt; fall back to a
+            // caution marker if the correction LLM call fails (best-effort).
             ClaimVerifier.ClaimVerification claim = claimVerifier.verify(response);
             if (claim.needsRethink()) {
                 LOG.warning("ClaimVerifier flagged unsupported claim(s): "
                         + claim.flaggedClaims());
-                response = response + "\n\n[Unbelegte Behauptung erkannt — bitte mit Quelle/Beleg prüfen.]";
+                String corrected = null;
+                if (agent.planner() instanceof de.metis.modules.planner.OllamaPlanner op) {
+                    corrected = op.correctUnsupportedClaim(response,
+                            String.join(" | ", claim.flaggedClaims()));
+                }
+                if (corrected != null && !corrected.isBlank()) {
+                    LOG.info("ClaimVerifier: re-generated corrected response.");
+                    response = corrected;
+                } else {
+                    response = response + "\n\n[Unbelegte Behauptung erkannt — bitte mit Quelle/Beleg prüfen.]";
+                }
             }
         } catch (Exception e) {
             response = "I encountered an error: " + e.getMessage();

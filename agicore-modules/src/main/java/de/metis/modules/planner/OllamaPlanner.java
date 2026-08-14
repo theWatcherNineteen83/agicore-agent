@@ -388,6 +388,7 @@ public class OllamaPlanner implements Planner {
 
                 RULES:
                 - EXPLORATION goals (category='exploration'): ALWAYS pick untested actions (0 uses) over shell/http. Exploration is for discovering new capabilities, not repeating old ones.
+                - MODULE-BUILDING goals (description starts with 'STRATEGIC: Baue' or contains 'package de.metis'): ALWAYS use feature-gen as the FIRST action. feature-gen generates a complete Java class, writes it into the real source tree, and compile-checks it. This is THE action for building new modules (MathCore, CharCounter, RoadmapReader, RepoIndex, ...). Never use shell for module building — shell cannot write Java source files.
                 - Prefer actions with proven success rates over ones with proven failures
                 - UNTESTED actions (0 execution count) are OPPORTUNITIES, not risks. Treat them as high-value exploration targets.
                 - Shell is the LAST RESORT fallback — only when NO specialized action fits (filesystem, memory, self-analysis, etc. are ALL more specialized than shell)
@@ -409,6 +410,7 @@ public class OllamaPlanner implements Planner {
                 - Safety first: if an action has a history of failures for similar goals, avoid it.
                 - Exploration is valuable: untested actions (0 execution count) are learning opportunities, not risks.
                 - Specialization beats generality: always prefer a specialized action over generic shell/http.
+                - MODULE-BUILDING goals (description starts with 'STRATEGIC: Baue' or contains 'package de.metis'): MUST use feature-gen as the first action. feature-gen writes a complete Java class into the real source tree and compile-checks it. shell CANNOT create source files — never choose shell for module-building.
                 - Learn from failures: recent failures for similar goals are strong signals to try alternatives.
                 - Confidence is earned: high confidence only when the action-goal mapping has proven success.
                 """;
@@ -1370,6 +1372,100 @@ sb.append("  Or single-action format: {\"thought\":\"...\",\"action\":\"<name>\"
     }
 
     /** Resolve model name from provider (lazy, allows runtime model switching). */
+    /**
+     * Corrective re-generation (Option B, Whittaker-Methode): when the
+     * factuality gate flags an unsupported availability/price claim, re-think
+     * the answer with an explicit honesty prompt and return a corrected text.
+     *
+     * @param originalText  the flagged response text
+     * @param flaggedClaims short snippets of the flagged claims (for context)
+     * @return corrected text, or {@code null} if the LLM call fails (caller
+     *         falls back to a caution marker — best-effort, never blocks)
+     */
+    public String correctUnsupportedClaim(String originalText, String flaggedClaims) {
+        try {
+            String prompt = buildCorrectionPrompt(originalText, flaggedClaims);
+            String corrected = callModelRaw(resolveModel(), prompt);
+            if (corrected == null || corrected.isBlank()) return null;
+            return corrected.strip();
+        } catch (Exception e) {
+            LOG.warning("Claim correction failed: " + e.getMessage());
+            return null;
+        }
+    }
+
+    private String buildCorrectionPrompt(String originalText, String flaggedClaims) {
+        return """
+                Du bist Metis. Deine letzte Antwort enthielt eine Verfügbarkeits- oder Preis-Behauptung,
+                die nicht belegt ist (keine Quelle, kein Preis, kein verifizierter Link).
+
+                Behauptung(en), die auffielen: %s
+
+                Deine ursprüngliche Antwort:
+                ---
+                %s
+                ---
+
+                Prüfe noch einmal ehrlich:
+                - Gibt es dafür eine verifizierte Quelle, einen konkreten Preis oder einen Lagerbestand?
+                - Falls JA: nenne die Quelle/den Preis konkret.
+                - Falls NEIN: formuliere die Antwort neu und sage klar „nicht bestätigt", „kein Preis bekannt" oder „noch nicht verfügbar".
+
+                Antworte NUR mit dem korrigierten Text, ohne Meta-Kommentare.
+                """.formatted(flaggedClaims, originalText);
+    }
+
+    /** Raw single-shot LLM completion returning the text field (no plan parsing). */
+    private String callModelRaw(String model, String prompt) {
+        try {
+            String jsonBody;
+            if (isOpenAI()) {
+                jsonBody = String.format("""
+                    {
+                      "model": "%s",
+                      "messages": [{"role": "user", "content": %s}],
+                      "stream": false,
+                      "temperature": 0.3,
+                      "top_p": 0.95,
+                      "max_tokens": 1024
+                    }
+                    """, model, escapeJson(prompt));
+            } else {
+                jsonBody = String.format("""
+                    {
+                      "model": "%s",
+                      "prompt": %s,
+                      "stream": false,
+                      "options": {
+                        "temperature": 0.3,
+                        "top_p": 0.95,
+                        "num_predict": 1024,
+                        "num_ctx": 8192
+                      },
+                      "keep_alive": "10m"
+                    }
+                    """, model, escapeJson(prompt));
+            }
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(ollamaUrl))
+                    .timeout(timeout)
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
+                    .build();
+
+            HttpResponse<String> response = sendWithRetry(request);
+            if (response.statusCode() != 200) {
+                LOG.warning("Claim correction: model " + model + " returned " + response.statusCode());
+                return null;
+            }
+            return extractResponseField(response.body());
+        } catch (Exception e) {
+            LOG.warning("Raw model call failed: " + e.getMessage());
+            return null;
+        }
+    }
+
     private String resolveModel() {
         return modelProvider != null ? modelProvider.get() : "nemotron-cascade-2:30b";
     }
