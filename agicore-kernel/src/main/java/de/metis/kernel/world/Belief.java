@@ -45,6 +45,17 @@ public record Belief(
                 evidence, createdAt, Instant.now());
     }
 
+    /**
+     * Phase 12e Baustein 1 — die Provenienz dieser Überzeugung.
+     * Ordnet den freien {@code source}-String der Taxonomie {@link Provenance}
+     * zu. Kapselt {@link Provenance#classify(String)}.
+     *
+     * @return woher diese Überzeugung stammt (OBSERVED/INFERRED/QUOTED/USER/UNKNOWN)
+     */
+    public Provenance provenance() {
+        return Provenance.classify(source);
+    }
+
     private static double clamp(double v) {
         return Math.max(0.0, Math.min(1.0, v));
     }
