@@ -1569,6 +1569,115 @@ public final class AgentMain {
             LOG.info("GoalHierarchy: seeded Phase-14 Belief-Migration goal");
         }
 
+        // ── Phase 12a-c: Recursive Self-Improvement (Roadmap 17.08.2026) ──
+        // Remaining research tasks beyond the already-seeded Foundation modules
+        // (RoadmapReader, RepoIndex, PhaseCompletionEvaluator).
+        String mfcgTag = "phase-12-multifile-codegen";
+        if (goalHierarchy.all().stream().noneMatch(g -> g.tags() != null && g.tags().contains(mfcgTag))) {
+            goalHierarchy.upsert(new LongHorizonGoal(
+                    null,
+                    "Baue MultiFileCodeGen — Code-Synthese ueber mehrere Dateien (Interface+Impl+Test), Test-First",
+                    "Phase 12a: Generiere zusammengehoerige Java-Dateien (Interface, Implementierung, Unit-Test) in einem Zug. Test-First: erst der Test, dann die Implementierung, dann compile-check. package de.metis.modules.selfrefactor.",
+                    GoalHorizon.STRATEGIC,
+                    LongHorizonGoal.Status.ACTIVE,
+                    null, java.util.List.of(),
+                    null, null, null, null, 0.0,
+                    88, "metis",
+                    java.util.List.of(mfcgTag, "selfrefactor", "phase-12a", "codegen")));
+            LOG.info("GoalHierarchy: seeded Phase-12a MultiFileCodeGen goal");
+        }
+
+        String mutationProposalTag = "phase-12-mutation-proposal";
+        if (goalHierarchy.all().stream().noneMatch(g -> g.tags() != null && g.tags().contains(mutationProposalTag))) {
+            goalHierarchy.upsert(new LongHorizonGoal(
+                    null,
+                    "Baue MutationProposal — Diff + Spec + Risiko-Bewertung + betroffene Module",
+                    "Phase 12a: Formatiere jede Selbst-Mutation als Proposal mit Diff, Spec, Risiko-Einschaetzung und Liste betroffener Module. Basis fuer den DualReviewer-Gate.",
+                    GoalHorizon.STRATEGIC,
+                    LongHorizonGoal.Status.ACTIVE,
+                    null, java.util.List.of(),
+                    null, null, null, null, 0.0,
+                    85, "metis",
+                    java.util.List.of(mutationProposalTag, "selfrefactor", "phase-12a", "mutation")));
+            LOG.info("GoalHierarchy: seeded Phase-12a MutationProposal goal");
+        }
+
+        String dualReviewerTag = "phase-12-dual-reviewer";
+        if (goalHierarchy.all().stream().noneMatch(g -> g.tags() != null && g.tags().contains(dualReviewerTag))) {
+            goalHierarchy.upsert(new LongHorizonGoal(
+                    null,
+                    "Baue DualReviewer — 2 unabhaengige Eval-Modelle + Property-Tests (jqwik)",
+                    "Phase 12a: Zwei unabhaengige LLM-Reviews jeder Mutation + deterministische Property-Tests. Nur bei doppelter Zustimmung darf eine Mutation den Watchdog-Gate passieren.",
+                    GoalHorizon.STRATEGIC,
+                    LongHorizonGoal.Status.ACTIVE,
+                    null, java.util.List.of(),
+                    null, null, null, null, 0.0,
+                    85, "metis",
+                    java.util.List.of(dualReviewerTag, "selfrefactor", "phase-12a", "watchdog")));
+            LOG.info("GoalHierarchy: seeded Phase-12a DualReviewer goal");
+        }
+
+        String personalityAnchorTag = "phase-12-personality-anchor-mirror";
+        if (goalHierarchy.all().stream().noneMatch(g -> g.tags() != null && g.tags().contains(personalityAnchorTag))) {
+            goalHierarchy.upsert(new LongHorizonGoal(
+                    null,
+                    "Baue PersonalityAnchor-Mirror — sha256-Pin im Watchdog (read-only)",
+                    "Phase 12a: Verankere den Wertkern (SOUL/IDENTITY/Persoenlichkeit) als sha256-Hash im Watchdog. Metis hat KEINEN Schreibzugriff. Jede Mutation, die den Anker veraendert, wird abgelehnt.",
+                    GoalHorizon.STRATEGIC,
+                    LongHorizonGoal.Status.ACTIVE,
+                    null, java.util.List.of(),
+                    null, null, null, null, 0.0,
+                    90, "metis",
+                    java.util.List.of(personalityAnchorTag, "selfrefactor", "phase-12a", "safety", "watchdog")));
+            LOG.info("GoalHierarchy: seeded Phase-12a PersonalityAnchor-Mirror goal");
+        }
+
+        String humanCheckpointTag = "phase-12-human-checkpoint";
+        if (goalHierarchy.all().stream().noneMatch(g -> g.tags() != null && g.tags().contains(humanCheckpointTag))) {
+            goalHierarchy.upsert(new LongHorizonGoal(
+                    null,
+                    "Baue HumanCheckpoint — expliziter Mensch-Approval fuer Kernel-/Safety-Aenderungen",
+                    "Phase 12a: Aenderungen an Kernel, Safety, Watchdog oder PersonalityAnchor benoetigen expliziten Georg-Approval (Telegram). Kein auto-merge fuer diese Dateien.",
+                    GoalHorizon.STRATEGIC,
+                    LongHorizonGoal.Status.ACTIVE,
+                    null, java.util.List.of(),
+                    null, null, null, null, 0.0,
+                    90, "metis",
+                    java.util.List.of(humanCheckpointTag, "selfrefactor", "phase-12a", "safety")));
+            LOG.info("GoalHierarchy: seeded Phase-12a HumanCheckpoint goal");
+        }
+
+        // ── Phase 14: H2-Datenbank + SQL (Roadmap 17.08.2026) ──
+        String h2SnapshotTag = "phase-14-h2-daily-snapshots";
+        if (goalHierarchy.all().stream().noneMatch(g -> g.tags() != null && g.tags().contains(h2SnapshotTag))) {
+            goalHierarchy.upsert(new LongHorizonGoal(
+                    null,
+                    "Baue H2-DailySnapshots — taegliche Analytics-/Metric-Snapshots in H2Datastore",
+                    "Phase 14: Persistiere taegliche Metis-Metriken (Beliefs, Goals, Planner-Erfolg, LLM-Calls) als Snapshot in H2Datastore. dailySnapshots ist aktuell 0.",
+                    GoalHorizon.STRATEGIC,
+                    LongHorizonGoal.Status.ACTIVE,
+                    null, java.util.List.of(),
+                    null, null, null, null, 0.0,
+                    82, "metis",
+                    java.util.List.of(h2SnapshotTag, "h2", "sql", "analytics")));
+            LOG.info("GoalHierarchy: seeded Phase-14 H2-DailySnapshots goal");
+        }
+
+        String sqlAnalyticsTag = "phase-14-sql-analytics-queries";
+        if (goalHierarchy.all().stream().noneMatch(g -> g.tags() != null && g.tags().contains(sqlAnalyticsTag))) {
+            goalHierarchy.upsert(new LongHorizonGoal(
+                    null,
+                    "Erweitere /api/sql um Analytics-Abfragen + Read/Write-Audit-Log",
+                    "Phase 14: Fuege vordefinierte Analytics-Queries (Top-Actions, Fehlerraten, Trend) zum SQL-Endpoint hinzu und protokolliere jede Abfrage im Audit-Log. Read-only fuer unbekannte Queries.",
+                    GoalHorizon.STRATEGIC,
+                    LongHorizonGoal.Status.ACTIVE,
+                    null, java.util.List.of(),
+                    null, null, null, null, 0.0,
+                    82, "metis",
+                    java.util.List.of(sqlAnalyticsTag, "sql", "h2", "api")));
+            LOG.info("GoalHierarchy: seeded Phase-14 SQL-Analytics goal");
+        }
+
         // Periodic revision every 30 min — auto-blocks overdue, auto-completes,
         // rolls up parent progress. Result is logged + appended to SelfNarrative
         // when something actually changes.
