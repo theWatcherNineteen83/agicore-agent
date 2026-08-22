@@ -1678,6 +1678,68 @@ public final class AgentMain {
             LOG.info("GoalHierarchy: seeded Phase-14 SQL-Analytics goal");
         }
 
+        // —— Phase 12d Foundation: RepoIndex, RoadmapReader, PhaseCompletionEvaluator ——
+        String repoIndexTag = "phase-12d-repo-index";
+        if (goalHierarchy.all().stream().noneMatch(g -> g.tags() != null && g.tags().contains(repoIndexTag))) {
+            goalHierarchy.upsert(new LongHorizonGoal(
+                    null,
+                    "Baue RepoIndex — AST-basierter Index aller Java-Klassen mit Dependency-Graph",
+                    "Phase 12d Foundation: Erstelle einen AST-Parser (JavaParser) der alle Klassen, Interfaces, Enums im Codebase indexiert. Erzeuge Dependency-Graph (imports, extends, implements, calls). Persistiere in H2Datastore. Basis fuer MultiFileCodeGen, RefactorProposal, Impact-Analyse.",
+                    GoalHorizon.STRATEGIC,
+                    LongHorizonGoal.Status.ACTIVE,
+                    null, java.util.List.of(),
+                    null, null, null, null, 0.0,
+                    92, "metis",
+                    java.util.List.of(repoIndexTag, "selfrefactor", "phase-12d", "repoindex", "ast")));
+            LOG.info("GoalHierarchy: seeded Phase-12d RepoIndex goal");
+        }
+
+        String roadmapReaderTag = "phase-12d-roadmap-reader";
+        if (goalHierarchy.all().stream().noneMatch(g -> g.tags() != null && g.tags().contains(roadmapReaderTag))) {
+            goalHierarchy.upsert(new LongHorizonGoal(
+                    null,
+                    "Baue RoadmapReader — Markdown-Parser fuer AGI_EDI_ROADMAP.md mit Phase-Coverage-Tracking",
+                    "Phase 12d Foundation: Parse die Roadmap-Markdown-Datei, extrahiere Phasen, Tasks, Status-Checkboxen. Mappe Tasks auf existierende Goals in GoalHierarchy. Zeige Coverage pro Phase (done/total). Output als strukturiertes JSON fuer Planner/Watchdog.",
+                    GoalHorizon.STRATEGIC,
+                    LongHorizonGoal.Status.ACTIVE,
+                    null, java.util.List.of(),
+                    null, null, null, null, 0.0,
+                    88, "metis",
+                    java.util.List.of(roadmapReaderTag, "selfrefactor", "phase-12d", "roadmap", "parser")));
+            LOG.info("GoalHierarchy: seeded Phase-12d RoadmapReader goal");
+        }
+
+        String phaseEvalTag = "phase-12d-phase-evaluator";
+        if (goalHierarchy.all().stream().noneMatch(g -> g.tags() != null && g.tags().contains(phaseEvalTag))) {
+            goalHierarchy.upsert(new LongHorizonGoal(
+                    null,
+                    "Baue PhaseCompletionEvaluator — Watchdog-Komponente die Phase-Abschluss-Kriterien pruft",
+                    "Phase 12d Foundation: Implementiere strukturierte Evaluierung: [postconditions]-Bloecke in Goals lesen, gegen Metriken pruefen (Beliefs, Tests, Coverage, Eval-Harness). Ergebnis: PASS/FAIL mit Beweis. Integriert in Watchdog-Gate (Phase 12a DualReviewer).",
+                    GoalHorizon.STRATEGIC,
+                    LongHorizonGoal.Status.ACTIVE,
+                    null, java.util.List.of(),
+                    null, null, null, null, 0.0,
+                    90, "metis",
+                    java.util.List.of(phaseEvalTag, "selfrefactor", "phase-12d", "evaluator", "watchdog")));
+            LOG.info("GoalHierarchy: seeded Phase-12d PhaseCompletionEvaluator goal");
+        }
+
+        // —— Phase 12e: Epistemic Provenance (14.08.2026) ——
+        String epistemicTag = "phase-12e-epistemic-provenance";
+        if (goalHierarchy.all().stream().noneMatch(g -> g.tags() != null && g.tags().contains(epistemicTag))) {
+            goalHierarchy.upsert(new LongHorizonGoal(
+                    null,
+                    "Baue Epistemic Provenance — Provenienz-Taxonomie (OBSERVED/INFERRED/QUOTED/USER) + Correction-Feedback + CausalDreamer-Integration",
+                    "Phase 12e: 1) Enum Provenance in Belief/Claim (OBSERVED=Link abgerufen+Preis gesehen, INFERRED=LLM-Plausibilitaet, QUOTED=Hoerensagen/Marketing, USER=Georg sagte). 2) Correction-Feedback: wenn Georg eine Aussage korrigiert -> negative Experience mit hoher Salience. 3) CausalDreamer lernt Whittaker-Regel: 'unbelegte Verfuegbarkeits-Behauptung -> erst pruefen'. Low risk, baut auf Phase 10+11 auf.",
+                    GoalHorizon.STRATEGIC,
+                    LongHorizonGoal.Status.ACTIVE,
+                    null, java.util.List.of(),
+                    null, null, null, null, 0.0,
+                    85, "metis",
+                    java.util.List.of(epistemicTag, "epistemics", "phase-12e", "provenance", "causal")));
+            LOG.info("GoalHierarchy: seeded Phase-12e Epistemic Provenance goal");
+        }
+
         // Periodic revision every 30 min — auto-blocks overdue, auto-completes,
         // rolls up parent progress. Result is logged + appended to SelfNarrative
         // when something actually changes.

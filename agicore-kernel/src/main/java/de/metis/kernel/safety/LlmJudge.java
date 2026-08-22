@@ -72,20 +72,20 @@ public class LlmJudge {
     // ── Constructors ─────────────────────────────────────────────
 
     /**
-     * Default: miniedi CPU-Ollama-Instanz (Port 11438) mit kleinem, schnellem
-     * Judge-Modell. Bewusst NICHT auf GPU1 (11434, Planner+Mutation, oft 100%
-     * ausgelastet) oder GPU0 (11436, oft VRAM-voll) — sonst konkurriert der
-     * Judge um GPU-Slots und faellt staendig mit HTTP 503 aus (siehe 04.07.2026:
-     * mistral-small3.1:24b auf 11434 permanent "server busy").
-     * nemotron-mini-agent (4.2B) laeuft nachweislich auf der CPU-Instanz.
-     * WICHTIG: die CPU-Ollama-Instanz bindet nur auf 127.0.0.1:11438 (nicht
-     * auf die externe IP) — da Metis auf demselben Host (miniedi) laeuft,
-     * muss hier 127.0.0.1 verwendet werden, sonst Connection-Refused/Timeout.
+     * Default: GPU1-Ollama-Instanz (Port 11434, Radeon AI PRO R9700) mit
+     * ornith:9b als Judge-Modell (Thinking-Modell, daher "think":false im
+     * Request noetig, sonst kommt leerer Text zurueck).
+     * Seit 19.08.2026 auf GPU1 (2-Zylinder-Modell: Planner auf GPU0,
+     * Mutation+Judge auf GPU1). Judge + Mutation teilen sich GPU1-VRAM
+     * (~5.0GB + ~23.7GB < 32GB) und konkurrieren NICHT um Compute, da sie
+     * nie gleichzeitig feuern.
+     * WICHTIG: GPU1 bindet auf 127.0.0.1:11434 — da Metis auf demselben Host
+     * (miniedi) laeuft, muss 127.0.0.1 verwendet werden, sonst Connection-Refused.
      */
     public LlmJudge() {
-        this("http://127.0.0.1:11438/api/generate",
-             "nemotron-mini-agent",
-             Duration.ofSeconds(120));
+        this("http://127.0.0.1:11434/api/generate",
+             "ornith:9b",
+             Duration.ofSeconds(180));
     }
 
     /**
@@ -224,6 +224,7 @@ public class LlmJudge {
                       "prompt": %s,
                       "stream": false,
                       "format": "json",
+                      "think": false,
                       "options": {
                         "temperature": 0.1,
                         "top_p": 0.9,

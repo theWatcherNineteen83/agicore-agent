@@ -759,6 +759,7 @@ public class OllamaPlanner implements Planner {
         sb.append("- Prefer actions with proven success rates over ones with proven failures\n");
         sb.append("- UNTESTED actions (0 execution count) are OPPORTUNITIES, not risks. Treat them as high-value exploration targets.\n");
         sb.append("- Shell is the LAST RESORT fallback — only when NO specialized action fits (filesystem, memory, self-analysis, etc. are ALL more specialized than shell)\n");
+        sb.append("- REFLECTION/KNOWLEDGE/CREATIVE goals (reflect, think, write, summarize, analyze, learn, explain, research, ethics, philosophy): NEVER shell. Use jlama (text generation/reflection), websearch (facts), wikipedia (knowledge), or webcrawl (deep research). shell is ONLY for actual system operations.\n");
 
         // ── Action catalog ──
         sb.append("ACTION CATALOG:\n");
@@ -769,8 +770,8 @@ public class OllamaPlanner implements Planner {
         sb.append("- filesystem-read: read complete file contents by path\n");
         sb.append("- api-explore: discover and probe HTTP endpoints on a target host\n");
         sb.append("- linux-explore-system: deep system probe (processes, memory, disk, network)\n");
-        sb.append("- memory-query: search the agent's own long-term knowledge base\n");
-        sb.append("- self-analyze: inspect agent's own performance metrics and state\n");
+        sb.append("- websearch: search the web for current information, facts, news\n");
+        sb.append("- wikipedia: read Wikipedia articles for encyclopedic knowledge\n");
         sb.append("- source-read: read own Java source code by class name or path\n");
         sb.append("- javasandbox: execute safe, sandboxed Java code experiments\n");
         sb.append("- jlama: local pure-Java LLM inference — fallback for Ollama or lightweight text generation\n");
@@ -788,8 +789,8 @@ sb.append("- git-feature-branch: scan the Git repo for TODOs, generate optimisat
         sb.append("Goal: Read the contents of config.json → {\"thought\":\"Reading a specific file by path needs filesystem-read\",\"action\":\"filesystem-read\",\"reasoning\":\"read specific file by path\",\"confidence\":0.95}\n");
         sb.append("Goal: Discover available REST endpoints → {\"thought\":\"API exploration probes endpoints systematically, better than single HTTP call\",\"action\":\"api-explore\",\"reasoning\":\"probe HTTP endpoints systematically\",\"confidence\":0.85}\n");
         sb.append("Goal: Get detailed system resource overview → {\"thought\":\"Deep system probe covers multiple resource dimensions\",\"action\":\"linux-explore-system\",\"reasoning\":\"deep system probe for resources\",\"confidence\":0.85}\n");
-        sb.append("Goal: What do I know about network configuration? → {\"thought\":\"This is a knowledge retrieval task, not an active probe\",\"action\":\"memory-query\",\"reasoning\":\"search agent's long-term knowledge base\",\"confidence\":0.80}\n");
-        sb.append("Goal: How well am I performing lately? → {\"thought\":\"Self-analysis inspects the agent's own metrics, not external systems\",\"action\":\"self-analyze\",\"reasoning\":\"self-analysis of performance metrics\",\"confidence\":0.85}\n");
+        sb.append("Goal: What do I know about network configuration? → {\"thought\":\"Knowledge retrieval is a search task, not a system probe\",\"action\":\"websearch\",\"reasoning\":\"web search for network configuration knowledge\",\"confidence\":0.80}\n");
+        sb.append("Goal: How well am I performing lately? → {\"thought\":\"Performance introspection is reflection, not a system command\",\"action\":\"jlama\",\"reasoning\":\"local text generation for reflection\",\"confidence\":0.85}\n");
         sb.append("Goal: How does the EvolutionManager work internally? → {\"thought\":\"Reading source code reveals implementation details for targeted optimisation\",\"action\":\"source-read\",\"reasoning\":\"reading own source to understand evolution pipeline\",\"confidence\":0.90}\n");
         sb.append("Goal: Run a Java math experiment safely → {\"thought\":\"Safe code execution needs sandbox, not raw shell\",\"action\":\"javasandbox\",\"reasoning\":\"sandboxed Java execution for safe code\",\"confidence\":0.90}\n");
         sb.append("Goal: What is the current Bitcoin price? → {\"thought\":\"Current price needs web search, not internal knowledge\",\"action\":\"websearch\",\"reasoning\":\"DuckDuckGo websearch for real-time info\",\"confidence\":0.90}\n");
@@ -799,7 +800,12 @@ sb.append("- git-feature-branch: scan the Git repo for TODOs, generate optimisat
         sb.append("Goal: Take a screenshot of a website → {\"thought\":\"Need browser automation, MCP bridge can connect to Playwright server\",\"action\":\"mcp-bridge\",\"reasoning\":\"MCP bridge connects to Playwright MCP server for browser screenshots\",\"confidence\":0.85}\n");
         sb.append("Goal: Research a topic and create a structured report → {\"thought\":\"Complex multi-step task needs decomposition — web research, extract, structure, save\",\"action\":\"prompt-chain\",\"reasoning\":\"multi-step research task best handled by prompt chaining\",\"confidence\":0.85}\n");
         sb.append("Goal: Investigate system security and generate audit report → {\"thought\":\"System audit requires multiple steps — probe, analyze, aggregate, report\",\"action\":\"prompt-chain\",\"reasoning\":\"systematic audit via chained sub-goals\",\"confidence\":0.85}\n");
-        sb.append("Goal: Scan the AGI repo for TODOs and create an optimisation feature branch → {\"thought\":\"Code optimisation needs repo analysis via git commands, LLM-based fix generation, and git branch creation\",\"action\":\"git-feature-branch\",\"reasoning\":\"git-feature-branch scans, generates, compiles and pushes optimisations as a feature branch\",\"confidence\":0.85}\n\n");
+        sb.append("Goal: Scan the AGI repo for TODOs and create an optimisation feature branch → {\"thought\":\"Code optimisation needs repo analysis via git commands, LLM-based fix generation, and git branch creation\",\"action\":\"git-feature-branch\",\"reasoning\":\"git-feature-branch scans, generates, compiles and pushes optimisations as a feature branch\",\"confidence\":0.85}\n");
+        sb.append("Goal: Reflect on ethical principles → {\"thought\":\"Reflection is text generation, not a system command\",\"action\":\"jlama\",\"reasoning\":\"local text generation for reflection\",\"confidence\":0.85}\n");
+        sb.append("Goal: Write a short text or explanation → {\"thought\":\"Text generation, not system command\",\"action\":\"jlama\",\"reasoning\":\"local text generation\",\"confidence\":0.85}\n");
+        sb.append("Goal: Research a topic or find current information → {\"thought\":\"Web search for current facts\",\"action\":\"websearch\",\"reasoning\":\"web search for information\",\"confidence\":0.85}\n");
+        sb.append("Goal: Learn about a concept or historical event → {\"thought\":\"Encyclopedic knowledge from Wikipedia\",\"action\":\"wikipedia\",\"reasoning\":\"Wikipedia article for knowledge\",\"confidence\":0.85}\n");
+        sb.append("Goal: Summarize what I know about something → {\"thought\":\"Knowledge retrieval, not shell\",\"action\":\"websearch\",\"reasoning\":\"web search for summary\",\"confidence\":0.80}\n\n");
 
         // ── Goal context ──
         sb.append("CURRENT GOAL:\n");
