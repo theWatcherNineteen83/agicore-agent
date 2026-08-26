@@ -1624,6 +1624,11 @@ sb.append("  Or single-action format: {\"thought\":\"...\",\"action\":\"<name>\"
     public String lastThought() { return lastThought; }
     public Instant lastLlmCall() { return lastLlmCall; }
 
+    /** The model name the planner currently resolves to (lazy, via ModelRegistry or fixed). */
+    public String currentModel() { return resolveModel(); }
+    /** The planner's LLM endpoint URL (llama-server OpenAI-compat or Ollama generate). */
+    public String endpointUrl() { return ollamaUrl; }
+
     /**
      * How often the LLM was successfully used (as fraction of attempts).
      */

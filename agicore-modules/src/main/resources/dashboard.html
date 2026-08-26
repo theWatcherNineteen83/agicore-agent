@@ -53,6 +53,14 @@ a{color:#58a6ff}
   <div class="card"><h3>Mutations</h3><div class="value" id="s_mutations">-</div></div>
 </div>
 
+<!-- Active LLMs -->
+<h2 style="color:#58a6ff;margin-top:24px">&#x1f9e0; Aktive Modelle</h2>
+<div class="grid">
+  <div class="card"><h3>Planer</h3><div class="value blue" id="m_planning">-</div><div class="sub" id="m_planning_sub"></div></div>
+  <div class="card"><h3>Mutation</h3><div class="value yellow" id="m_mutation">-</div></div>
+  <div class="card"><h3>Embedding</h3><div class="value green" id="m_embedding">-</div></div>
+</div>
+
 <!-- CausalDreamer -->
 <h2 style="color:#58a6ff;margin-top:24px">&#x1f52c; CausalDreamer</h2>
 <div class="grid">
@@ -138,6 +146,13 @@ async function refresh() {
 
   document.getElementById('s_beliefs').textContent = (status.beliefCount || 0).toLocaleString();
   document.getElementById('s_mutations').textContent = (status.acceptedMutations||0) + ' / ' + (status.rejectedMutations||0);
+
+  // Active LLMs
+  const models = status.models || {};
+  document.getElementById('m_planning').textContent = models.planning || '?';
+  document.getElementById('m_planning_sub').textContent = models.planningEndpoint || '';
+  document.getElementById('m_mutation').textContent = models.mutation || '?';
+  document.getElementById('m_embedding').textContent = models.embedding || '?';
 
   // CausalDreamer (from /tmp/causal-dreamer.status via API)
   // We embed this via a separate text endpoint — for now, parse from /api/causal

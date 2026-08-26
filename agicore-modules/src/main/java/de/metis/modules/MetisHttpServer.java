@@ -811,6 +811,17 @@ public class MetisHttpServer {
         var planner = agent.planner();
         var wm = agent.worldModel();
 
+        // Current LLMs in use (planner / mutation / embedding)
+        String planningModel = "unknown";
+        String planningEndpoint = "unknown";
+        if (planner instanceof de.metis.modules.planner.OllamaPlanner op) {
+            planningModel = op.currentModel();
+            planningEndpoint = op.endpointUrl();
+        }
+        String mutationModel = modelRegistry != null ? modelRegistry.mutationModel() : "unknown";
+        String embeddingModel = embeddingService != null ? embeddingService.modelName()
+                : (modelRegistry != null ? modelRegistry.embeddingModel() : "unknown");
+
         String plannerInfo;
         if (planner instanceof de.metis.modules.planner.OllamaPlanner op) {
             plannerInfo = String.format(Locale.ROOT, """
@@ -874,6 +885,7 @@ public class MetisHttpServer {
                 {
                   "agent": "Metis AGI",
                   "version": "%s",
+                  "models": {"planning":"%s","planningEndpoint":"%s","mutation":"%s","embedding":"%s"},
                   "uptime": "unknown",
                   "totalTicks": %d,
                   "activeGoals": %d,
@@ -908,6 +920,10 @@ public class MetisHttpServer {
                 }
                 """,
                 metisVersion,
+                planningModel,
+                planningEndpoint,
+                mutationModel,
+                embeddingModel,
                 m.totalTicks(),
                 agent.goals().activeCount(),
                 m.goalSuccessRate(),

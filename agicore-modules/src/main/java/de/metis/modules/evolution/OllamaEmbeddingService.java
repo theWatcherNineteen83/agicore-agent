@@ -90,6 +90,9 @@ public class OllamaEmbeddingService {
         this(DEFAULT_MODEL, DEFAULT_CACHE_SIZE);
     }
 
+    /** The embedding model name currently in use. */
+    public String modelName() { return model; }
+
     public OllamaEmbeddingService(String model) {
         this(DEFAULT_OLLAMA_URL, model, DEFAULT_CACHE_SIZE);
     }
