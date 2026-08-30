@@ -1,12 +1,12 @@
 {
-  "timestamp": "2026-08-29T12:12:58.951374351Z",
-  "totalTicks": 76689,
+  "timestamp": "2026-08-30T01:41:57.710624400Z",
+  "totalTicks": 76789,
   "activeGoals": 0,
-  "successRate": 0,9617,
-  "planningEfficiency": 0,1740,
+  "successRate": 0,9706,
+  "planningEfficiency": 0,2053,
   "confidence": 0,9500,
-  "beliefCount": 148291,
-  "acceptedMutations": 0,
+  "beliefCount": 148367,
+  "acceptedMutations": 3,
   "rejectedMutations": 12,
   "emergenceEvents": [
     "T75528: World model reached 148140 beliefs — potential concept formation",
