@@ -205,7 +205,7 @@ public class OllamaPlanner implements Planner {
      */
     public OllamaPlanner() {
         this("http://192.168.22.204:11434/api/generate",
-             "qwen3_6-35b-agent",
+             "qwen3_8-27b-agent",
              Duration.ofSeconds(60));
         initABTesting();
         initFlywheel();
@@ -222,11 +222,11 @@ public class OllamaPlanner implements Planner {
         this.ollamaUrl = ollamaUrl;
         this.modelProvider = () -> model;
         this.timeout = timeout;
-        // Default fallback chain: mistral-agent → phi4-mini-agent → qwen3_6-27b-agent
+        // Default fallback chain: mistral-agent → phi4-mini-agent → qwen3_8-27b-agent
         this.fallbackModels.addAll(List.of(
             "mistral-agent",
             "phi4-mini-agent",
-            "qwen3_6-27b-agent"
+            "qwen3_8-27b-agent"
         ));
         initABTesting();
         initFlywheel();
@@ -240,11 +240,11 @@ public class OllamaPlanner implements Planner {
         this.ollamaUrl = ollamaUrl;
         this.modelProvider = registry::planningModel;
         this.timeout = timeout;
-        // Default fallback chain: mistral-agent → phi4-mini-agent → qwen3_6-27b-agent
+        // Default fallback chain: mistral-agent → phi4-mini-agent → qwen3_8-27b-agent
         this.fallbackModels.addAll(List.of(
             "mistral-agent",
             "phi4-mini-agent",
-            "qwen3_6-27b-agent"
+            "qwen3_8-27b-agent"
         ));
         initABTesting();
     }
@@ -575,7 +575,7 @@ public class OllamaPlanner implements Planner {
      * Tier 1: Call Ollama with structured context and parse JSON response.
      * <p>
      * <b>Model Fallback Chain (1.3):</b> If the primary model fails,
-     * automatically retry with each fallback model (nemotron → qwen3.6 → mistral-small3.1).
+     * automatically retry with each fallback model (nemotron → qwen3.8 → mistral-small3.1).
      * Only if ALL models fail does the call return null, falling through to
      * Tier 2 (learned) and Tier 3 (keyword).
      */
@@ -600,10 +600,10 @@ public class OllamaPlanner implements Planner {
                     modelsToTry.add(fb);
                 }
             }
-            // Also add qwen3.6:latest as ultimate LLM fallback if not already in chain
-            if (!modelsToTry.contains("qwen3.6:27b-q4_K_M")
-                    && !"qwen3.6:27b-q4_K_M".equals(primaryModel)) {
-                modelsToTry.add("qwen3.6:27b-q4_K_M");
+            // Also add qwen3.8:latest as ultimate LLM fallback if not already in chain
+            if (!modelsToTry.contains("qwen3.8:27b-q4_K_XL")
+                    && !"qwen3.8:27b-q4_K_XL".equals(primaryModel)) {
+                modelsToTry.add("qwen3.8:27b-q4_K_XL");
             }
 
             for (String fallbackModel : modelsToTry) {

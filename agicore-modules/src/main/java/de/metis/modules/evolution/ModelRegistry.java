@@ -42,7 +42,7 @@ public class ModelRegistry {
             "deepseek-r1",      // CoT-native, strongest reasoning
             "phi4-reasoning",   // CoT-native
             "lfm2",             // 12h-Live-Test: planningEff 0.81, ½ Latenz von Mistral
-            "qwen3.6",          // general + reasoning
+            "qwen3.8",          // general + reasoning
             "phi4",             // strong reasoning
             "mistral-small3",   // fast reasoning (Fallback #1)
             "olmo-3",           // thinking model
@@ -55,7 +55,7 @@ public class ModelRegistry {
     /** Code-generation-capable models (structured output, large context). */
     private static final List<String> CODE_GEN_FAMILIES = List.of(
             "deepseek-r1",      // excellent code + reasoning (preferred for mutations)
-            "qwen3.6",          // top code gen, large context
+            "qwen3.8",          // top code gen, large context
             "mistral-small3",   // reliable code output
             "granite4",         // code-trained
             "gemma4",           // capable code
