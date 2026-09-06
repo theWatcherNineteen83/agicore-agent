@@ -1,17 +1,28 @@
 {
-  "timestamp": "2026-09-05T21:26:26.429014525Z",
-  "totalTicks": 2528,
-  "activeGoals": 2,
-  "successRate": 1,0000,
-  "planningEfficiency": 0,9010,
+  "timestamp": "2026-09-06T05:46:02.630004316Z",
+  "totalTicks": 2817,
+  "activeGoals": 0,
+  "successRate": 0,8788,
+  "planningEfficiency": 0,3267,
   "confidence": 0,9500,
-  "beliefCount": 151699,
+  "beliefCount": 151906,
   "acceptedMutations": 0,
   "rejectedMutations": 0,
   "emergenceEvents": [
-    "T2483: World model reached 151660 beliefs — potential concept formation",
-    "T2484: World model reached 151660 beliefs — potential concept formation",
-    "T2502: World model reached 151680 beliefs — potential concept formation",
-    "T2503: World model reached 151680 beliefs — potential concept formation"
+    "T2717: World model reached 151860 beliefs — potential concept formation",
+    "T2718: World model reached 151860 beliefs — potential concept formation",
+    "T2761: High idle ratio 0,8% — agent may be in exploration loop",
+    "T2771: High idle ratio 1,2% — agent may be in exploration loop",
+    "T2778: High idle ratio 1,4% — agent may be in exploration loop",
+    "T2781: High idle ratio 1,4% — agent may be in exploration loop",
+    "T2782: High idle ratio 1,4% — agent may be in exploration loop",
+    "T2783: High idle ratio 1,4% — agent may be in exploration loop",
+    "T2791: High idle ratio 1,7% — agent may be in exploration loop",
+    "T2792: High idle ratio 1,7% — agent may be in exploration loop",
+    "T2801: High idle ratio 2,0% — agent may be in exploration loop",
+    "T2802: High idle ratio 2,0% — agent may be in exploration loop",
+    "T2802: World model reached 151900 beliefs — potential concept formation",
+    "T2811: High idle ratio 2,2% — agent may be in exploration loop",
+    "T2817: High idle ratio 2,4% — agent may be in exploration loop"
   ]
 }
