@@ -1,13 +1,18 @@
 {
-  "timestamp": "2026-09-09T10:49:11.004605404Z",
-  "totalTicks": 4774,
-  "activeGoals": 7,
-  "successRate": 1,0000,
-  "planningEfficiency": 1,0000,
-  "confidence": 0,4969,
-  "beliefCount": 153537,
+  "timestamp": "2026-09-09T17:08:00.950863277Z",
+  "totalTicks": 5137,
+  "activeGoals": 0,
+  "successRate": 0,9091,
+  "planningEfficiency": 0,5446,
+  "confidence": 0,9500,
+  "beliefCount": 153837,
   "acceptedMutations": 0,
   "rejectedMutations": 0,
   "emergenceEvents": [
+    "T5111: High idle ratio 0,5% — agent may be in exploration loop",
+    "T5121: High idle ratio 0,6% — agent may be in exploration loop",
+    "T5122: High idle ratio 0,6% — agent may be in exploration loop",
+    "T5125: High idle ratio 0,7% — agent may be in exploration loop",
+    "T5131: High idle ratio 0,8% — agent may be in exploration loop"
   ]
 }
