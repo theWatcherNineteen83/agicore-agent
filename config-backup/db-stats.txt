@@ -1,7 +1,7 @@
-timestamp=2026-09-14T18:00:06Z
--rw-rw-r-- 1 prometheus prometheus 345870336 Sep 14 16:07 /home/prometheus/metis/metis-knowledge.db
-beliefs_total= 157365
+timestamp=2026-09-15T12:00:01Z
+-rw-rw-r-- 1 prometheus prometheus 347410432 Sep 15 11:53 /home/prometheus/metis/metis-knowledge.db
+beliefs_total= 157749
 wikipedia_dump= 55388
-experiences= 580309
+experiences= 583349
 conversation_messages= 11553
 journal_mode= wal
