@@ -124,6 +124,7 @@ public class MetisHttpServer {
         server.createContext("/api/agents", this::handleAgents);
         server.createContext("/api/admin/prune", this::handlePrune);
         server.createContext("/api/admin/refresh-models", this::handleRefreshModels);
+        server.createContext("/api/admin/trigger-eval", this::handleTriggerEval);
         server.createContext("/api/board", this::handleBoard);
         server.createContext("/api/hierarchy", this::handleHierarchy);
         server.createContext("/api/metrics", this::handleMetrics);

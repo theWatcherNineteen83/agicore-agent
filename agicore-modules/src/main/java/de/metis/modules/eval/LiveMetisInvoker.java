@@ -56,17 +56,33 @@ public class LiveMetisInvoker implements MetisComponentInvoker {
 
     private MetisOutput invokePlanner(EvalTask task) throws Exception {
         String goal = task.input().get("goal").asText();
+        String actions = task.input().has("available_actions")
+                ? task.input().get("available_actions").asText()
+                : "shell,http";
         long start = System.currentTimeMillis();
 
-        // Send goal as a chat message — Metis will plan and execute
+        // Deterministic planner prompt (18.09.2026): the model must answer with
+        // exactly one action name so GoalAchievedScorer can score the answer text.
+        // Previously the score was computed on the truncated 200-char chat
+        // envelope (extractJsonBlock) → PLANNING.goal_achieved was always 0.0.
+        String prompt = "Planner test. Goal: \"" + goal + "\"\n"
+                + "Available actions: " + actions + "\n"
+                + "Which single action best achieves the goal? "
+                + "Reply with ONLY the action name from the list, nothing else.";
+
+        // Follow-up fix (18.09.2026): Metis /api/chat runs the cognitive loop and
+        // answers with the "EDI" persona template instead of executing the eval
+        // prompt (observed ~35s, old timeout 20s -> every run errored out).
+        // The planner eval now calls the planning model directly on Ollama,
+        // same pattern as invokeCodegen. Deterministic: temperature 0, think off.
         String jsonBody = String.format(
-                "{\"model\":\"%s\",\"messages\":[{\"role\":\"user\",\"content\":\"%s\"}],\"stream\":false}",
+                "{\"model\":\"%s\",\"prompt\":\"%s\",\"stream\":false,\"think\":false,\"options\":{\"temperature\":0}}",
                 modelRegistry.planningModel(),
-                escapeJson("Execute this goal using available actions. Respond with the action you took: " + goal));
+                escapeJson(prompt));
 
         HttpRequest req = HttpRequest.newBuilder()
-                .uri(URI.create(metisBaseUrl + "/api/chat"))
-                .timeout(Duration.ofSeconds(20))
+                .uri(URI.create(ollamaUrl + "/api/generate"))
+                .timeout(Duration.ofSeconds(120))
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
                 .build();
@@ -75,17 +91,25 @@ public class LiveMetisInvoker implements MetisComponentInvoker {
         try {
             resp = http.send(req, HttpResponse.BodyHandlers.ofString());
         } catch (Exception e) {
-            return MetisOutput.error("Chat API failed: " + e.getMessage(),
+            return MetisOutput.error("Ollama planner call failed: " + e.getMessage(),
                     System.currentTimeMillis() - start);
         }
         long latency = System.currentTimeMillis() - start;
 
         String body = resp.body();
         boolean success = resp.statusCode() == 200 && body != null && !body.isBlank();
+        if (!success) {
+            return MetisOutput.error("Ollama returned " + resp.statusCode(), latency);
+        }
 
-        return success
-                ? MetisOutput.success(body, extractJsonBlock(body), "chat", latency, 0, 0)
-                : MetisOutput.error("Chat API returned " + resp.statusCode(), latency);
+        // /api/generate answers in the "response" field.
+        String answer = extractJsonStr(body, "response");
+        if (answer == null || answer.isBlank()) {
+            answer = extractContent(body);  // chat-style fallback
+        }
+        return MetisOutput.success(answer == null || answer.isBlank() ? body : answer,
+                answer == null || answer.isBlank() ? null : answer,
+                "planner", latency, 0, 0);
     }
 
     private MetisOutput invokeRetrieval(EvalTask task) throws Exception {
@@ -301,6 +325,50 @@ public class LiveMetisInvoker implements MetisComponentInvoker {
         return end > start ? json.substring(start, end)
                 .replace("\\n", "\n").replace("\\t", "\t")
                 .replace("\\\"", "\"") : "";
+    }
+
+    /**
+     * Extracts the {@code "content"} string from an Ollama-style chat response,
+     * escape-aware: handles escaped quotes, backslashes, newlines, tabs and unicode escapes inside the value). The naive
+     * {@link #extractJsonStr} stops at the first escaped quote and would
+     * truncate planner answers containing JSON or quoted text.
+     */
+    private static String extractContent(String json) {
+        int i = json.indexOf("\"content\":");
+        if (i < 0) return "";
+        i = json.indexOf('"', i + "\"content\":".length());
+        if (i < 0) return "";
+        i++; // skip opening quote
+        StringBuilder sb = new StringBuilder();
+        for (; i < json.length(); i++) {
+            char c = json.charAt(i);
+            if (c == '\\' && i + 1 < json.length()) {
+                char n = json.charAt(++i);
+                switch (n) {
+                    case 'n' -> sb.append('\n');
+                    case 't' -> sb.append('\t');
+                    case 'r' -> sb.append('\r');
+                    case 'b' -> sb.append('\b');
+                    case 'f' -> sb.append('\f');
+                    case 'u' -> {
+                        if (i + 4 < json.length()) {
+                            try {
+                                sb.append((char) Integer.parseInt(json.substring(i + 1, i + 5), 16));
+                                i += 4;
+                            } catch (NumberFormatException e) {
+                                sb.append('u');
+                            }
+                        }
+                    }
+                    default -> sb.append(n); // covers \" \\ \/
+                }
+            } else if (c == '"') {
+                break;
+            } else {
+                sb.append(c);
+            }
+        }
+        return sb.toString().strip();
     }
 
     private static String extractJsonBlock(String json) {

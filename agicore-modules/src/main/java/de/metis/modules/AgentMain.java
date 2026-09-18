@@ -2206,6 +2206,7 @@ public final class AgentMain {
             httpServer.setEthicsCore(ethicsCore);  // Sprint #3-Followup (08.06.)
             if (finalH2 != null) httpServer.setH2Datastore(finalH2);  // Phase 14: H2 endpoint
             httpServer.setBugTracker(bugTracker);
+            if (evalRunnerRef.get() != null) httpServer.setEvalRunner(evalRunnerRef.get());  // Punkt3-Fix: trigger-eval wiring
 
             // ── Externes User-Goal-Board (zweite Dashboard-Seite /kanban) ──
             // Georg stellt Goals ein (Wissen-Aneignen/Aufgabe), die Bridge

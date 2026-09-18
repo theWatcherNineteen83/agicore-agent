@@ -4,12 +4,18 @@ import de.metis.kernel.eval.*;
 import de.metis.kernel.eval.GroundTruth.*;
 import java.util.*;
 import java.util.logging.Logger;
+import java.util.regex.Pattern;
 
 /**
  * Scorer for PLANNING tasks.
  * <p>
- * Checks if the agent's plan would achieve the expected goal state.
+ * Checks if the planner picked the expected action for the goal.
  * Uses SIM_GOAL_STATE ground truth with schema validation as fallback.
+ * <p>
+ * 18.09.2026 (Punkt 3): scores the assistant answer text extracted by
+ * {@code LiveMetisInvoker.invokePlanner} — previously the invoker passed the
+ * truncated 200-char chat envelope, so both key and value substring checks
+ * always missed and PLANNING.goal_achieved was permanently 0.0.
  */
 class GoalAchievedScorer implements Scorer {
 
@@ -17,44 +23,52 @@ class GoalAchievedScorer implements Scorer {
 
     @Override
     public MetricResult score(EvalTask task, MetisOutput output) {
+        String metric = task.scoring().metric();
         if (output.isError()) {
-            return new MetricResult(task.scoring().metric(), 0.0, task.scoring().gate());
+            return new MetricResult(metric, 0.0, task.scoring().gate());
         }
 
-        // Check JSON validity first (plan must be parseable)
-        if (output.jsonOutput() == null) {
-            return new MetricResult("goal_achieved", 0.0, Gate.HARD);
+        // Prefer the extracted answer text (jsonOutput); fall back to rawText
+        // so older invokers that pass the full envelope still get scored.
+        String answer = output.jsonOutput() != null && !output.jsonOutput().isBlank()
+                ? output.jsonOutput()
+                : output.rawText();
+        if (answer == null || answer.isBlank()) {
+            return new MetricResult(metric, 0.0, task.scoring().gate());
         }
 
         if (task.groundTruth() instanceof SimGoalState sim) {
             try {
-                // Check if the plan output references the expected goal state keys
-                double score = computeGoalMatch(output.jsonOutput(), sim.expectedState());
-                return new MetricResult(task.scoring().metric(), score, task.scoring().gate());
+                double score = computeGoalMatch(answer, sim.expectedState());
+                return new MetricResult(metric, score, task.scoring().gate());
             } catch (Exception e) {
                 LOG.fine("Goal state matching failed: " + e.getMessage());
-                return new MetricResult(task.scoring().metric(), 0.0, task.scoring().gate());
+                return new MetricResult(metric, 0.0, task.scoring().gate());
             }
         }
 
-        // Fallback: schema validity (valid JSON = partial credit)
-        return new MetricResult("validity_rate", 1.0, Gate.HARD);
+        // Fallback: no sim ground truth — a parseable non-empty answer counts
+        // as validity. Uses the task metric so aggregation stays consistent.
+        return new MetricResult(metric, 1.0, task.scoring().gate());
     }
 
     /**
-     * Simple goal-state matching: check if expected keys are present
-     * in the JSON output. Returns 0.0–1.0 fraction matched.
+     * Goal-state matching on the answer text: every expected value must
+     * appear as a whole word (word-boundary regex, so "shell" does not
+     * match inside "powershell" and "http" not inside "https").
+     * Keys are field names of the expected state, not answer content —
+     * they are no longer required to appear. Returns 0.0–1.0 fraction.
      */
-    private double computeGoalMatch(String jsonOutput, Map<String, Object> expectedState) {
+    private double computeGoalMatch(String answer, Map<String, Object> expectedState) {
         if (expectedState.isEmpty()) return 1.0;
 
+        String lower = answer.toLowerCase(Locale.ROOT).strip();
         int matched = 0;
-        String lower = jsonOutput.toLowerCase();
         for (var entry : expectedState.entrySet()) {
-            // Simple substring match — full implementation would parse JSON
-            String key = entry.getKey().toLowerCase();
-            String val = String.valueOf(entry.getValue()).toLowerCase();
-            if (lower.contains(key) && lower.contains(val)) {
+            String val = String.valueOf(entry.getValue()).toLowerCase(Locale.ROOT).strip();
+            if (val.isEmpty() || "null".equals(val)) { matched++; continue; }
+            if (lower.equals(val)) { matched++; continue; }
+            if (Pattern.compile("\\b" + Pattern.quote(val) + "\\b").matcher(lower).find()) {
                 matched++;
             }
         }
