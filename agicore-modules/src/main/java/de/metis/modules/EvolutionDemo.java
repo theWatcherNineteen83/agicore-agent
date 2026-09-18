@@ -12,7 +12,7 @@ import java.util.logging.*;
 /**
  * First real LLM-powered evolution cycle.
  * <p>
- * Reads StubPlanner source, sends to Ollama (qwen3.6:27b on miniedi),
+ * Reads StubPlanner source, sends to Ollama (qwen3.8:27b on miniedi),
  * gets mutated variant, compile-checks, shows diff.
  */
 public final class EvolutionDemo {
@@ -26,7 +26,7 @@ public final class EvolutionDemo {
                 
                 ╔══════════════════════════════════════════════╗
                 ║   FIRST LLM-POWERED EVOLUTION               ║
-                ║   Ollama: qwen3.6:27b @ miniedi:11434      ║
+                ║   Ollama: qwen3.8:27b @ miniedi:11434      ║
                 ╚══════════════════════════════════════════════╝
                 """);
 
@@ -53,7 +53,7 @@ public final class EvolutionDemo {
         var planner = new StubPlanner();
 
         System.out.println("═══ Mutation Request ═══");
-        System.out.println("Model:   qwen3.6:27b-q4_K_M");
+        System.out.println("Model:   qwen3.8:27b");
         System.out.println("Target:  StubPlanner.java");
         System.out.println("Focus:   keyword extraction + action selection heuristics");
         System.out.println("Limits:  max 15% change, no signature changes, no new deps");
@@ -139,7 +139,7 @@ public final class EvolutionDemo {
             System.out.println("→ git add + commit...");
             runCmd("git", "add", "agicore-modules/");
             runCmd("git", "commit", "-m",
-                    "Evolution #1: Ollama-generated StubPlanner mutation (qwen3.6:27b, "
+                    "Evolution #1: Ollama-generated StubPlanner mutation (qwen3.8:27b, "
                             + String.format("%.1f%%", changePercent) + "% changed)");
 
             System.out.println("✓ Committed to git.");
@@ -152,7 +152,7 @@ public final class EvolutionDemo {
             Files.writeString(fewShotFile,
                     "// Evolution #1 — First successful mutation\n"
                     + "// Date: " + java.time.Instant.now() + "\n"
-                    + "// Model: qwen3.6:27b-q4_K_M\n"
+                    + "// Model: qwen3.8:27b\n"
                     + "// Change: " + String.format("%.1f%%", changePercent) + "\n"
                     + "// ── Original ──\n" + originalSource + "\n"
                     + "// ── Mutated ──\n" + mutantSource + "\n");

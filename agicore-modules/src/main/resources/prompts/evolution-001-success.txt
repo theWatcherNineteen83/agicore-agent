@@ -1,6 +1,6 @@
 // Evolution #1 — First successful mutation
 // Date: 2026-05-22T20:16:30.869038280Z
-// Model: qwen3.6:27b-q4_K_M
+// Model: qwen3.8:27b
 // Change: 2,2%
 // ── Original ──
 package de.agicore.modules.planner;

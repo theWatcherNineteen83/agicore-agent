@@ -1784,11 +1784,11 @@ public final class AgentMain {
         }
 
         // Phase 9.3b — LLM decomposer drop-in (falls Ollama down: deterministischer Fallback)
-        // 22.07.: Planner auf GPU0 (8086, llama.cpp) mit Qwen3.8-27B.
-        // GPU1 (11434) jetzt frei — Decomposer nutzt qwen3.8:27b-q4_K_XL dafuer.
-        // qwen3.8:27b-q4_K_XL ist ~18 GB auf GPU 1 (32 GB VRAM), liefert bessere Goal-Titel.
+        // 22.07.: Planner auf GPU0 (8086, llama.cpp) mit Qwen3.6-27B.
+        // GPU1 (11434) jetzt frei — Decomposer nutzt qwen3.8:27b dafuer.
+        // qwen3.8:27b ist ~18 GB auf GPU 1 (32 GB VRAM), liefert bessere Goal-Titel.
         horizonPlanner.setDecomposer(new LlmHorizonDecomposer(
-                "http://192.168.22.204:11434", "qwen3.8:27b-q4_K_XL"));
+                "http://192.168.22.204:11434", "qwen3.8:27b"));
 
         // ── Phase 9.7-Followup (Sprint #2, 08.06. 00:18): autonome Decomposition ──
         // Alle 10 min: jedes offene STRATEGIC/TACTICAL/OPERATIONAL-Goal ohne Children
@@ -1973,7 +1973,7 @@ public final class AgentMain {
         LOG.info("Phase 12b: FeatureGenAction registered");
 
         var gitFeatureBranchAction = new de.metis.modules.action.GitFeatureBranchAction(
-                "http://192.168.22.204:11434", "qwen3_8-27b-agent",
+                "http://192.168.22.204:11434", "qwen3.8:27b",
                 "/home/prometheus/metis-agent-repo");
         agent.core().executor().register(gitFeatureBranchAction);
         LOG.info("Phase 12b: GitFeatureBranchAction registered (repo=/home/prometheus/metis-agent-repo)");
@@ -2206,6 +2206,25 @@ public final class AgentMain {
             httpServer.setEthicsCore(ethicsCore);  // Sprint #3-Followup (08.06.)
             if (finalH2 != null) httpServer.setH2Datastore(finalH2);  // Phase 14: H2 endpoint
             httpServer.setBugTracker(bugTracker);
+
+            // ── Externes User-Goal-Board (zweite Dashboard-Seite /kanban) ──
+            // Georg stellt Goals ein (Wissen-Aneignen/Aufgabe), die Bridge
+            // übernimmt OFFENE Goals als EXPEDITE in den Metis-Zyklus und
+            // setzt sie nach maschinellem Test auf ZU_TESTEN.
+            try {
+                Path userGoalsPath = persist != null
+                        ? persist.getParent().resolve("user-goals.json")
+                        : Path.of("user-goals.json");
+                var userGoalBoard = new UserGoalBoard(userGoalsPath);
+                httpServer.setUserGoalBoard(userGoalBoard);
+                var userGoalBridge = new UserGoalBridge(agent, userGoalBoard);
+                userGoalBridge.start();
+                LOG.info("Externes User-Goal-Kanban aktiv → http://localhost:" + apiPort
+                        + "/kanban (Persistenz: " + userGoalsPath + ")");
+            } catch (Exception e) {
+                LOG.warning("User-Goal-Board konnte nicht gestartet werden: " + e.getMessage());
+            }
+
             httpServer.start();
         }
 

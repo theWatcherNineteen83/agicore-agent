@@ -205,7 +205,7 @@ public class OllamaPlanner implements Planner {
      */
     public OllamaPlanner() {
         this("http://192.168.22.204:11434/api/generate",
-             "qwen3_8-27b-agent",
+             "qwen3.8:27b",
              Duration.ofSeconds(60));
         initABTesting();
         initFlywheel();
@@ -222,11 +222,11 @@ public class OllamaPlanner implements Planner {
         this.ollamaUrl = ollamaUrl;
         this.modelProvider = () -> model;
         this.timeout = timeout;
-        // Default fallback chain: mistral-agent → phi4-mini-agent → qwen3_8-27b-agent
+        // Default fallback chain: mistral-small3.1:latest → phi4-mini:latest → qwen3.8:27b
         this.fallbackModels.addAll(List.of(
-            "mistral-agent",
-            "phi4-mini-agent",
-            "qwen3_8-27b-agent"
+            "mistral-small3.1:latest",
+            "phi4-mini:latest",
+            "qwen3.8:27b"
         ));
         initABTesting();
         initFlywheel();
@@ -240,11 +240,11 @@ public class OllamaPlanner implements Planner {
         this.ollamaUrl = ollamaUrl;
         this.modelProvider = registry::planningModel;
         this.timeout = timeout;
-        // Default fallback chain: mistral-agent → phi4-mini-agent → qwen3_8-27b-agent
+        // Default fallback chain: mistral-small3.1:latest → phi4-mini:latest → qwen3.8:27b
         this.fallbackModels.addAll(List.of(
-            "mistral-agent",
-            "phi4-mini-agent",
-            "qwen3_8-27b-agent"
+            "mistral-small3.1:latest",
+            "phi4-mini:latest",
+            "qwen3.8:27b"
         ));
         initABTesting();
     }
@@ -601,9 +601,9 @@ public class OllamaPlanner implements Planner {
                 }
             }
             // Also add qwen3.8:latest as ultimate LLM fallback if not already in chain
-            if (!modelsToTry.contains("qwen3.8:27b-q4_K_XL")
-                    && !"qwen3.8:27b-q4_K_XL".equals(primaryModel)) {
-                modelsToTry.add("qwen3.8:27b-q4_K_XL");
+            if (!modelsToTry.contains("qwen3.8:27b")
+                    && !"qwen3.8:27b".equals(primaryModel)) {
+                modelsToTry.add("qwen3.8:27b");
             }
 
             for (String fallbackModel : modelsToTry) {

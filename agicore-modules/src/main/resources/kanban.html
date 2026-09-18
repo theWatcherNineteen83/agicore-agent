@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Metis AGI — Externes Kanban</title>
+<style>
+body{font-family:system-ui,sans-serif;background:#0d1117;color:#c9d1d9;padding:20px;margin:0}
+h1{color:#58a6ff;margin:0 0 4px;font-size:22px}
+.sub{font-size:12px;color:#8b949e;margin-bottom:16px}
+a{color:#58a6ff}
+/* Formular */
+.form-card{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:14px;margin-bottom:18px}
+.form-card label{font-size:12px;color:#8b949e;display:block;margin:8px 0 4px}
+.form-card input[type=text],.form-card select,.form-card textarea{
+  width:100%;box-sizing:border-box;background:#0d1117;color:#c9d1d9;
+  border:1px solid #30363d;border-radius:6px;padding:8px;font-size:14px}
+.form-card textarea{min-height:60px}
+.btn{background:#238636;color:#fff;border:none;border-radius:6px;padding:8px 16px;
+  font-size:14px;cursor:pointer;margin-top:10px}
+.btn:hover{background:#2ea043}
+.btn-small{background:#30363d;color:#c9d1d9;border:1px solid #484f58;border-radius:5px;
+  padding:3px 8px;font-size:12px;cursor:pointer;margin:2px}
+.btn-small:hover{background:#484f58}
+.btn-green{background:#238636;border-color:#238636;color:#fff}
+.btn-red{background:#da3633;border-color:#da3633;color:#fff}
+.btn-yellow{background:#9e6a03;border-color:#9e6a03;color:#fff}
+/* Board */
+.board{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;align-items:start}
+@media(max-width:1000px){.board{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:600px){.board{grid-template-columns:1fr}}
+.column{background:#10151c;border:1px solid #30363d;border-radius:8px;padding:10px;min-height:200px}
+.column h3{margin:0 0 10px;font-size:13px;text-transform:uppercase;letter-spacing:.5px;
+  color:#58a6ff;display:flex;justify-content:space-between;align-items:center}
+.count{background:#21262d;border-radius:10px;padding:1px 8px;font-size:11px;color:#8b949e}
+.card{background:#161b22;border:1px solid #30363d;border-left:3px solid #58a6ff;
+  border-radius:6px;padding:10px;margin-bottom:10px;font-size:13px}
+.card .desc{font-weight:600;margin-bottom:6px;word-wrap:break-word}
+.card .meta{font-size:11px;color:#8b949e;margin-bottom:6px}
+.badge{display:inline-block;padding:1px 7px;border-radius:9px;font-size:10px;font-weight:bold;margin-right:4px}
+.b-wissen{background:#8957e522;color:#a371f7;border:1px solid #a371f7}
+.b-aufgabe{background:#58a6ff22;color:#58a6ff;border:1px solid #58a6ff}
+.b-prio{background:#d2991d22;color:#d2991d;border:1px solid #d2991d}
+.test{background:#0d1117;border:1px solid #30363d;border-radius:5px;padding:5px 8px;
+  font-size:11px;color:#7ee787;margin-bottom:6px;white-space:pre-wrap}
+.test.fail{color:#f85149}
+.learned{background:#0d1117;border:1px solid #30363d;border-left:3px solid #a371f7;
+  border-radius:5px;padding:5px 8px;font-size:11px;color:#c9d1d9;margin-bottom:6px;white-space:pre-wrap}
+.learned b{color:#a371f7}
+.result{background:#0d1117;border:1px solid #30363d;border-left:3px solid #3fb950;
+  border-radius:5px;padding:5px 8px;font-size:11px;color:#c9d1d9;margin-bottom:6px;white-space:pre-wrap}
+.result b{color:#3fb950}
+.protocol{background:#0d1117;border:1px solid #30363d;border-left:3px solid #58a6ff;
+  border-radius:5px;padding:5px 8px;font-size:11px;color:#c9d1d9;margin-bottom:6px;white-space:pre-wrap}
+.protocol b{color:#58a6ff}
+.comments{font-size:11px;color:#8b949e;margin:6px 0}
+.comments .cmt{border-top:1px dashed #21262d;padding-top:4px;margin-top:4px}
+.cmt .who{color:#58a6ff}
+.actions{margin-top:6px}
+.review-box{display:none;margin-top:6px}
+.review-box textarea{width:100%;box-sizing:border-box;background:#0d1117;color:#c9d1d9;
+  border:1px solid #30363d;border-radius:5px;padding:6px;font-size:12px;min-height:44px}
+.footer{font-size:11px;color:#484f58;margin-top:20px;text-align:center}
+.error{color:#f85149;font-size:13px;margin:8px 0}
+.ok{color:#3fb950;font-size:13px;margin:8px 0}
+</style>
+</head>
+<body>
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap">
+  <div>
+    <h1>&#x1f4cb; Metis — Externes Kanban</h1>
+    <div class="sub">Goals von Georg &middot; Metis arbeitet sie ab &middot; maschineller Test &rarr; <b>Zu Testen</b> &rarr; Review</div>
+  </div>
+  <div style="font-size:12px;color:#8b949e">
+    <span id="clock">--</span> &middot; Auto-Refresh 15s &middot;
+    <a href="/">Dashboard</a> | <a href="/api/usergoals">JSON</a>
+  </div>
+</div>
+
+<!-- Formular -->
+<div class="form-card">
+  <b style="color:#58a6ff">Neues Goal einstellen</b>
+  <label>Beschreibung</label>
+  <textarea id="f_desc" placeholder="z.B. Lerne etwas über die Geschichte Siebenbürgens (Wissen-Aneignen) / Analysiere Log-Datei X (Aufgabe)"></textarea>
+  <label>Kategorie</label>
+  <select id="f_cat">
+    <option value="WISSEN_ANEIGNEN">Wissen-Aneignen (Quellen lesen → Beliefs aufbauen)</option>
+    <option value="AUFGABE">Aufgabe</option>
+  </select>
+  <label>Priorität (1–100)</label>
+  <input type="number" id="f_prio" value="60" min="1" max="100" style="max-width:120px">
+  <br>
+  <button class="btn" onclick="createGoal()">&#x2795; Goal einstellen (Offen)</button>
+  <span id="form_msg"></span>
+</div>
+
+<div id="msg"></div>
+<div class="board" id="board"><div style="color:#8b949e">Lade Board…</div></div>
+
+<div class="footer">Metis AGI &middot; Externes User-Goal-Board &middot; Statusfluss: Offen &rarr; In Arbeit &rarr; Zu Testen &rarr; Erledigt</div>
+
+<script>
+const COLUMNS = ['OFFEN','IN_ARBEIT','ZU_TESTEN','FERTIG'];
+const COL_LABEL = {'OFFEN':'&#x1f7e2; Offen','IN_ARBEIT':'&#x1f7e1; In Arbeit','ZU_TESTEN':'&#x1f535; Zu Testen','FERTIG':'&#x2705; Erledigt'};
+
+async function j(url, opts) {
+  const r = await fetch(url, opts);
+  const t = await r.text();
+  try { return {ok:r.ok, json:JSON.parse(t)}; } catch(e) { return {ok:r.ok, text:t}; }
+}
+
+async function createGoal() {
+  const desc = document.getElementById('f_desc').value.trim();
+  const cat = document.getElementById('f_cat').value;
+  const prio = parseInt(document.getElementById('f_prio').value || '60', 10);
+  if (!desc) { document.getElementById('form_msg').innerHTML = '<span class="error">Beschreibung fehlt</span>'; return; }
+  const res = await j('/api/usergoals', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({description:desc, category:cat, priority:prio})
+  });
+  document.getElementById('form_msg').innerHTML = res.ok
+    ? '<span class="ok">Goal eingestellt (Offen) — Metis holt es sich.</span>'
+    : '<span class="error">Fehler: ' + (res.json?.error || 'unbekannt') + '</span>';
+  if (res.ok) { document.getElementById('f_desc').value=''; refresh(); }
+}
+
+async function transition(id, to, comment) {
+  const res = await j('/api/usergoals/transition', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({id:id, to:to, comment:comment||''})
+  });
+  if (!res.ok) alert('Transition fehlgeschlagen: ' + (res.json?.error || 'unbekannt'));
+  refresh();
+}
+
+function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+  .replace(/"/g,'&quot;');}
+
+function renderCard(g) {
+  const catCls = g.category==='WISSEN_ANEIGNEN' ? 'b-wissen' : 'b-aufgabe';
+  const catTxt = g.category==='WISSEN_ANEIGNEN' ? 'Wissen-Aneignen' : 'Aufgabe';
+  const testCls = (g.testReport||'').includes('NICHT') ? 'test fail' : 'test';
+  let h = '<div class="card" data-id="' + g.id + '">';
+  h += '<div class="desc">' + esc(g.description) + '</div>';
+  h += '<div class="meta"><span class="badge ' + catCls + '">' + catTxt + '</span>'
+     + '<span class="badge b-prio">Prio ' + g.priority + '</span>'
+     + (g.metisGoalId ? '<span style="color:#8b949e">Metis-Goal: ' + esc(g.metisGoalId.slice(0,8)) + '…</span>' : '')
+     + '</div>';
+  if (g.testReport) h += '<div class="' + testCls + '">&#x1f50d; ' + esc(g.testReport) + '</div>';
+  if (g.learnedSummary) h += '<div class="learned"><b>&#x1f9e0; Gelernt:</b> ' + esc(g.learnedSummary) + '</div>';
+  if (g.result) h += '<div class="result"><b>&#x1f4e6; Ergebnis:</b> ' + esc(g.result) + '</div>';
+  if (g.testProtocol) h += '<div class="protocol"><b>&#x1f9ea; Testprotokoll:</b> ' + esc(g.testProtocol) + '</div>';
+  if (g.comments && g.comments.length) {
+    h += '<div class="comments">';
+    g.comments.slice(-3).forEach(c => {
+      h += '<div class="cmt"><span class="who">' + esc(c.author) + ':</span> ' + esc(c.text) + '</div>';
+    });
+    h += '</div>';
+  }
+  // Review-/Status-Buttons (manuelle Übergänge durch Georg)
+  h += '<div class="actions">';
+  if (g.status === 'ZU_TESTEN') {
+    h += '<button class="btn-small btn-green" onclick="transition(\'' + g.id + '\',\'FERTIG\',\'Review ok\')">&#x2705; Erledigt/Fertig</button>';
+    h += ' <button class="btn-small btn-red" onclick="toggleReview(\'' + g.id + '\')">&#x21a9; Fehler → In Arbeit</button>';
+  }
+  if (g.status === 'OFFEN' || g.status === 'IN_ARBEIT' || g.status === 'ZU_TESTEN') {
+    h += ' <button class="btn-small btn-yellow" onclick="toggleReviewOffen(\'' + g.id + '\')">&#x1f501; → Offen</button>';
+  }
+  if (g.status === 'FERTIG') {
+    h += ' <button class="btn-small" onclick="toggleReviewOffen(\'' + g.id + '\')">&#x1f501; Wieder öffnen</button>';
+  }
+  h += '</div>';
+  h += '<div class="review-box" id="rb_' + g.id + '">';
+  h += '<textarea id="rc_' + g.id + '" placeholder="Kommentar (Pflicht bei Rücksprung)"></textarea><br>';
+  h += '<button class="btn-small btn-red" onclick="doBack(\'' + g.id + '\')">Rücksprung bestätigen</button>';
+  h += '</div>';
+  h += '</div>';
+  return h;
+}
+
+function toggleReview(id) { document.getElementById('rb_' + id).style.display='block'; }
+function toggleReviewOffen(id) { document.getElementById('rb_' + id).style.display='block'; }
+async function doBack(id) {
+  const c = document.getElementById('rc_' + id).value.trim();
+  if (!c) { alert('Kommentar ist Pflicht bei Rücksprung'); return; }
+  await transition(id, 'IN_ARBEIT', c);
+}
+
+async function refresh() {
+  const res = await j('/api/usergoals');
+  const board = document.getElementById('board');
+  document.getElementById('clock').textContent = new Date().toLocaleTimeString();
+  if (!res.ok) { board.innerHTML = '<div class="error">API nicht erreichbar</div>'; return; }
+  if (!res.json) { board.innerHTML = '<div class="error">Antwort nicht lesbar (JSON-Fehler): ' + (res.text || '').slice(0,200) + '</div>'; return; }
+  const goals = (res.json && res.json.goals) || [];
+  const byCol = {};
+  COLUMNS.forEach(c => byCol[c] = []);
+  goals.forEach(g => { (byCol[g.status] = byCol[g.status] || []).push(g); });
+  let h = '';
+  COLUMNS.forEach(col => {
+    h += '<div class="column"><h3>' + COL_LABEL[col] + ' <span class="count">' + (byCol[col]||[]).length + '</span></h3>';
+    (byCol[col]||[]).forEach(g => h += renderCard(g));
+    if (!(byCol[col]||[]).length) h += '<div style="color:#484f58;font-size:12px">— leer —</div>';
+    h += '</div>';
+  });
+  board.innerHTML = h;
+}
+
+refresh();
+setInterval(refresh, 15000);
+</script>
+</body>
+</html>

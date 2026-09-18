@@ -180,6 +180,33 @@ public class KnowledgeStore implements AutoCloseable {
     }
 
     /**
+     * Beliefs erstellt seit {@code sinceIso} (ISO-8601), neueste zuerst.
+     * Dient dem externen Kanban, um "was hat Metis gelernt" zu zeigen.
+     * {@code created_at} liegt als ISO-8601-Text vor → lexikographischer
+     * Vergleich ist für gleichformatige Timestamps korrekt.
+     */
+    public List<Belief> loadBeliefsSince(String sinceIso, int limit) {
+        List<Belief> beliefs = new ArrayList<>();
+        try (PreparedStatement ps = conn.prepareStatement(
+                "SELECT statement, confidence, source FROM beliefs WHERE created_at > ? "
+                        + "ORDER BY created_at DESC LIMIT ?")) {
+            ps.setString(1, sinceIso);
+            ps.setInt(2, limit);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    beliefs.add(new Belief(
+                            rs.getString("statement"),
+                            rs.getDouble("confidence"),
+                            rs.getString("source")));
+                }
+            }
+        } catch (SQLException e) {
+            LOG.warning("Failed to load beliefs since: " + e.getMessage());
+        }
+        return beliefs;
+    }
+
+    /**
      * Load only the top-N highest-confidence beliefs (warm-start cache).
      */
     public List<Belief> loadTopBeliefs(int limit) {

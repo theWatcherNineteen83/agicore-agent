@@ -82,6 +82,9 @@ public class MetisHttpServer {
     private long ethicsBlocks = 0;
     private long ethicsWarns = 0;
 
+    /** Externes User-Goal-Board (zweite Dashboard-Seite /kanban). */
+    private UserGoalBoard userGoalBoard;
+
     public MetisHttpServer(Agent agent, int port) throws IOException {
         this.agent = agent;
         this.port = port;
@@ -128,6 +131,8 @@ public class MetisHttpServer {
         server.createContext("/api/causal-dreamer", this::handleCausalDreamer);
         server.createContext("/api/sql", this::handleSql);
         server.createContext("/api/h2", this::handleH2);
+        server.createContext("/kanban", this::handleKanbanPage);
+        server.createContext("/api/usergoals", this::handleUserGoals);
         server.createContext("/", this::handleDashboard);
     }
 
@@ -146,6 +151,8 @@ public class MetisHttpServer {
     public void setDbLearnService(DatabaseLearningService dls) { this.dbLearnService = dls; }
     public void setH2Datastore(de.metis.kernel.persistence.H2Datastore h2) { this.h2Datastore = h2; }
     public void setBugTracker(BugTracker bt) { this.bugTracker = bt; }
+
+    public void setUserGoalBoard(UserGoalBoard board) { this.userGoalBoard = board; }
     public long ethicsBlocks() { return ethicsBlocks; }
     public long ethicsWarns() { return ethicsWarns; }
 
@@ -1468,7 +1475,25 @@ public class MetisHttpServer {
     }
 
     private static String jsonEscape(String s) {
-        return s.replace("\\", "\\\\").replace("\"", "\\\"");
+        if (s == null) return "";
+        StringBuilder sb = new StringBuilder(s.length() + 8);
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            switch (c) {
+                case '\\' -> sb.append("\\\\");
+                case '"' -> sb.append("\\\"");
+                case '\n' -> sb.append("\\n");
+                case '\r' -> sb.append("\\r");
+                case '\t' -> sb.append("\\t");
+                case '\b' -> sb.append("\\b");
+                case '\f' -> sb.append("\\f");
+                default -> {
+                    if (c < 0x20) sb.append(String.format("\\u%04x", (int) c));
+                    else sb.append(c);
+                }
+            }
+        }
+        return sb.toString();
     }
 
     private static String formatDuration(java.time.Duration d) {
@@ -1485,5 +1510,152 @@ public class MetisHttpServer {
             return;
         }
         sendJson(exchange, 200, telemetry.metricsJson());
+    }
+
+    // ── /kanban (zweite Seite: externes User-Goal-Board) ──────────
+
+    private void handleKanbanPage(HttpExchange exchange) throws IOException {
+        if (!"GET".equals(exchange.getRequestMethod())) {
+            sendJson(exchange, 405, "{\"error\":\"Method not allowed\"}");
+            return;
+        }
+        try {
+            String html;
+            try (var in = MetisHttpServer.class.getResourceAsStream("/kanban.html")) {
+                if (in != null) {
+                    html = new String(in.readAllBytes(), StandardCharsets.UTF_8);
+                } else {
+                    html = "<html><body><h1>Kanban Board</h1><p>kanban.html resource missing</p></body></html>";
+                }
+            }
+            byte[] bytes = html.getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set("Content-Type", "text/html; charset=utf-8");
+            exchange.sendResponseHeaders(200, bytes.length);
+            try (var os = exchange.getResponseBody()) { os.write(bytes); }
+        } catch (Exception e) {
+            sendJson(exchange, 500, "{\"error\":\"" + e.getMessage() + "\"}");
+        }
+    }
+
+    // ── /api/usergoals (externes Kanban: anlegen, listen, Status) ──
+
+    private void handleUserGoals(HttpExchange exchange) throws IOException {
+        if (userGoalBoard == null) {
+            sendJson(exchange, 503, "{\"error\":\"UserGoalBoard not initialized\"}");
+            return;
+        }
+        String method = exchange.getRequestMethod();
+        String path = exchange.getRequestURI().getPath();
+        if ("GET".equals(method) && path.equals("/api/usergoals")) {
+            sendJson(exchange, 200, userGoalsJson());
+            return;
+        }
+        if ("POST".equals(method)) {
+            String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+            if (path.endsWith("/transition")) {
+                handleUserGoalTransition(exchange, body);
+            } else if (path.equals("/api/usergoals")) {
+                handleUserGoalCreate(exchange, body);
+            } else {
+                sendJson(exchange, 404, "{\"error\":\"Not found\"}");
+            }
+            return;
+        }
+        sendJson(exchange, 405, "{\"error\":\"Method not allowed\"}");
+    }
+
+    private void handleUserGoalCreate(HttpExchange exchange, String body) throws IOException {
+        String description = extractJsonString(body, "description");
+        String categoryRaw = extractJsonString(body, "category");
+        int priority = extractJsonInt(body, "priority", 60);
+        if (description == null || description.isBlank()) {
+            sendJson(exchange, 400, "{\"error\":\"description required\"}");
+            return;
+        }
+        UserGoalBoard.Category category;
+        try {
+            category = categoryRaw == null ? UserGoalBoard.Category.AUFGABE
+                    : UserGoalBoard.Category.valueOf(categoryRaw.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            sendJson(exchange, 400, "{\"error\":\"category must be WISSEN_ANEIGNEN or AUFGABE\"}");
+            return;
+        }
+        var g = userGoalBoard.create(description.trim(), category, priority);
+        sendJson(exchange, 201, "{\"ok\":true,\"id\":\"" + g.id + "\"}");
+    }
+
+    private void handleUserGoalTransition(HttpExchange exchange, String body) throws IOException {
+        String id = extractJsonString(body, "id");
+        String toRaw = extractJsonString(body, "to");
+        String comment = extractJsonString(body, "comment");
+        if (id == null || toRaw == null) {
+            sendJson(exchange, 400, "{\"error\":\"id and to required\"}");
+            return;
+        }
+        UserGoalBoard.Status to;
+        try {
+            to = UserGoalBoard.Status.valueOf(toRaw.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            sendJson(exchange, 400, "{\"error\":\"invalid status\"}");
+            return;
+        }
+        boolean ok = userGoalBoard.manualTransition(id, to, comment);
+        if (ok) {
+            sendJson(exchange, 200, "{\"ok\":true}");
+        } else {
+            sendJson(exchange, 409, "{\"ok\":false,\"error\":\"Transition nicht erlaubt oder Kommentar fehlt\"}");
+        }
+    }
+
+    private String userGoalsJson() {
+        var sb = new StringBuilder();
+        sb.append("{\"goals\":[\n");
+        boolean first = true;
+        for (var g : userGoalBoard.list()) {
+            if (!first) sb.append(",\n");
+            first = false;
+            sb.append("  {\"id\":\"").append(jsonEscape(g.id)).append("\"");
+            sb.append(",\"description\":\"").append(jsonEscape(g.description)).append("\"");
+            sb.append(",\"category\":\"").append(g.category.name()).append("\"");
+            sb.append(",\"status\":\"").append(g.status.name()).append("\"");
+            sb.append(",\"priority\":").append(g.priority);
+            sb.append(",\"createdAt\":\"").append(jsonEscape(g.createdAt)).append("\"");
+            sb.append(",\"metisGoalId\":").append(g.metisGoalId == null
+                    ? "null" : "\"" + jsonEscape(g.metisGoalId) + "\"");
+            sb.append(",\"testReport\":").append(g.testReport == null
+                    ? "null" : "\"" + jsonEscape(g.testReport) + "\"");
+            sb.append(",\"learnedSummary\":").append(g.learnedSummary == null
+                    ? "null" : "\"" + jsonEscape(g.learnedSummary) + "\"");
+            sb.append(",\"result\":").append(g.result == null
+                    ? "null" : "\"" + jsonEscape(g.result) + "\"");
+            sb.append(",\"testProtocol\":").append(g.testProtocol == null
+                    ? "null" : "\"" + jsonEscape(g.testProtocol) + "\"");
+            sb.append(",\"comments\":[");
+            boolean firstC = true;
+            for (var c : g.comments) {
+                if (!firstC) sb.append(",");
+                firstC = false;
+                sb.append("{\"author\":\"").append(jsonEscape(c.author()))
+                  .append("\",\"text\":\"").append(jsonEscape(c.text()))
+                  .append("\",\"at\":\"").append(jsonEscape(c.at())).append("\"}");
+            }
+            sb.append("]}");
+        }
+        sb.append("\n]}");
+        return sb.toString();
+    }
+
+    private static int extractJsonInt(String json, String key, int dflt) {
+        try {
+            String search = "\"" + key + "\":";
+            int start = json.indexOf(search);
+            if (start < 0) return dflt;
+            start += search.length();
+            int end = start;
+            while (end < json.length() && json.charAt(end) != ',' && json.charAt(end) != '}') end++;
+            return Integer.parseInt(json.substring(start, end).trim());
+        } catch (Exception e) {
+            return dflt;
+        }
     }
 }

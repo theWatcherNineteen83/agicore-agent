@@ -290,6 +290,23 @@ public class WorldModel implements AutoCloseable {
     }
 
     /**
+     * Beliefs created since {@code sinceIso} (ISO-8601), newest first.
+     * Delegates to {@link KnowledgeStore#loadBeliefsSince(String, int)}.
+     * Used by the external Kanban board to summarize what Metis learned.
+     */
+    public List<Belief> beliefsSince(String sinceIso, int limit) {
+        if (knowledgeStore != null) {
+            return knowledgeStore.loadBeliefsSince(sinceIso, limit);
+        }
+        // Fallback ohne Store: in-memory nach createdAt filtern
+        return beliefs.values().stream()
+                .filter(b -> b.createdAt().toString().compareTo(sinceIso) > 0)
+                .sorted(Comparator.comparing((Belief b) -> b.createdAt()).reversed())
+                .limit(limit)
+                .toList();
+    }
+
+    /**
      * Average confidence across all beliefs.
      * Uses in-memory cache as a sample (expensive DB query avoided).
      */

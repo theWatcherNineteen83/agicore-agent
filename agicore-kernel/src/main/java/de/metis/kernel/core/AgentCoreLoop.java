@@ -65,7 +65,8 @@ public class AgentCoreLoop {
             "api-explore", "hw-profile", "deepnetts", "tornadovm",
             "exploration", "meta", "chat", "mqtt-event", "ha-event",
             "weather", "weather-trend", "webcam", "adsb", "adsb-unusual",
-            "adsb-proximity", "shadow", "unknown", "analysis", "fix"
+            "adsb-proximity", "shadow", "unknown", "analysis", "fix",
+            "aufgabe", "wissen-aneignen"
     );
 
     private static final int CONSOLIDATION_INTERVAL = 10;
