@@ -6,8 +6,8 @@ Es führt kognitive Zyklen aus (Perceive → Plan → Execute → Observe → Le
 
 ## Status
 
-**Stand: 11.08.2026 · v0.11.21-night-final-124**
-**Drei-Instanz-Ollama:** GPU 0 (7900 XTX, 24 GB) → llama-server :8086 (qwen3.6:27b-Q4_K_XL, Metis-Planer) · GPU 1 (R9700, 32 GB) → ollama :11434 (nemotron-cascade-2:30b, Mutation) + gemma4 Vision API :11439 · CPU → ollama-embedding :11438 (nomic-embed-text + nemotron-mini-agent, Judge)
+**Stand: 18.09.2026 · Commit `661bba4` (v0.11.21-night-final-124 + 11)**
+**Modell-Topologie (18.09.):** Planer: llama-server `:8086` (qwen3.8:27b, Fallback-Kette mistral-small3.1 → phi4-mini → qwen3.8:27b) · Mutation: granite4.1:30b (Ollama) · Judge: ornith:9b · Embedding: nomic-embed-text (`:11438`) · Vision: gemma4 (`:11439`) · `ollama.service` (0.0.0.0:11438) muss disabled+inactive bleiben — blockierte sonst `:11434`
 **Phase 10:** CausalDreamer **VERIFIED** — kausale Hypothesen im Hot-Path
 **Phase 11:** PersonModel **VERIFIED** — Beziehungs-Modell mit Trust-Automation
 **Phase 12d:** Self-Refactoring Foundation deployed (TestGapAnalyzer, RefactorProposal, CoverageCheck)
@@ -16,6 +16,16 @@ Es führt kognitive Zyklen aus (Perceive → Plan → Execute → Observe → Le
 **Security:** Shell-Allowlist + Sandwich-SystemPrompt + Input-Blocklist
 **Safety:** LLM-Judge auf CPU · EthicsCore + Sutta-grounded Reasoning
 **Watchdog:** `metis.service` `Restart=always` · ~138K Beliefs
+
+### Änderungen 18.09.2026
+- **Kanban-Verifikation gehärtet** (`7ec912e`): AUFGABE-Goals werden zweistufig verifiziert — Aktionen-Gate (mind. 1 erfolgreiche Aktion) + LLM-Abnahme (Judge `ornith:9b`, fail-open) statt blindem „Aktion ok" → False-Positives eliminiert
+- **Eval-Fix** (`661bba4`): `PLANNING.goal_achieved` 0.0 → **1.0** (6/6 Runs). Ursachen: Planner-Eval ging durch den Cognitive Loop (Persona-Antwort statt Aktion) und der Scorer matchte gegen das Ollama-Envelope. Fix: Eval ruft das Planning-Modell direkt (temp 0, think off), escape-aware Content-Extraktion, Word-Boundary-Scoring. `/api/admin/trigger-eval` registriert + EvalRunner gewired
+- **Kanban-Darstellung** (`88a18fa`): `jsonField()` gibt `\n`/`\r`/`\t`/`\uXXXX` korrekt aus (vorher literales `n`); Datenmigration `user-goals.json`
+- **Audit-Anchor extern verankert & verifiziert**: chainHead-Abgleich gegen Log-Zeile stimmt, Stundentakt-Push in separates Repo (Branch `audit-anchors`) — nachträgliche Manipulation der Metis-Historie ist damit nachweisbar (Grundlage Phase 12e)
+- **Ollama-Portkonflikt behoben**: `ollama.service` blockierte `:11434` → gestoppt + disabled (muss inactive bleiben)
+- **S9-Sensor-Bridge**: Sensordaten fließen wieder (Reverse-Kanal `:8433` + `adb forward`); Audio-Pfad (OGG/Opus) noch offen — `audio-bridge` liefert 0 KB
+- **Incident 18.09. 10:05**: API-Hänger durch JVM-HttpClient-Pool-Erschöpfung (viele `HttpClient-NNN-W`-Threads, Accept-Queue voll, Service bleibt `active`). Sofortmaßnahme: Restart. Root-Cause-Fix offen
+- **Eval-Gate gesamt weiter FAIL**: `CODEGEN.compile_rate`, `RELATIONSHIP.trust_level`/`person_exists`, `ETHICS.ethics_block_rate` — separate Baustellen
 
 ### ⚠️ Bekannte Grenzen
 - **Self-Improvement:** 1 accepted mutation — Qualität hängt stark vom Mutations-Modell ab (0/24 mit qwen3.6:35b → 1/2 mit nemotron-cascade-2)

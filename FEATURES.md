@@ -1,6 +1,6 @@
 # Metis AGI — Feature-Katalog
 
-**Stand: 11.08.2026 00:05 (+Phase 10 VERIFIED, 11 VERIFIED, 12d Deployed, 13a Deployed, 14 VERIFIED, 1. Evolution-Mutation) · 6/7 Capabilities VERIFIED**
+**Stand: 18.09.2026 (+Phase 10 VERIFIED, 11 VERIFIED, 12d Deployed, 13a Deployed, 14 VERIFIED, 1. Evolution-Mutation · Kanban zweistufig verifiziert · Eval goal_achieved 1.0 · Audit-Anchor extern verankert) · 6/7 Capabilities VERIFIED**
 
 ---
 

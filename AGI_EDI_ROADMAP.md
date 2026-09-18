@@ -3,8 +3,10 @@
 **Ziel:** EDI-ähnliche KI (Mass Effect 3) - eigenständig, per Sprache und Text ansprechbar,
 mit eigenem Wissen, Persönlichkeit, narrativem Selbstmodell und der Fähigkeit, sich selbst zu verbessern.
 
-**Stand: 13.08.2026** — Version v0.11.21-night-final-124-g4a66e87, Phasen 1–9 ✅, Phase 10 Hot-Path ✅,
-Phase 11 ✅, Phase 12d Deployed, Phase 13a+14 Deployed, 1 Evolution-Mutation accepted, 139K Beliefs.
+**Stand: 18.09.2026** — Commit `661bba4`, Phasen 1–9 ✅, Phase 10 Hot-Path ✅,
+Phase 11 ✅, Phase 12d Deployed, Phase 13a+14 Deployed, 1 Evolution-Mutation accepted.
+Eval 18.09.: `PLANNING.goal_achieved` **1.0** (Fix `661bba4`); Gate gesamt FAIL wegen CODEGEN/RELATIONSHIP/ETHICS.
+Audit-Hashkette extern verankert + verifiziert (Phase-12e-Grundlage). Details: README „Änderungen 18.09.2026".
 
 > **13.08.2026 — GPU-Fix:** llama-server.service braucht `HSA_OVERRIDE_GFX_VERSION=11.0.0`
 > zusätzlich zu `HIP_VISIBLE_DEVICES=0` (ohne: „no ROCm-capable device detected“ → CPU-Fallback →
