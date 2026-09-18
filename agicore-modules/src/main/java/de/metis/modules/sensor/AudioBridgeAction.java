@@ -77,6 +77,11 @@ public class AudioBridgeAction implements Action {
                             try {
                                 oggBuffer.write(bytes);
                             } catch (IOException ignored) {}
+                            // FIX 19.09.2026: Der JDK-Client liefert nur EINE Nachricht,
+                            // wenn der Listener nicht explizit die naechste anfordert
+                            // (Default-onOpen fordert genau 1 an). Ohne request(1) kam
+                            // deshalb immer nur der 16-KB-Puffer der Bridge an.
+                            webSocket.request(1);
                             return null;
                         }
 
