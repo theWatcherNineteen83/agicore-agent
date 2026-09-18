@@ -5,6 +5,10 @@ import de.metis.kernel.goal.GoalManager;
 import de.metis.kernel.memory.Experience;
 import de.metis.kernel.world.Belief;
 
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -30,7 +34,11 @@ import java.util.logging.Logger;
  *       geprüft. Ist das interne Goal inaktiv (= erfolgreich completed),
  *       läuft der <b>maschinelle Vorabtest</b>:
  *       <ul>
- *         <li>AUFGABE: Goal completed = bestanden.</li>
+ *         <li>AUFGABE: zweistufig — (1) Aktionen-Gate: mindestens eine
+ *             erfolgreiche Aktion zum Goal; (2) LLM-Abnahme: Judge-Modell
+ *             prüft, ob Protokoll + Ergebnis-Ausgabe die Aufgabe tatsächlich
+ *             erfüllen (generische Health-Checks zählen nicht). Judge nicht
+ *             erreichbar → fail-open nach ZU_TESTEN mit Warnung im Report.</li>
  *         <li>WISSEN_ANEIGNEN: Goal completed <i>und</i> Belief-Zuwachs
  *             (beliefCount höher als bei Aufnahme) = bestanden.</li>
  *       </ul>
@@ -51,6 +59,22 @@ public class UserGoalBridge {
     private static final Duration BACKOFF_BASE = Duration.ofMinutes(15);
     /** Max. Cooldown. */
     private static final Duration BACKOFF_MAX = Duration.ofHours(24);
+
+    /** Judge-Endpoint für die AUFGABE-Abnahme (GPU1-Ollama, wie LlmJudge). */
+    private static final String JUDGE_URL = System.getProperty(
+            "metis.judge.url", "http://127.0.0.1:11434/api/generate");
+    /** Judge-Modell — muss \"think\":false im Request bekommen (Thinking-Modell). */
+    private static final String JUDGE_MODEL = System.getProperty(
+            "metis.judge.model", "ornith:9b");
+    /** HTTP-Timeout für Judge-Calls. */
+    private static final Duration JUDGE_TIMEOUT = Duration.ofSeconds(180);
+
+    private final HttpClient judgeHttp = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofSeconds(10))
+            .build();
+
+    /** Ergebnis der LLM-Abnahme. */
+    private record Verdict(boolean achieved, String reason) {}
 
     private final Agent agent;
     private final UserGoalBoard board;
@@ -169,10 +193,34 @@ public class UserGoalBridge {
                 learnedSummary = buildLearnedSummary(since);
             }
         } else {
-            bestanden = true;
-            report = "Aufgabe: Metis-Goal erfolgreich abgeschlossen (Aktion ok) — bestanden.";
             result = buildTaskResult(ug.description);
             testProtocol = buildTestProtocol(ug.description);
+            // Stufe 1 — Aktionen-Gate: mindestens eine erfolgreiche Aktion zum Goal
+            List<Experience> exps = experiencesFor(ug.description);
+            boolean hatErfolg = false;
+            for (Experience e : exps) {
+                if (e.success()) { hatErfolg = true; break; }
+            }
+            if (!hatErfolg) {
+                bestanden = false;
+                report = "Aufgabe: KEINE erfolgreiche Aktion zu diesem Goal ausgeführt "
+                        + "— Zielaktion/Artefakt fehlt. Nicht bestanden.";
+            } else {
+                // Stufe 2 — LLM-Abnahme: erfüllt das Ergebnis wirklich die Aufgabe?
+                Verdict v = llmAbnahme(ug.description, testProtocol, result);
+                if (v == null) {
+                    bestanden = true; // fail-open: Judge nicht erreichbar
+                    report = "Aufgabe: Aktionen ok, aber ⚠ LLM-Abnahme nicht möglich "
+                            + "(Judge unerreichbar) — nur maschineller Vorabtest, "
+                            + "bitte Ergebnis manuell genau prüfen.";
+                } else if (v.achieved()) {
+                    bestanden = true;
+                    report = "Aufgabe: LLM-Abnahme BESTANDEN — " + v.reason();
+                } else {
+                    bestanden = false;
+                    report = "Aufgabe: LLM-Abnahme ABGELEHNT — " + v.reason();
+                }
+            }
         }
         startedAt.remove(ug.id);
         startBeliefs.remove(ug.id);
@@ -186,6 +234,160 @@ public class UserGoalBridge {
             board.setRetryAfter(ug, System.currentTimeMillis() + backoff);
             board.markZurueck(ug, report, System.currentTimeMillis() + backoff);
         }
+    }
+
+    // ── LLM-Abnahme (Stufe 2 der AUFGABE-Verifikation) ──────────
+
+    /**
+     * Judge-Modell prüft, ob Protokoll + Ergebnis die Aufgabe tatsächlich
+     * erfüllen. Liefert null, wenn der Judge nicht erreichbar/parsebar ist
+     * (fail-open entscheidet dann der Aufrufer).
+     */
+    Verdict llmAbnahme(String goalDesc, String testProtocol, String result) {
+        String prompt = """
+                You are a STRICT verifier for an autonomous agent's completed task.
+
+                TASK (user goal):
+                %s
+
+                EXECUTED ACTIONS (protocol):
+                %s
+
+                ACTION OUTPUT (result):
+                %s
+
+                Decide whether the executed actions and their output plausibly ACHIEVE the task.
+                Rules:
+                - Generic health checks (uname, hostname, status pings, echo tests) do NOT count
+                  as achieving a task unless the task itself IS such a check.
+                - The output must contain evidence SPECIFIC to the task (the requested artifact,
+                  data, file, or observable change).
+                - Missing, indirect or unrelated evidence => achieved=false.
+
+                Reply with JSON only:
+                {"achieved": <true|false>, "reason": "<ein kurzer Satz auf Deutsch>"}
+                """.formatted(truncate(goalDesc, 500), truncate(testProtocol, 600),
+                        truncate(result, 900));
+
+        String raw = callJudge(prompt);
+        if (raw == null) {
+            LOG.warning("UserGoalBridge: LLM-Abnahme fehlgeschlagen (Judge unerreichbar) für: "
+                    + truncate(goalDesc, 60));
+            return null;
+        }
+        Boolean achieved = null;
+        var mAcc = java.util.regex.Pattern
+                .compile("\"achieved\"\\s*:\\s*(true|false)").matcher(raw);
+        if (mAcc.find()) achieved = Boolean.parseBoolean(mAcc.group(1));
+        String reason = "";
+        var mRea = java.util.regex.Pattern
+                .compile("\"reason\"\\s*:\\s*\"([^\"]*)\"").matcher(raw);
+        if (mRea.find()) reason = mRea.group(1);
+        if (achieved == null) {
+            LOG.warning("UserGoalBridge: Judge-Antwort nicht parsebar: " + truncate(raw, 120));
+            return null;
+        }
+        return new Verdict(achieved, reason.isBlank() ? "(keine Begründung)" : reason);
+    }
+
+    /** Ollama-/api/generate-Call an das Judge-Modell; null bei Fehler. */
+    private String callJudge(String prompt) {
+        try {
+            String jsonBody = String.format("""
+                    {
+                      "model": "%s",
+                      "prompt": %s,
+                      "stream": false,
+                      "format": "json",
+                      "think": false,
+                      "options": {
+                        "temperature": 0.1,
+                        "top_p": 0.9,
+                        "num_predict": 300,
+                        "num_ctx": 4096
+                      },
+                      "keep_alive": "30m"
+                    }
+                    """, JUDGE_MODEL, escapeJson(prompt));
+            HttpRequest req = HttpRequest.newBuilder()
+                    .uri(URI.create(JUDGE_URL))
+                    .timeout(JUDGE_TIMEOUT)
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
+                    .build();
+            HttpResponse<String> resp = judgeHttp.send(req,
+                    HttpResponse.BodyHandlers.ofString());
+            if (resp.statusCode() != 200) {
+                LOG.warning("UserGoalBridge: Judge HTTP " + resp.statusCode());
+                return null;
+            }
+            return extractResponseField(resp.body());
+        } catch (Exception e) {
+            LOG.warning("UserGoalBridge: Judge-Call fehlgeschlagen: " + e.getMessage());
+            return null;
+        }
+    }
+
+    /** "response"-Feld aus der Ollama-JSON-Antwort extrahieren (mit Unescaping). */
+    static String extractResponseField(String body) {
+        int i = body.indexOf("\"response\"");
+        if (i < 0) return null;
+        int c = body.indexOf(':', i);
+        if (c < 0) return null;
+        int q = body.indexOf('"', c + 1);
+        if (q < 0) return null;
+        StringBuilder sb = new StringBuilder();
+        for (int p = q + 1; p < body.length(); p++) {
+            char ch = body.charAt(p);
+            if (ch == '\\' && p + 1 < body.length()) {
+                char n = body.charAt(++p);
+                switch (n) {
+                    case 'n' -> sb.append('\n');
+                    case 't' -> sb.append('\t');
+                    case 'r' -> sb.append('\r');
+                    case 'b' -> sb.append('\b');
+                    case 'f' -> sb.append('\f');
+                    case '"' -> sb.append('"');
+                    case '\\' -> sb.append('\\');
+                    case '/' -> sb.append('/');
+                    case 'u' -> {
+                        if (p + 4 < body.length()) {
+                            try {
+                                sb.append((char) Integer.parseInt(body.substring(p + 1, p + 5), 16));
+                                p += 4;
+                            } catch (NumberFormatException ignore) { }
+                        }
+                    }
+                    default -> sb.append(n);
+                }
+            } else if (ch == '"') {
+                break;
+            } else {
+                sb.append(ch);
+            }
+        }
+        return sb.toString();
+    }
+
+    /** String als JSON-String-Literal (mit Quotes) escapen. */
+    static String escapeJson(String s) {
+        if (s == null) return "\"\"";
+        StringBuilder sb = new StringBuilder("\"");
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            switch (c) {
+                case '"' -> sb.append("\\\"");
+                case '\\' -> sb.append("\\\\");
+                case '\n' -> sb.append("\\n");
+                case '\r' -> sb.append("\\r");
+                case '\t' -> sb.append("\\t");
+                default -> {
+                    if (c < 0x20) sb.append(String.format("\\u%04x", (int) c));
+                    else sb.append(c);
+                }
+            }
+        }
+        return sb.append('"').toString();
     }
 
     /** WISSEN_ANEIGNEN: Überblick über die seit Aufnahme neu gelernten Beliefs. */
