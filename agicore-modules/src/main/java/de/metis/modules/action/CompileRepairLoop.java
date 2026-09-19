@@ -145,7 +145,7 @@ public class CompileRepairLoop {
             opts.put("num_predict", 2048);
             requestNode.set("options", opts);
 
-            var client = java.net.http.HttpClient.newHttpClient();
+            var client = de.metis.modules.util.SharedHttp.client();
             var req = java.net.http.HttpRequest.newBuilder()
                     .uri(java.net.URI.create(ollamaUrl))
                     .header("Content-Type", "application/json")

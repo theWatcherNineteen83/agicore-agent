@@ -356,11 +356,9 @@ public class VideoAnalysisAction implements Action {
                 .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
                 .build();
 
-        // Jeder Vision-Call bekommt einen frischen HttpClient
-        // (vermeidet "selector manager closed" bei Dauer-Polling)
-        HttpClient client = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(15))
-                .build();
+        // Geteilter Client: vermeidet Thread-Pool-Aufbau pro Call; der selector
+        // manager eines nie geschlossenen Clients bleibt gueltig.
+        HttpClient client = de.metis.modules.util.SharedHttp.client();
 
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 

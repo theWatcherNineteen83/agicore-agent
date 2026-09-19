@@ -138,7 +138,7 @@ public class FeatureGenAction implements Action, GoalAwareAction {
         requestNode.put("num_predict", 2048);
         requestNode.set("options", mapper.createObjectNode());
 
-        var client = HttpClient.newHttpClient();
+        var client = de.metis.modules.util.SharedHttp.client();
         var req = HttpRequest.newBuilder()
                 .uri(URI.create(ollamaUrl + "/api/generate"))
                 .header("Content-Type", "application/json")

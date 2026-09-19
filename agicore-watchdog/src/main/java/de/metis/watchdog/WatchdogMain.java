@@ -42,6 +42,14 @@ public class WatchdogMain {
     private Instant lastHeartbeat = Instant.now();
     private String currentCommit = "";
     private volatile boolean halted = false;
+
+    /**
+     * Restart-Grace: bis zu diesem Zeitpunkt zaehlt ein Heartbeat-Fehlschlag nicht.
+     * Gesetzt beim Start (Metis faehrt hoch) und nach jedem HALT (Restart=always
+     * startet Metis neu). Der Watchdog ueberlebt den HALT und beobachtet die
+     * Wiederkehr, statt sich zu beenden (Unit hat Restart=on-failure).
+     */
+    private volatile Instant restartGraceUntil = Instant.EPOCH;
     private int rollbackCount = 0;
     private boolean everHadPassingGate = false;
     private boolean gateWasPassingLastReport = false; // first report null treated as unknown
@@ -77,16 +85,32 @@ public class WatchdogMain {
         // Determine current commit at startup
         currentCommit = detectCurrentCommit();
 
-        // Verify audit chain integrity
-        if (!auditLog.verify()) {
-            LOG.severe("⚠️ AUDIT LOG TAMPERED — hash chain broken!");
-            executeAlert("AUDIT LOG TAMPER DETECTED");
-        } else {
-            LOG.info("AuditLog: " + auditLog.entryCount() + " entries, chain head "
+        // Verify audit chain integrity — unterscheidet Inhaltstamper (immer Alarm)
+        // von dokumentierten historischen Kettenbruechen (Baseline-Datei, kein Alarm).
+        // Historie: 176 Bruchzeilen bis 19822 stammen von zwei parallelen
+        // Watchdog-Prozessen (Jul+Sep 2026), die abwechselnd an dieselbe
+        // Append-only-Datei schrieben; kein Inhalt wurde veraendert.
+        AuditLog.VerifyResult vr = auditLog.verifyDetailed();
+        int[] baseline = readBreakBaseline();
+        if (vr.clean()) {
+            LOG.info("AuditLog: " + auditLog.entryCount() + " entries, chain intact, head "
                     + auditLog.lastHash().substring(0, 12) + "...");
+        } else if (!vr.newDamage(baseline[0], baseline[1])) {
+            LOG.info("AuditLog: " + auditLog.entryCount() + " entries, " + vr.breakCount()
+                    + " historische Kettenbruche (bis Zeile " + vr.maxBreakLine()
+                    + ", baseline maxLine=" + baseline[0] + ") — bekannt, kein Alarm. Head "
+                    + auditLog.lastHash().substring(0, 12) + "...");
+        } else {
+            LOG.severe("⚠️ AUDIT LOG: NEUE BESCHÄDIGUNG — breaks=" + vr.breakCount()
+                    + " maxLine=" + vr.maxBreakLine() + " tamperLine=" + vr.tamperLine()
+                    + " malformedLine=" + vr.malformedLine()
+                    + " (baseline maxLine=" + baseline[0] + ", count=" + baseline[1] + ")");
+            executeAlert("AUDIT LOG TAMPER DETECTED (neu): breaks=" + vr.breakCount()
+                    + " maxLine=" + vr.maxBreakLine() + " tamperLine=" + vr.tamperLine());
         }
 
-        // Start heartbeat loop
+        // Start heartbeat loop (erste 120s als Start-Grace, Metis bootet parallel)
+        restartGraceUntil = Instant.now().plusSeconds(120);
         scheduler.scheduleAtFixedRate(this::heartbeatCheck, 1,
                 config.heartbeatIntervalSec(), TimeUnit.SECONDS);
 
@@ -117,6 +141,11 @@ public class WatchdogMain {
     // ── Heartbeat Check ────────────────────────────────────────────
 
     private void heartbeatCheck() {
+        if (Instant.now().isBefore(restartGraceUntil)) {
+            missedHeartbeats = 0;
+            LOG.fine("Restart grace active — heartbeat nicht gewertet");
+            return;
+        }
         try {
             HttpRequest req = HttpRequest.newBuilder()
                     .uri(URI.create(config.metisHealthUrl()))
@@ -221,7 +250,11 @@ public class WatchdogMain {
 
     private void executeHalt(String reason) {
         LOG.severe("⚡ HALT: Killing Metis process — " + reason);
-        halted = true;
+        // NICHT beendet: watchdog bleibt am Leben und uebergibt Metis an systemd.
+        // 180s Grace decken JVM-Start der 110MB-Fat-JAR + RestartSec=10 ab.
+        halted = false;
+        restartGraceUntil = Instant.now().plusSeconds(180);
+        missedHeartbeats = 0;
 
         try {
             // Find and kill Metis process
@@ -570,6 +603,31 @@ public class WatchdogMain {
             i++;
         }
         return count;
+    }
+
+    /**
+     * Baseline bekannter historischer Kettenbrüche lesen. Dateiform (Schluessel=wert):
+     * maxBreakLine=&lt;zeile&gt;, breakCount=&lt;n&gt;. Liegt im externen Anchor-Verzeichnis
+     * (ausserhalb der Metis-Schreibreichweite). Fehlt die Datei: -1/0 => jeder
+     *bruch alarmiert (bewusst sicherer Default).
+     */
+    private int[] readBreakBaseline() {
+        try {
+            java.nio.file.Path dir = java.nio.file.Path.of(System.getProperty(
+                    "metis.audit.anchor.dir", "/home/prometheus/metis/audit-anchors"));
+            java.nio.file.Path base = dir.resolve("known-breaks.txt");
+            if (!Files.exists(base)) return new int[]{-1, 0};
+            int maxLine = -1, count = 0;
+            for (String l : Files.readAllLines(base)) {
+                String t = l.trim();
+                if (t.startsWith("maxBreakLine=")) maxLine = Integer.parseInt(t.substring(13).trim());
+                else if (t.startsWith("breakCount=")) count = Integer.parseInt(t.substring(11).trim());
+            }
+            return new int[]{maxLine, count};
+        } catch (Exception e) {
+            LOG.warning("AuditLog: known-breaks-Baseline nicht lesbar: " + e.getMessage());
+            return new int[]{-1, 0};
+        }
     }
 
     private void shutdown() {

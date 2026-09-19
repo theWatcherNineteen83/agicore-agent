@@ -38,9 +38,7 @@ public class SensorBridgeAction implements Action {
         CompletableFuture<String> result = new CompletableFuture<>();
 
         try {
-            HttpClient client = HttpClient.newBuilder()
-                    .connectTimeout(Duration.ofSeconds(5))
-                    .build();
+            HttpClient client = de.metis.modules.util.SharedHttp.client();
 
             WebSocket ws = client.newWebSocketBuilder()
                     .connectTimeout(Duration.ofSeconds(5))

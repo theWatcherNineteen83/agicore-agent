@@ -147,7 +147,7 @@ public class ResourceAutoTuner {
                     .uri(URI.create(ollamaBaseUrl + "/api/ps"))
                     .timeout(Duration.ofSeconds(5))
                     .GET().build();
-            HttpResponse<String> resp = HttpClient.newHttpClient()
+            HttpResponse<String> resp = de.metis.modules.util.SharedHttp.client()
                     .send(req, HttpResponse.BodyHandlers.ofString());
             if (resp.statusCode() != 200) return "ps-fail";
 
@@ -214,7 +214,7 @@ public class ResourceAutoTuner {
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(body))
                     .build();
-            HttpClient.newHttpClient().send(req, HttpResponse.BodyHandlers.discarding());
+            de.metis.modules.util.SharedHttp.client().send(req, HttpResponse.BodyHandlers.discarding());
         } catch (Exception e) {
             LOG.fine("Unload request failed (non-critical): " + e.getMessage());
         }
@@ -242,7 +242,7 @@ public class ResourceAutoTuner {
                         .header("Content-Type", "application/json")
                         .POST(HttpRequest.BodyPublishers.ofString(body))
                         .build();
-                HttpClient.newHttpClient().send(req, HttpResponse.BodyHandlers.discarding());
+                de.metis.modules.util.SharedHttp.client().send(req, HttpResponse.BodyHandlers.discarding());
 
                 worldModel.update("vram:preloaded=" + candidate,
                         0.85, "resource-auto-tuner", true);
@@ -261,7 +261,7 @@ public class ResourceAutoTuner {
             HttpRequest req = HttpRequest.newBuilder()
                     .uri(URI.create(ollamaBaseUrl + "/api/ps"))
                     .timeout(Duration.ofSeconds(5)).GET().build();
-            HttpResponse<String> resp = HttpClient.newHttpClient()
+            HttpResponse<String> resp = de.metis.modules.util.SharedHttp.client()
                     .send(req, HttpResponse.BodyHandlers.ofString());
             return resp.statusCode() == 200 ? resp.body() : null;
         } catch (Exception e) {

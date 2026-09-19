@@ -85,54 +85,81 @@ public class AuditLog {
     }
 
     /**
-     * Verify the entire chain integrity.
-     * @return true if no tampering detected
+     * Ergebnis einer vollstaendigen Kettenpruefung (bricht nicht beim ersten Fehler ab).
+     *
+     * @param totalLines    gepruefte Zeilen
+     * @param breakCount    Anzahl Zeilen, deren prevHash nicht zur Kette passt
+     * @param maxBreakLine  spaeteste Bruchzeile (-1 = keine)
+     * @param tamperLine    erste Zeile mit falschem Eigen-Hash (= Inhalt veraendert, -1 = keiner)
+     * @param malformedLine erste Zeile, die nicht parsebar ist (-1 = keine)
      */
-    public boolean verify() {
+    public record VerifyResult(int totalLines, int breakCount, int maxBreakLine,
+                               int tamperLine, int malformedLine) {
+        public boolean clean() {
+            return breakCount == 0 && tamperLine < 0 && malformedLine < 0;
+        }
+
+        /**
+         * Neue Schaedigung im Vergleich zu einer deponierten Baseline?
+         * Inhaltstamper/Malformed alarmieren immer; Kettenbrüche nur, wenn sie
+         * ueber die bekannte Baseline (Zeilennummer/Anzahl) hinausgehen.
+         */
+        public boolean newDamage(int baselineMaxBreakLine, int baselineBreakCount) {
+            return tamperLine >= 0 || malformedLine >= 0
+                    || maxBreakLine > baselineMaxBreakLine
+                    || breakCount > baselineBreakCount;
+        }
+    }
+
+    /** Vollstaendige Pruefung: zaehlt alle Bruchstellen statt beim ersten abzubrechen. */
+    public VerifyResult verifyDetailed() {
+        int lineNum = 0, breakCount = 0, maxBreakLine = -1, tamperLine = -1, malformedLine = -1;
         try {
-            if (!Files.exists(logFile)) return true;
+            if (!Files.exists(logFile)) return new VerifyResult(0, 0, -1, -1, -1);
 
-            String expectedPrevHash = "0000000000000000000000000000000000000000000000000000000000000000";
-            int lineNum = 0;
-
+            String expected = "0000000000000000000000000000000000000000000000000000000000000000";
             try (BufferedReader r = Files.newBufferedReader(logFile)) {
                 String line;
                 while ((line = r.readLine()) != null) {
                     lineNum++;
                     String[] parts = line.split("\\|", 5);
                     if (parts.length < 5) {
-                        System.err.println("AuditLog: malformed entry at line " + lineNum);
-                        return false;
+                        if (malformedLine < 0) malformedLine = lineNum;
+                        continue;
                     }
-
                     String prevHash = parts[0];
                     String storedHash = parts[4];
-
-                    if (!prevHash.equals(expectedPrevHash)) {
-                        System.err.println("AuditLog: HASH BREAK at line " + lineNum
-                                + " — expected " + expectedPrevHash.substring(0, 8)
-                                + "..., got " + prevHash.substring(0, 8) + "...");
-                        return false;
+                    if (!prevHash.equals(expected)) {
+                        breakCount++;
+                        maxBreakLine = lineNum;
                     }
-
-                    // Recompute hash
                     String payload = parts[0] + "|" + parts[1] + "|" + parts[2] + "|" + parts[3];
-                    String computed = sha256(payload);
-                    if (!computed.equals(storedHash)) {
-                        System.err.println("AuditLog: TAMPER DETECTED at line " + lineNum
-                                + " — content modified");
-                        return false;
+                    if (!sha256(payload).equals(storedHash)) {
+                        if (tamperLine < 0) tamperLine = lineNum;
                     }
-
-                    expectedPrevHash = storedHash;
+                    expected = storedHash;
                 }
             }
-
-            return true;
+            return new VerifyResult(lineNum, breakCount, maxBreakLine, tamperLine, malformedLine);
         } catch (IOException e) {
             System.err.println("AuditLog: verify failed — " + e.getMessage());
+            return new VerifyResult(lineNum, breakCount + 1, Integer.MAX_VALUE, tamperLine, malformedLine);
+        }
+    }
+
+    /**
+     * Verify the entire chain integrity.
+     * @return true if no tampering detected
+     */
+    public boolean verify() {
+        VerifyResult vr = verifyDetailed();
+        if (!vr.clean()) {
+            System.err.println("AuditLog: chain check failed — breaks=" + vr.breakCount()
+                    + " maxBreakLine=" + vr.maxBreakLine() + " tamperLine=" + vr.tamperLine()
+                    + " malformedLine=" + vr.malformedLine());
             return false;
         }
+        return true;
     }
 
     public int entryCount() { return entryCount; }

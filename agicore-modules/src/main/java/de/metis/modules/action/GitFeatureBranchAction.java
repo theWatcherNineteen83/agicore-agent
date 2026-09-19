@@ -223,7 +223,7 @@ public class GitFeatureBranchAction implements Action {
         opts.put("num_predict", 2048);
         requestNode.set("options", opts);
 
-        var client = HttpClient.newHttpClient();
+        var client = de.metis.modules.util.SharedHttp.client();
         var req = HttpRequest.newBuilder()
                 .uri(URI.create(ollamaUrl + "/api/generate"))
                 .header("Content-Type", "application/json")

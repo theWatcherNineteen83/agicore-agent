@@ -165,7 +165,7 @@ public class SystemHealthProbe {
                     .GET()
                     .build();
 
-            HttpResponse<String> resp = HttpClient.newHttpClient()
+            HttpResponse<String> resp = de.metis.modules.util.SharedHttp.client()
                     .send(req, HttpResponse.BodyHandlers.ofString());
 
             if (resp.statusCode() != 200) return;

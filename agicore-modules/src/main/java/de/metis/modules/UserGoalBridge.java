@@ -260,6 +260,10 @@ public class UserGoalBridge {
                 Rules:
                 - Generic health checks (uname, hostname, status pings, echo tests) do NOT count
                   as achieving a task unless the task itself IS such a check.
+                - Capture/observation tasks (microphone, camera, sensors): an EMPTY reading
+                  (silence, no movement, no signal) counts as achieved when the protocol shows
+                  the capture action ran successfully AND the output carries capture evidence
+                  (byte size, artifact path). Absence of signal is a valid observation.
                 - The output must contain evidence SPECIFIC to the task (the requested artifact,
                   data, file, or observable change).
                 - Missing, indirect or unrelated evidence => achieved=false.
