@@ -874,7 +874,7 @@ public final class AgentMain {
         Logger.getLogger("de.metis").setLevel(Level.INFO);
 
         // Discover models and build agent with auto-selection
-        var modelRegistry = new ModelRegistry("http://192.168.22.204:11434").discover();
+        var modelRegistry = new ModelRegistry("http://127.0.0.1:11445").discover();
 
         // Apply manual model overrides from CLI
         if (planningModel != null) modelRegistry.overridePlanningModel(planningModel);
@@ -893,8 +893,8 @@ public final class AgentMain {
                 .registerHttpGet(URI.create("https://httpbin.org/get"))
                 .registerSensorBridge()
                 .registerAudioBridge()
-                .ollamaPlanner(planningUrl != null ? planningUrl : "http://192.168.22.204:11434/api/generate", modelRegistry, Duration.ofSeconds(120))
-                .promptChainingService("http://192.168.22.204:11434/api/generate", "nemotron-cascade-2:30b", Duration.ofSeconds(90))
+                .ollamaPlanner(planningUrl != null ? planningUrl : "http://127.0.0.1:11445/api/generate", modelRegistry, Duration.ofSeconds(120))
+                .promptChainingService("http://127.0.0.1:11445/api/generate", "nemotron-cascade-2:30b", Duration.ofSeconds(90))
                 .workspaceCapacity(5)
                 .build();
 
@@ -1154,7 +1154,7 @@ public final class AgentMain {
 
             // ── System Health Probe: GPU/VRAM/Ollama/dmesg monitoring ──
             var healthProbe = new de.metis.modules.monitor.SystemHealthProbe(
-                    "http://192.168.22.204:11434", 60);
+                    "http://127.0.0.1:11445", 60);
             healthProbe.start();
             LOG.info("SystemHealthProbe started — VRAM, GPU temp, Ollama models, dmesg errors every 60s");
 
@@ -1164,7 +1164,7 @@ public final class AgentMain {
                     : Path.of("eval-reports");
             var evalInvoker = new de.metis.modules.eval.LiveMetisInvoker(
                     "http://192.168.22.204:11735",
-                    "http://192.168.22.204:11434",
+                    "http://127.0.0.1:11445",
                     modelRegistry);
             var evalRunner = new de.metis.modules.eval.EvalRunner(evalInvoker, knowledgeStore, hypothesisStore, evalReportDir);
             evalRunnerRef.set(evalRunner);
@@ -1240,7 +1240,7 @@ public final class AgentMain {
         if (!bootstrapModelList.isEmpty()) {
             LOG.info("Bootstrapping knowledge from " + bootstrapModelList.size()
                     + " model(s): " + bootstrapModelList);
-            var kb = new KnowledgeBootstrap("http://192.168.22.204:11434", bootstrapModelList);
+            var kb = new KnowledgeBootstrap("http://127.0.0.1:11445", bootstrapModelList);
             var beliefs = kb.bootstrap();
             for (var b : beliefs) {
                 agent.worldModel().update(b.statement(), b.confidence(), b.source(), true);
@@ -1329,7 +1329,7 @@ public final class AgentMain {
                 .registerAudioBridge()
                 .registerShellCommand(List.of("uptime"))
                 .registerHttpGet(URI.create("https://httpbin.org/status/200"))
-                .ollamaPlanner("http://192.168.22.204:11434/api/generate", modelRegistry, Duration.ofSeconds(120))
+                .ollamaPlanner("http://127.0.0.1:11445/api/generate", modelRegistry, Duration.ofSeconds(120))
                 .workspaceCapacity(5)
                 .build();
         opsAgent.worldModel().update("I monitor system health and MQTT events", 0.95, "coordinator", true);
@@ -1359,7 +1359,7 @@ public final class AgentMain {
         // 08.07.: granite4.1:3b auf GPU1 (11434) → CPU (127.0.0.1:11438) mit nemotron-mini-agent.
         // CPU bindet nur an localhost, daher 127.0.0.1 statt 192.168.22.204.
         dreamConsolidation.setSummarizer(new LlmDreamSummarizer(
-                "http://127.0.0.1:11438", "nemotron-mini-agent:latest"));
+                "http://127.0.0.1:11445", "nemotron-mini-agent:latest"));
 
         // Update mood every minute from current metrics (cheap, deterministic)
         var moodScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
@@ -1788,7 +1788,7 @@ public final class AgentMain {
         // GPU1 (11434) jetzt frei — Decomposer nutzt qwen3.8:27b dafuer.
         // qwen3.8:27b ist ~18 GB auf GPU 1 (32 GB VRAM), liefert bessere Goal-Titel.
         horizonPlanner.setDecomposer(new LlmHorizonDecomposer(
-                "http://192.168.22.204:11434", "qwen3.8:27b"));
+                "http://127.0.0.1:11445", "qwen3.8:27b"));
 
         // ── Phase 9.7-Followup (Sprint #2, 08.06. 00:18): autonome Decomposition ──
         // Alle 10 min: jedes offene STRATEGIC/TACTICAL/OPERATIONAL-Goal ohne Children
@@ -1953,7 +1953,7 @@ public final class AgentMain {
         });
         LOG.info("Phase 12a wired — BugTracker active, self-healing exception handler");
         var fixAction = new de.metis.modules.action.SelfFixAction(
-                "http://192.168.22.204:11434/api/generate", "granite-code:3b", ".");
+                "http://127.0.0.1:11445/api/generate", "granite-code:3b", ".");
         agent.core().executor().register(fixAction);
         LOG.info("Phase 12a: SelfFixAction registered — self-fix action available");
         var branchManager = new de.metis.modules.evolution.FeatureBranchManager(
@@ -1963,17 +1963,17 @@ public final class AgentMain {
         fixAction.setRiskGate(riskGate);
         fixAction.setBranchManager(branchManager);
         fixAction.setCompileRepair(new de.metis.modules.action.CompileRepairLoop(
-                "http://192.168.22.204:11434/api/generate", "gemma4:31b",
+                "http://127.0.0.1:11445/api/generate", "gemma4:31b",
                 "/home/prometheus/metis/classpath.txt", 3));
         LOG.info("Phase 12d: CompileRepairLoop connected to SelfFixAction (gemma4:31b)");
         LOG.info("Phase 12b: RiskGate + FeatureBranchManager connected to SelfFixAction");
         var featureGenAction = new de.metis.modules.action.FeatureGenAction(
-                "http://192.168.22.204:11434/api/generate", "granite-code:3b", ".");
+                "http://127.0.0.1:11445/api/generate", "granite-code:3b", ".");
         agent.core().executor().register(featureGenAction);
         LOG.info("Phase 12b: FeatureGenAction registered");
 
         var gitFeatureBranchAction = new de.metis.modules.action.GitFeatureBranchAction(
-                "http://192.168.22.204:11434", "qwen3.8:27b",
+                "http://127.0.0.1:11445", "qwen3.8:27b",
                 "/home/prometheus/metis-agent-repo");
         agent.core().executor().register(gitFeatureBranchAction);
         LOG.info("Phase 12b: GitFeatureBranchAction registered (repo=/home/prometheus/metis-agent-repo)");
@@ -2007,7 +2007,7 @@ public final class AgentMain {
         // Liest die letzten ~20 Experiences, verdichtet via granite4.1:3b zu 2
         // Sätzen, hängt sie an SelfNarrative an (vom SystemPromptBuilder gelesen).
         var selfReflector = new SelfReflector(
-                "http://192.168.22.204:11434", "phi4-mini:latest",
+                "http://127.0.0.1:11445", "phi4-mini:latest",
                 selfNarrative,
                 () -> agent.memory().stm().recent(20),
                 () -> { var m = agent.metrics(); return m != null ? m.goalSuccessRate() : 0.5; });
@@ -2167,7 +2167,7 @@ public final class AgentMain {
         var resourceTuner = new de.metis.modules.monitor.ResourceAutoTuner(
                 memoryGuard, null, agent.worldModel(),
                 workspaceShadow, modelRegistry,
-                "http://192.168.22.204:11434");
+                "http://127.0.0.1:11445");
         var tunerScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
             var t = new Thread(r, "resource-tuner");
             t.setDaemon(true);
@@ -2317,7 +2317,7 @@ public final class AgentMain {
         // Phase 4: Wikipedia Knowledge Acquisition (live API, no local dump needed)
         // Phase 4: Wikipedia Knowledge Acquisition (live API, no local dump needed)
         var wikiKnowledge = new de.metis.modules.knowledge.WikipediaKnowledgeService(
-                "http://192.168.22.204:11434", agent.worldModel());
+                "http://127.0.0.1:11445", agent.worldModel());
         
         // Curiosity-driven periodic learning: every 10 minutes, learn one article
         // Wikipedia-Lerner: dedizierter Scheduler-Thread (Platform für Timing-Stabilität),

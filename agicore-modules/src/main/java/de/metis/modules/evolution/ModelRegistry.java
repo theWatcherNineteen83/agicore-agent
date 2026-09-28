@@ -91,7 +91,7 @@ public class ModelRegistry {
     /**
      * Create registry connected to an Ollama instance.
      *
-     * @param ollamaBaseUrl e.g. "http://192.168.22.204:11434"
+     * @param ollamaBaseUrl e.g. "http://127.0.0.1:11445"
      */
     public ModelRegistry(String ollamaBaseUrl) {
         this.ollamaUrl = ollamaBaseUrl.endsWith("/") 

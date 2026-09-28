@@ -26,7 +26,7 @@ public class OllamaEmbeddingService {
 
     private static final Logger LOG = Logger.getLogger(OllamaEmbeddingService.class.getName());
 
-    private static final String DEFAULT_OLLAMA_URL = "http://192.168.22.204:11438/api/embeddings";
+    private static final String DEFAULT_OLLAMA_URL = "http://127.0.0.1:11445/api/embeddings";
     private static final String DEFAULT_MODEL = "nomic-embed-text"; // 768-dim, preferred
     private final String ollamaUrl;
     private static final String FALLBACK_MODEL = "llama3.2:3b";     // 3072-dim, legacy

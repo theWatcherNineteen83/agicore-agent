@@ -35,7 +35,7 @@ public class LusseyranEvaluator {
 
     private static final Logger LOG = Logger.getLogger(LusseyranEvaluator.class.getName());
 
-    private static final String DEFAULT_OLLAMA_URL = "http://127.0.0.1:11438/api/chat";
+    private static final String DEFAULT_OLLAMA_URL = "http://127.0.0.1:11445/api/chat";
     private static final String DEFAULT_MODEL = "nemotron-mini-agent";
     private static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(60);
 

@@ -469,7 +469,7 @@ public class TelegramBotService {
                 """, systemMsg, userMsg);
 
         HttpRequest req = HttpRequest.newBuilder()
-                .uri(URI.create("http://192.168.22.204:11434/api/chat"))
+                .uri(URI.create("http://127.0.0.1:11445/api/chat"))
                 .timeout(Duration.ofSeconds(180))
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(jsonBody))

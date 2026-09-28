@@ -33,7 +33,7 @@ public class OllamaMutationService implements EvolutionManager.MutationService {
 
     private static final Logger LOG = Logger.getLogger(OllamaMutationService.class.getName());
 
-    private static final String OLLAMA_URL = "http://192.168.22.204:11434/api/generate";
+    private static final String OLLAMA_URL = "http://127.0.0.1:11445/api/generate";
     private static final String DEFAULT_MODEL = "qwen3.8:27b";
     private static final Duration TIMEOUT = Duration.ofSeconds(1200);
 

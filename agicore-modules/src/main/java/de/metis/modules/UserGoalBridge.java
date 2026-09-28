@@ -62,7 +62,7 @@ public class UserGoalBridge {
 
     /** Judge-Endpoint für die AUFGABE-Abnahme (GPU1-Ollama, wie LlmJudge). */
     private static final String JUDGE_URL = System.getProperty(
-            "metis.judge.url", "http://127.0.0.1:11434/api/generate");
+            "metis.judge.url", "http://127.0.0.1:11445/api/generate");
     /** Judge-Modell — muss \"think\":false im Request bekommen (Thinking-Modell). */
     private static final String JUDGE_MODEL = System.getProperty(
             "metis.judge.model", "ornith:9b");

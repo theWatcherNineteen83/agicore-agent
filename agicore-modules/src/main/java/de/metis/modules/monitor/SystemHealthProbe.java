@@ -19,7 +19,7 @@ import java.util.logging.Logger;
  * <p>
  * Usage:
  * <pre>
- * var probe = new SystemHealthProbe("http://192.168.22.204:11434", 60);
+ * var probe = new SystemHealthProbe("http://127.0.0.1:11445", 60);
  * probe.start();
  * </pre>
  */

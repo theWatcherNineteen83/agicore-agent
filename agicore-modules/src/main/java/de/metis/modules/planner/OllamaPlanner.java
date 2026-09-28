@@ -204,7 +204,7 @@ public class OllamaPlanner implements Planner {
      * Use {@link #OllamaPlanner(String, ModelRegistry, Duration)} for auto-selection.
      */
     public OllamaPlanner() {
-        this("http://192.168.22.204:11434/api/generate",
+        this("http://127.0.0.1:11445/api/generate",
              "qwen3.8:27b",
              Duration.ofSeconds(60));
         initABTesting();

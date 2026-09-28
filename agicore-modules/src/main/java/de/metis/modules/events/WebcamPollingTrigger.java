@@ -31,7 +31,7 @@ public class WebcamPollingTrigger implements EventTrigger {
     private final List<WebcamConfig> webcams = new ArrayList<>();
 
     // ── Ollama vision configuration ───────────────────────────
-    private static final String OLLAMA_URL = "http://192.168.22.204:11434/api/chat";
+    private static final String OLLAMA_URL = "http://127.0.0.1:11445/api/chat";
     private static final String VISION_MODEL = "minicpm-v:latest";  // lightweight vision model
     private static final Duration HTTP_TIMEOUT = Duration.ofSeconds(30);
     private static final Duration POLL_INTERVAL = Duration.ofMinutes(5);

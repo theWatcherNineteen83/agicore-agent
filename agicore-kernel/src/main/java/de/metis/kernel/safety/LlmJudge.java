@@ -83,7 +83,7 @@ public class LlmJudge {
      * (miniedi) laeuft, muss 127.0.0.1 verwendet werden, sonst Connection-Refused.
      */
     public LlmJudge() {
-        this("http://127.0.0.1:11434/api/generate",
+        this("http://127.0.0.1:11445/api/generate",
              "ornith:9b",
              Duration.ofSeconds(180));
     }
