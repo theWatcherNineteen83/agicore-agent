@@ -49,6 +49,10 @@ import de.metis.modules.hardware.DatabaseLearningService;
  */
 public class MetisHttpServer {
 
+    /** Singleton (28.09.2026): Dedup-State fuer Log-Spam-Schutz bleibt ueber Status-Polls erhalten. */
+    private static final de.metis.kernel.safety.PlannerHealthGuard PLANNER_HEALTH_GUARD =
+            new de.metis.kernel.safety.PlannerHealthGuard();
+
     private static final Logger LOG = Logger.getLogger(MetisHttpServer.class.getName());
 
     private HttpServer server;  // non-final: retry bind on restart
@@ -876,7 +880,7 @@ public class MetisHttpServer {
                     op.llmJudge().blockCount(),
                     String.format(Locale.ROOT, "%.2f", op.llmJudge().lastScore()),
                     escapeJsonValue(op.llmJudge().lastReasoning()),
-                    new de.metis.kernel.safety.PlannerHealthGuard().check(
+                    PLANNER_HEALTH_GUARD.check(
                             op.totalPlansGenerated(),
                             op.emptyPlanCount(),
                             op.actionUsageCount()).toJson());

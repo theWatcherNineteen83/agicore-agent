@@ -32,12 +32,17 @@ public class PlannerHealthGuard {
     public static final double DEFAULT_EMPTY_WARN = 0.20;
     public static final double DEFAULT_EMPTY_CRITICAL = 0.35;
 
-    /** Default: Top-Action-Dominanz ab 70% → WARN, ab 85% → CRITICAL. */
-    public static final double DEFAULT_DOMINANCE_WARN = 0.70;
-    public static final double DEFAULT_DOMINANCE_CRITICAL = 0.85;
+    /** Default: Top-Action-Dominanz ab 95% → WARN, ab 98% → CRITICAL.
+     *  (28.09.2026: angehoben von 0.70/0.85 — bei nur 4 registrierten Actions mit
+     *  shell als einziger Universalaktion ist hohe Dominanz strukturell normal.) */
+    public static final double DEFAULT_DOMINANCE_WARN = 0.95;
+    public static final double DEFAULT_DOMINANCE_CRITICAL = 0.98;
 
     /** Mindestanzahl Pläne, bevor Quoten bewertet werden (Warmup-Schutz). */
     public static final int MIN_SAMPLE_SIZE = 20;
+
+    /** Letzter geloggter Severity-Zustand fuer Log-Dedup (nur bei Wechsel loggen). */
+    private volatile Severity lastLoggedSeverity = Severity.OK;
 
     private final double emptyWarn;
     private final double emptyCritical;
@@ -152,8 +157,15 @@ public class PlannerHealthGuard {
                 totalPlans, emptyPlans, actionUsageCount.size(),
                 Instant.now());
 
-        if (sev != Severity.OK) {
-            LOG.warning("PlannerHealthGuard: " + sev + " — " + String.join("; ", findings));
+        // Log-Dedup (28.09.2026): nur bei Severity-Wechsel loggen, nicht bei jedem
+        // /api/status-Poll (~alle 2,4 s durch Watchdog → sonst Log-Spam).
+        if (sev != lastLoggedSeverity) {
+            if (sev != Severity.OK) {
+                LOG.warning("PlannerHealthGuard: " + sev + " — " + String.join("; ", findings));
+            } else {
+                LOG.info("PlannerHealthGuard: recovered — severity back to OK");
+            }
+            lastLoggedSeverity = sev;
         }
         return report;
     }
