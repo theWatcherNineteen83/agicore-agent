@@ -133,6 +133,8 @@ public class Agent {
         public Builder registerSensorBridge(String url) { executor.register(new de.metis.modules.sensor.SensorBridgeAction(url)); return this; }
         public Builder registerAudioBridge() { executor.register(new de.metis.modules.sensor.AudioBridgeAction()); return this; }
         public Builder registerAudioBridge(int sec) { executor.register(new de.metis.modules.sensor.AudioBridgeAction("ws://localhost:8765/audio", sec, System.getProperty("vosk.model.path", "/data/prometheus/vosk-model-de"))); return this; }
+        public Builder registerQuantumBridge() { executor.register(new de.metis.modules.quantum.QuantumAction()); return this; }
+        public Builder registerQuantumBridge(String url) { executor.register(new de.metis.modules.quantum.QuantumAction(url)); return this; }
         public Builder registerCodeGeneration(String specification, String ollamaUrl, String model, java.nio.file.Path targetDir, Duration timeout) {
             executor.register(new CodeGenerationAction(specification, ollamaUrl, model, targetDir, timeout)); return this;
         }
