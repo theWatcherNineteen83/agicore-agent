@@ -14,12 +14,13 @@ ExecStartPre=/usr/local/bin/metis-version-helper.sh
 Environment=JAVA_HOME=/opt/zing25-jdk
 Environment="HSA_OVERRIDE_GFX_VERSION=11.0.0"
 ExecStart=/opt/zing25-jdk/bin/java \
-    -Xmx24g -Dvosk.model.path=/data/prometheus/vosk-model-de-current -Dmetis.version=${METIS_VERSION} \
+    -Xmx24g -Dmetis.judge.url=http://127.0.0.1:11445/api/generate -Dvosk.model.path=/data/prometheus/vosk-model-de-current -Dmetis.version=${METIS_VERSION} \
             --enable-native-access=ALL-UNNAMED \
     -jar /home/prometheus/metis/metis-agent.jar \
     --api-port 11735 \
-    --planning-model mistral-small3.1:24b \
-    --mutation-model phi4-agent \
+    --planning-model qwen3.8:27b --planning-url http://127.0.0.1:8086/v1/chat/completions \
+    --embedding-url http://127.0.0.1:11445/api/embeddings --embedding-model nomic-embed-text \
+    --mutation-url http://127.0.0.1:11445 --mutation-model granite4.1:30b \
     --telegram-token 8334147633:AAEoXX7LS8pDe_gWXO8mUav8i0SGmEPnVLU \
     --weather-api-key 0352c669d7d0422d92c669d7d0522d9a \
     --ha-url http://192.168.22.200:8123 \
@@ -30,7 +31,7 @@ ExecStart=/opt/zing25-jdk/bin/java \
     \
     --evolution --kanban
 ExecStop=/bin/kill -SIGTERM $MAINPID
-Restart=on-failure
+Restart=always
 RestartSec=10
 StandardOutput=journal
 StandardError=journal
