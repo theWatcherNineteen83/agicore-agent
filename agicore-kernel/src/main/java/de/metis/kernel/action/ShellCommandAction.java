@@ -1,5 +1,7 @@
 package de.metis.kernel.action;
 
+import de.metis.kernel.goal.Goal;
+
 import java.io.IOException;
 import java.time.Instant;
 import java.util.List;
@@ -14,15 +16,23 @@ import java.util.logging.Logger;
  * are merged. If the command exceeds {@code timeoutSeconds} it is
  * forcibly destroyed.
  * <p>
- * <p>
  * Security: Phase 11.5+ — allow-list of permitted commands enforced.
  * Only commands in {@link #ALLOWED_COMMANDS} (or their known safe aliases)
  * can execute. Commands with destructive potential are permanently blocked.
  * <p>
  * Architecture note: unlike EthicsCore (prompt-based), this is a
  * hard-code-level guardrail — it cannot be bypassed via prompt injection.
+ * <p>
+ * <b>uname-Falle Dauer-Fix (01.10.2026):</b> implements
+ * {@link GoalAwareAction}. When a goal is injected, the goal description is
+ * parsed for an explicit command (marker {@code Befehl:} or backticked
+ * {@code `...`}). If found and allow-list-valid, it OVERRIDES the fixed
+ * registration command (historically {@code uname -a}, which made every
+ * shell-routed user task fail LLM acceptance). Parsing never widens the
+ * allow-list: an extracted command still passes {@link #validateCommand}.
+ * If the description has no command, the configured default runs unchanged.
  */
-public class ShellCommandAction implements Action {
+public class ShellCommandAction implements Action, GoalAwareAction {
 
     private static final Logger LOG = Logger.getLogger(ShellCommandAction.class.getName());
 
@@ -73,6 +83,9 @@ public class ShellCommandAction implements Action {
     private final List<String> command;
     private final long timeoutSeconds;
 
+    /** Goal injected right before execute() — may be null (non-goal context). */
+    private volatile Goal currentGoal;
+
     /**
      * @param command        command and arguments (e.g. {@code ["ls", "-la"]})
      * @param timeoutSeconds max runtime before kill; must be &gt; 0
@@ -98,17 +111,65 @@ public class ShellCommandAction implements Action {
     }
 
     @Override
+    public void setCurrentGoal(Goal goal) {
+        this.currentGoal = goal;
+    }
+
+    /**
+     * Extract an explicit command from the goal description.
+     * Recognized forms (first match wins):
+     * <ul>
+     *   <li>{@code Befehl: <cmd> [args...]} — rest of that line</li>
+     *   <li>a backticked span {@code `<cmd> [args...]`}</li>
+     * </ul>
+     * Returns {@code null} if nothing parses or the extracted command
+     * fails the allow-list (then the fixed default runs).
+     */
+    static List<String> parseCommandFromGoal(String description) {
+        if (description == null || description.isBlank()) return null;
+        String payload = null;
+        int marker = description.toLowerCase().indexOf("befehl:");
+        if (marker >= 0) {
+            String rest = description.substring(marker + "befehl:".length());
+            int nl = rest.indexOf('\n');
+            payload = (nl >= 0 ? rest.substring(0, nl) : rest).trim();
+        }
+        if (payload == null || payload.isEmpty()) {
+            int bt = description.indexOf('`');
+            if (bt >= 0) {
+                int end = description.indexOf('`', bt + 1);
+                if (end > bt) payload = description.substring(bt + 1, end).trim();
+            }
+        }
+        if (payload == null || payload.isEmpty()) return null;
+        List<String> parts = List.of(payload.split("\\s+"));
+        if (validateCommand(parts) != null) return null; // never widen the guardrail
+        return parts;
+    }
+
+    private List<String> effectiveCommand() {
+        List<String> fromGoal = parseCommandFromGoal(
+                currentGoal != null ? currentGoal.description() : null);
+        if (fromGoal != null) {
+            LOG.info("shell: using goal-parsed command (uname-Falle fix): " + String.join(" ", fromGoal));
+            return fromGoal;
+        }
+        return command;
+    }
+
+    @Override
     public ActionResult execute() {
+        List<String> cmd = effectiveCommand();
         // ── Security gate: allowlist check ──────────────────
-        String blockReason = validateCommand(command);
+        String blockReason = validateCommand(cmd);
         if (blockReason != null) {
             LOG.warning(() -> "Shell command BLOCKED: " + blockReason
-                    + " — cmd=" + String.join(" ", command));
+                    + " — cmd=" + String.join(" ", cmd));
             return ActionResult.fail(NAME,
                     "BLOCKED by ShellSecurity: " + blockReason, Instant.now());
         }
         Instant start = Instant.now();
-        ProcessBuilder pb = new ProcessBuilder(command);
+        ProcessBuilder pb = new ProcessBuilder(cmd);
         pb.redirectErrorStream(true);
 
         try {
@@ -117,7 +178,7 @@ public class ShellCommandAction implements Action {
             if (!finished) {
                 proc.destroyForcibly();
                 return ActionResult.fail(NAME,
-                        "Command timed out after " + timeoutSeconds + "s: " + String.join(" ", command), start);
+                        "Command timed out after " + timeoutSeconds + "s: " + String.join(" ", cmd), start);
             }
 
             String output;
@@ -125,9 +186,10 @@ public class ShellCommandAction implements Action {
                 output = new String(in.readAllBytes()).strip();
             }
             int exit = proc.exitValue();
+            String evidence = "$ " + String.join(" ", cmd) + "\n" + output;
             if (exit == 0) {
-                LOG.fine(() -> "Shell command OK: " + String.join(" ", command));
-                return ActionResult.ok(NAME, output, start);
+                LOG.fine(() -> "Shell command OK: " + String.join(" ", cmd));
+                return ActionResult.ok(NAME, evidence, start);
             } else {
                 return ActionResult.fail(NAME,
                         "Exit code " + exit + ": " + output, start);
