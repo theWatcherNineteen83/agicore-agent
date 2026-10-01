@@ -479,6 +479,53 @@ public class OllamaPlanner implements Planner {
         totalPlansGenerated++;
         List<String> result = null;
 
+        // ── Tier 0: Hard routing fuer Modul-Bau-Ziele (Fix 30.09.2026) ──
+        // Der LLM-Planer fiel trotz Regel-Bitte systematisch auf shell zurueck.
+        // Modul-Bau-Ziele ("Baue X — ..." / "STRATEGIC: Baue ..." / enthaelt
+        // "package de.metis") werden jetzt deterministisch an feature-gen gegeben.
+        if (availableActions.contains("feature-gen")) {
+            String gd = goal.description() == null ? "" : goal.description().toLowerCase();
+            boolean moduleGoal = gd.startsWith("baue ") || gd.startsWith("strategic: baue ")
+                    || gd.contains("package de.metis");
+            if (moduleGoal) {
+                lastPlanConfidence = 0.95;
+                lastThought = "tier-0 hard routing: module building goal -> feature-gen";
+                validPlanCount++;
+                actionUsageCount.merge("feature-gen", 1, Integer::sum);
+                final String gdt = goal.description();
+                LOG.info(() -> "Tier-0 hard routing: feature-gen fuer Modul-Bau-Goal: "
+                        + (gdt.length() > 80 ? gdt.substring(0, 80) + "..." : gdt));
+                return List.of("feature-gen");
+            }
+        }
+
+        // ── Tier 0b: Hard routing fuer Wissens-Ziele (Fix 01.10.2026) ──
+        // Wissensfragen (category 'wissen-aneignen' oder Frageform) landen
+        // deterministisch bei websearch, weil der lokale Wiki-Dump (29 Dateien)
+        // thematisch fast nie passt und das Universalmuster "KI" zog.
+        if (availableActions.contains("websearch")) {
+            String gcat = goal.category() == null ? "" : goal.category().toLowerCase();
+            String gtxt = goal.description() == null ? "" : goal.description();
+            String gtl = gtxt.toLowerCase();
+            boolean moduleGoal = gtl.startsWith("baue ") || gtl.startsWith("strategic: baue ")
+                    || gtl.contains("package de.metis");
+            boolean knowledgeGoal = gcat.contains("wissen")
+                    || gtl.startsWith("was ") || gtl.startsWith("wie ") || gtl.startsWith("wer ")
+                    || gtl.startsWith("wo ") || gtl.startsWith("warum ") || gtl.startsWith("welche")
+                    || gtl.startsWith("wieso") || gtl.startsWith("erkl") || gtl.contains("?")
+                    || gtl.startsWith("beschreib");
+            if (knowledgeGoal && !moduleGoal) {
+                lastPlanConfidence = 0.90;
+                lastThought = "tier-0 hard routing: knowledge goal -> websearch";
+                validPlanCount++;
+                actionUsageCount.merge("websearch", 1, Integer::sum);
+                final String gdt2 = gtxt;
+                LOG.info(() -> "Tier-0 hard routing: websearch fuer Wissens-Goal: "
+                        + (gdt2.length() > 80 ? gdt2.substring(0, 80) + "..." : gdt2));
+                return List.of("websearch");
+            }
+        }
+
         // ── Tier 1: LLM reasoning with Evaluator-Optimizer loop ──
         EvaluatedPlan bestPlan = planViaOllamaWithOptimizer(goal, recentHistory, broadcast, meta);
 

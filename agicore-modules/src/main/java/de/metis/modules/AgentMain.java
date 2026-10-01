@@ -1970,7 +1970,13 @@ public final class AgentMain {
         LOG.info("Phase 12d: CompileRepairLoop connected to SelfFixAction (gemma4:31b)");
         LOG.info("Phase 12b: RiskGate + FeatureBranchManager connected to SelfFixAction");
         var featureGenAction = new de.metis.modules.action.FeatureGenAction(
-                "http://127.0.0.1:11445/api/generate", "granite-code:3b", ".");
+                // Fix 30.09.2026: Base-URL ohne /api/generate — generateFix() haengt
+                // den Pfad selbst an; sonst POST /api/generate/api/generate (404).
+                "http://127.0.0.1:11445", "granite-code:3b",
+                // Fix 30.09.2026: Compile-Check braucht den echten Maven-Reaktor;
+                // im Runtime-Verzeichnis (/home/prometheus/metis) liegt keine Root-pom.xml,
+                // dort scheiterte jede feature-gen-Ausgabe mit "did not compile".
+                "/home/prometheus/metis-build");
         agent.core().executor().register(featureGenAction);
         LOG.info("Phase 12b: FeatureGenAction registered");
 
@@ -2192,6 +2198,16 @@ public final class AgentMain {
         LOG.info("InitiativePolicy active — " + initiativePolicy.quietHoursDescription());
 
         if (apiPort > 0) {
+            // Fix 30.09.2026: Planner-Actionliste final aktualisieren.
+            // Der Snapshot im Agent-Builder kannte feature-gen/javasandbox & Co. noch
+            // nicht (sie werden erst nach build() registriert) — dadurch fiel JEDE
+            // User-AUFGABE auf den Shell-Fallback (uname) zurueck.
+            if (agent.planner() instanceof OllamaPlanner plannerRefresh) {
+                plannerRefresh.withAvailableActions(agent.core().executor().availableActions());
+                LOG.info("Planner availableActions aktualisiert: "
+                        + agent.core().executor().availableActions().size() + " Aktionen");
+            }
+
             httpServer = new MetisHttpServer(agent, apiPort);
             httpServer.setKnowledgeStore(knowledgeStore);
             httpServer.setModelRegistry(modelRegistry);

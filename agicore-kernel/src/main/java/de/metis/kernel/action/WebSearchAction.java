@@ -23,7 +23,99 @@ import java.util.regex.Pattern;
  * Evolvable: switch to SearchXNG self-hosted, add Ecosia fallback,
  * integrate with Apache Nutch for deep crawl.
  */
-public class WebSearchAction implements Action {
+public class WebSearchAction implements Action, GoalAwareAction {
+
+    private volatile de.metis.kernel.goal.Goal currentGoal = null;
+
+    @Override public void setCurrentGoal(de.metis.kernel.goal.Goal g) { this.currentGoal = g; }
+
+    /** Suchbestr aus dem aktuellen Goal ableiten; sonst Konstruktor-Query. */
+    private String effectiveQuery() {
+        de.metis.kernel.goal.Goal g = currentGoal;
+        if (g == null || g.description() == null || g.description().isBlank()) return query;
+        String d = g.description()
+                .replaceAll("(?i)^(STRATEGIC|TAKTISCH|OPERATIV|EXPEDITE):?\\s*", "").trim();
+        String q = "";
+        for (String part : d.split("[?.!]+")) {
+            String cleaned = part.trim()
+                    .replaceAll("(?i)\\b(was|wie|wer|wo|wieso|warum|welche[rns]?|ist|sind|bist|"
+                            + "hat|haben|kannst|kann|beschreibe|erklaere|erklaerre|bestehen|"
+                            + "aus|der|die|das|ein|eine|einem|einen|du)\\b", " ")
+                    .replaceAll("\\s+", " ").trim();
+            if (cleaned.length() >= 3) { q = cleaned; break; }
+        }
+        if (q.length() > 90) q = q.substring(0, 90).trim();
+        return q.length() >= 3 ? q : query;
+    }
+
+    /** Zusatz-Fragen des Goals als Such-Stems (z.B. "Bestandteilen" -> "bestandte"). */
+    private List<String> extraKeywords() {
+        List<String> kws = new ArrayList<>();
+        de.metis.kernel.goal.Goal g = currentGoal;
+        if (g == null || g.description() == null) return kws;
+        String[] parts = g.description().split("[?.!]+");
+        for (int pi = 1; pi < parts.length && pi <= 3; pi++) {
+            for (String w : parts[pi].toLowerCase().replaceAll("[^a-z\u00e4\u00f6\u00fc\u00df]+", " ").split(" ")) {
+                if (w.length() >= 6 && !STOPWORDS.contains(w)) {
+                    kws.add(w.length() > 9 ? w.substring(0, 9) : w);
+                }
+            }
+        }
+        return kws;
+    }
+
+    private static final List<String> STOPWORDS = List.of(
+            "welche", "welchen", "welcher", "welches", "besteht", "bestehen",
+            "beschreib", "erkläre", "erklaere", "funktion", "kurz");
+
+    /** opensearch: bester Titel für eine Query (ohne Regex, reines Scannen). */
+    private static String wikiSearchTitle(String q) throws Exception {
+        String url = "https://de.wikipedia.org/w/api.php?action=opensearch&search="
+                + URLEncoder.encode(q, StandardCharsets.UTF_8) + "&format=json&limit=1";
+        var req = HttpRequest.newBuilder(URI.create(url)).timeout(Duration.ofSeconds(8)).GET()
+                .header("User-Agent", "Metis AGI/0.11 (Java; websearch-action)").build();
+        String body = HTTP.send(req, HttpResponse.BodyHandlers.ofString()).body();
+        int marker = body.indexOf(",[\"");
+        if (marker < 0) return null;
+        int tStart = marker + 2;
+        int tEnd = body.indexOf('"', tStart + 1);
+        return tEnd > tStart ? body.substring(tStart + 1, tEnd) : null;
+    }
+
+    /** Volltext-Extrakt des Artikels (explaintext), JSON-Manuell unescaped. */
+    private static String wikiFullExtract(String title) throws Exception {
+        String url = "https://de.wikipedia.org/w/api.php?action=query&prop=extracts"
+                + "&explaintext&format=json&redirects=1&titles="
+                + URLEncoder.encode(title, StandardCharsets.UTF_8);
+        var req = HttpRequest.newBuilder(URI.create(url)).timeout(Duration.ofSeconds(10)).GET()
+                .header("User-Agent", "Metis AGI/0.11 (Java; websearch-action)").build();
+        String body = HTTP.send(req, HttpResponse.BodyHandlers.ofString()).body();
+        int eKey = body.indexOf("\"extract\"");
+        if (eKey < 0) return null;
+        int colon = body.indexOf(':', eKey);
+        int q1 = body.indexOf('"', colon + 1);
+        if (q1 < 0) return null;
+        StringBuilder sb = new StringBuilder();
+        int i = q1 + 1;
+        while (i < body.length()) {
+            char c = body.charAt(i);
+            if (c == '\\' && i + 1 < body.length()) {
+                char n = body.charAt(i + 1);
+                if (n == 'n') sb.append('\n');
+                else if (n == 't') sb.append('\t');
+                else if (n == 'u' && i + 5 < body.length()) {
+                    sb.append((char) Integer.parseInt(body.substring(i + 2, i + 6), 16));
+                    i += 4;
+                } else sb.append(n);
+                i += 2;
+                continue;
+            }
+            if (c == '"') break;
+            sb.append(c);
+            i++;
+        }
+        return sb.toString();
+    }
 
     private static final Logger LOG = Logger.getLogger(WebSearchAction.class.getName());
     public static final String NAME = "websearch";
@@ -64,6 +156,7 @@ public class WebSearchAction implements Action {
     @Override
     public ActionResult execute() {
         var now = Instant.now();
+        final String query = effectiveQuery();
         try {
             var results = new ArrayList<SearchResult>();
 
@@ -146,6 +239,53 @@ public class WebSearchAction implements Action {
                     }
                 } catch (Exception e) {
                     LOG.fine("HTML search failed: " + e.getMessage());
+                }
+            }
+
+            // Phase 3: de.wikipedia Volltext (Fix 01.10.2026: das kurze
+            // DDG-Abstract beantwortete Zusatzfragen wie "Bestandteile" nicht;
+            // jetzt ganzer Artikel + passende Absaetze pro Zusatzfrage).
+            List<String> kws = extraKeywords();
+            if (results.isEmpty() || !kws.isEmpty()) {
+                try {
+                    String title = wikiSearchTitle(query);
+                    if (title != null && !title.isBlank()) {
+                        String full = wikiFullExtract(title);
+                        if (full != null && full.length() > 80) {
+                            StringBuilder ans = new StringBuilder();
+                            String lead = full.length() > 900
+                                    ? full.substring(0, 900).trim() : full.trim();
+                            ans.append(lead);
+                            int matched = 0;
+                            for (String kw : kws) {
+                                for (String para : full.split("\\n\\n")) {
+                                    String pl = para.toLowerCase().replace('\u00a0', ' ');
+                                    if (pl.contains(kw) && para.trim().length() > 40) {
+                                        String pp = para.trim().replaceAll("\\\\s+", " ");
+                                        ans.append("\\n\\n").append(pp.length() > 700
+                                                ? pp.substring(0, 700).trim() + "\u2026" : pp);
+                                        matched++;
+                                        break;
+                                    }
+                                }
+                            }
+                            // Kein Absatz traf die Zusatzfrage -> ganzen Artikel
+                            // (gekuerzt) liefern, damit Aufbau/Komponenten sichtbar sind.
+                            if (matched == 0) {
+                                String body = full.length() > 2600
+                                        ? full.substring(0, 2600) + "\u2026" : full;
+                                ans = new StringBuilder(body.replaceAll("\\n{2,}", "\n"));
+                            }
+                            String out = ans.length() > 2800
+                                    ? ans.substring(0, 2800) + "\u2026" : ans.toString();
+                            results.add(0, new SearchResult("Wikipedia (de): " + title,
+                                    "https://de.wikipedia.org/wiki/" + title, out, true));
+                            LOG.info(() -> "Wikipedia-Volltext traf: " + title + " ("
+                                    + out.length() + " chars, " + kws.size() + " Zusatzfragen)");
+                        }
+                    }
+                } catch (Exception e) {
+                    LOG.fine("Wikipedia-Volltext failed: " + e.getMessage());
                 }
             }
 

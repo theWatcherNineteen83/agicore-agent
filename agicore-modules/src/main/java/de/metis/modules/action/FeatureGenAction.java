@@ -55,7 +55,7 @@ public class FeatureGenAction implements Action, GoalAwareAction {
             Path outFile = Path.of(projectDir, targetPath);
             Files.createDirectories(outFile.getParent());
             Files.writeString(outFile, fixCode);
-            boolean compiled = runMvnCompile();
+            boolean compiled = compileCheckIsolated(outFile);
             String status = compiled ? "COMPILE_OK" : "COMPILE_FAILED";
             String summary = String.format("FeatureGen: %s -> %s (target=%s, %d bytes)",
                     desc, status, targetPath, fixCode.length());
@@ -158,16 +158,21 @@ public class FeatureGenAction implements Action, GoalAwareAction {
         return code;
     }
 
-    private boolean runMvnCompile() {
+    private boolean compileCheckIsolated(Path outFile) {
         try {
-            ProcessBuilder pb = new ProcessBuilder("mvn", "compile", "-q", "-pl", "agicore-modules", "-am");
-            pb.directory(Path.of(projectDir).toFile());
+            Path outDir = Files.createTempDirectory("metis-feature-check");
+            String javac = System.getProperty("java.home") + "/bin/javac";
+            ProcessBuilder pb = new ProcessBuilder(javac, "-d", outDir.toString(),
+                    outFile.toString());
             pb.redirectErrorStream(true);
             Process p = pb.start();
-            boolean ok = p.waitFor(180, java.util.concurrent.TimeUnit.SECONDS) && p.exitValue() == 0;
+            String out = new String(p.getInputStream().readAllBytes());
+            boolean ok = p.waitFor(60, java.util.concurrent.TimeUnit.SECONDS) && p.exitValue() == 0;
             if (!ok) {
-                String out = new String(p.getInputStream().readAllBytes());
                 LOG.warning("Compile check failed: " + (out.length() > 500 ? out.substring(0, 500) : out));
+                // Fix 30.09.2026: frisches Generat zuruecknehmen, damit ein kaputtes
+                // File keine anderen Goals beim Compile-Check mitreisst.
+                try { Files.deleteIfExists(outFile); } catch (Exception ignore) {}
             }
             return ok;
         } catch (Exception e) {

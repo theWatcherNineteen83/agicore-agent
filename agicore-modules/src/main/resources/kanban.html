@@ -198,9 +198,14 @@ async function refresh() {
   goals.forEach(g => { (byCol[g.status] = byCol[g.status] || []).push(g); });
   let h = '';
   COLUMNS.forEach(col => {
-    h += '<div class="column"><h3>' + COL_LABEL[col] + ' <span class="count">' + (byCol[col]||[]).length + '</span></h3>';
-    (byCol[col]||[]).forEach(g => h += renderCard(g));
-    if (!(byCol[col]||[]).length) h += '<div style="color:#484f58;font-size:12px">— leer —</div>';
+    let list = byCol[col]||[];
+    const total = list.length;
+    let hidden = 0;
+    if (col === 'FERTIG' && total > 5) { list = list.slice(0,5); hidden = total - 5; }
+    h += '<div class="column"><h3>' + COL_LABEL[col] + ' <span class="count">' + total + '</span></h3>';
+    list.forEach(g => h += renderCard(g));
+    if (hidden) h += '<div style="color:#484f58;font-size:12px">… ' + hidden + ' ältere ausgeblendet</div>';
+    if (!total) h += '<div style="color:#484f58;font-size:12px">— leer —</div>';
     h += '</div>';
   });
   board.innerHTML = h;

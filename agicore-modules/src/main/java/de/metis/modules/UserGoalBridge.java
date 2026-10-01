@@ -271,7 +271,7 @@ public class UserGoalBridge {
                 Reply with JSON only:
                 {"achieved": <true|false>, "reason": "<ein kurzer Satz auf Deutsch>"}
                 """.formatted(truncate(goalDesc, 500), truncate(testProtocol, 600),
-                        truncate(result, 900));
+                        truncate(result, 2500));
 
         String raw = callJudge(prompt);
         if (raw == null) {
@@ -421,7 +421,7 @@ public class UserGoalBridge {
         for (int i = exps.size() - 1; i >= 0; i--) {
             Experience e = exps.get(i);
             if (e.success() && e.body() != null && !e.body().isBlank()) {
-                return truncate(e.body(), 400);
+                return truncate(e.body(), 2500); // Fix 01.10.2026: Judge sah nur die ersten 400 chars = /nur kurze Definition/; Vollartikel braucht mehr Fenster.
             }
         }
         return "Aktionen liefen, aber ohne Ergebnis-Ausgabe.";

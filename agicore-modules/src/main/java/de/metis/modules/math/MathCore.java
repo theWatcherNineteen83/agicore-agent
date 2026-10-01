@@ -3,148 +3,184 @@ package de.metis.modules.math;
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
+import java.util.logging.Logger;
 
 /**
- * Rechenkern ohne Rundungsfehler — beliebige Präzision mit {@link BigDecimal}.
+ * MathCore provides a robust arithmetic core for the Metis AGI system.
+ * It ensures precision and avoids floating-point rounding errors by relying
+ * on immutable types (BigDecimal) and exact rational arithmetic (Fraction).
  *
- * <p>Motivation: double/float verlieren bei wiederholten Operationen Genauigkeit
- * (0.1 + 0.2 != 0.3). MathCore nutzt BigDecimal mit konfigurierbarem MathContext,
- * sodass Rundungsfehler explizit kontrolliert werden.
- *
- * <p>Lernquelle: Java in 21 Tagen, Kapitel 3 (Datentypen) + 19 (Datenstreams).
+ * @author Metis AGI Core
  */
-public final class MathCore {
+public class MathCore {
 
-    private final MathContext mc;
+    private static final Logger LOG = Logger.getLogger(MathCore.class.getName());
 
-    /** Standard: 34 Dezimalstellen (DECIMAL128), HALF_EVEN-Rundung. */
+    // Default precision for BigDecimal operations
+    private static final int DEFAULT_PRECISION = 34;
+    private static final int DEFAULT_FRACTION_DENOMINATOR_LIMIT = 1000000;
+
+    private final MathContext mathContext;
+
     public MathCore() {
-        this(MathContext.DECIMAL128);
+        this(DEFAULT_PRECISION);
     }
 
-    public MathCore(MathContext mc) {
-        this.mc = mc;
-    }
-
-    public MathContext context() { return mc; }
-
-    // ── Grundrechenarten ────────────────────────────────────────
-
-    public BigDecimal add(BigDecimal a, BigDecimal b) {
-        return a.add(b, mc);
-    }
-
-    public BigDecimal subtract(BigDecimal a, BigDecimal b) {
-        return a.subtract(b, mc);
-    }
-
-    public BigDecimal multiply(BigDecimal a, BigDecimal b) {
-        return a.multiply(b, mc);
-    }
-
-    public BigDecimal divide(BigDecimal a, BigDecimal b) {
-        return a.divide(b, mc);
-    }
-
-    // ── Erweiterte Operationen ───────────────────────────────────
-
-    /** Potenz: a^exponent (nur ganzzahlige Exponenten). */
-    public BigDecimal pow(BigDecimal a, int exponent) {
-        return a.pow(exponent, mc);
+    public MathCore(int precision) {
+        this.mathContext = new MathContext(precision, RoundingMode.HALF_EVEN);
+        LOG.fine("MathCore initialized with precision: " + precision);
     }
 
     /**
-     * Quadratwurzel nach Newton-Raphson.
-     * Startwert = a/2, iteriere bis Konvergenz (max 50 Iterationen).
+     * Represents an exact rational number as numerator/denominator.
+     * Used for operations where exactness is required (e.g., ratios).
      */
-    public BigDecimal sqrt(BigDecimal a) {
-        if (a.signum() < 0) {
-            throw new ArithmeticException("sqrt of negative: " + a);
-        }
-        if (a.signum() == 0) return BigDecimal.ZERO;
+    public static class Fraction {
+        private final long numerator;
+        private final long denominator;
 
-        BigDecimal x = a.divide(BigDecimal.valueOf(2), mc);
-        BigDecimal two = BigDecimal.valueOf(2);
-        for (int i = 0; i < 50; i++) {
-            BigDecimal next = x.add(a.divide(x, mc), mc).divide(two, mc);
-            if (next.subtract(x).abs().compareTo(BigDecimal.ONE.scaleByPowerOfTen(-mc.getPrecision() + 2)) < 0) {
-                return next.round(mc);
+        public Fraction(long numerator, long denominator) {
+            if (denominator == 0) {
+                throw new ArithmeticException("Denominator cannot be zero");
             }
-            x = next;
+            if (denominator < 0) {
+                numerator = -numerator;
+                denominator = -denominator;
+            }
+            long gcd = gcd(Math.abs(numerator), Math.abs(denominator));
+            this.numerator = numerator / gcd;
+            this.denominator = denominator / gcd;
         }
-        return x.round(mc);
-    }
 
-    /** Kehrwert: 1/a. */
-    public BigDecimal reciprocal(BigDecimal a) {
-        return BigDecimal.ONE.divide(a, mc);
-    }
+        public long getNumerator() {
+            return numerator;
+        }
 
-    /** Absolutbetrag. */
-    public BigDecimal abs(BigDecimal a) {
-        return a.abs();
-    }
+        public long getDenominator() {
+            return denominator;
+        }
 
-    /** Negation. */
-    public BigDecimal negate(BigDecimal a) {
-        return a.negate();
-    }
+        public BigDecimal toBigDecimal() {
+            return new BigDecimal(numerator).divide(new BigDecimal(denominator), mathContextSafe());
+        }
 
-    // ── Trigonometrie (Taylor-Reihen) ────────────────────────────
+        private MathContext mathContextSafe() {
+            return new MathContext(34, RoundingMode.HALF_EVEN);
+        }
+
+        @Override
+        public String toString() {
+            return denominator == 1 ? String.valueOf(numerator) : numerator + "/" + denominator;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (this == obj) return true;
+            if (obj == null || getClass() != obj.getClass()) return false;
+            Fraction other = (Fraction) obj;
+            return this.numerator == other.numerator && this.denominator == other.denominator;
+        }
+
+        @Override
+        public int hashCode() {
+            return 31 * (int) (numerator ^ (numerator >>> 32)) + (int) (denominator ^ (denominator >>> 32));
+        }
+
+        private static long gcd(long a, long b) {
+            while (b != 0) {
+                long t = b;
+                b = a % b;
+                a = t;
+            }
+            return a;
+        }
+    }
 
     /**
-     * Sinus via Taylor-Reihe: sin(x) = x - x³/3! + x⁵/5! - ...
-     * Eingabe in Radiant.
+     * Performs division with specified precision, returning a BigDecimal.
+     *
+     * @param dividend   The number to divide
+     * @param divisor    The number to divide by
+     * @return The result as a BigDecimal
      */
-    public BigDecimal sin(BigDecimal radians) {
-        BigDecimal result = BigDecimal.ZERO;
-        BigDecimal term = radians;
-        int n = 1;
-        for (int i = 0; i < 15; i++) {
-            result = result.add(term, mc);
-            n += 2;
-            term = term.multiply(radians, mc).multiply(radians, mc)
-                    .negate().divide(BigDecimal.valueOf(n * (n - 1)), mc);
-            if (term.abs().compareTo(BigDecimal.ONE.scaleByPowerOfTen(-mc.getPrecision())) < 0) break;
+    public BigDecimal divide(BigDecimal dividend, BigDecimal divisor) {
+        if (divisor.signum() == 0) {
+            throw new ArithmeticException("Division by zero");
         }
-        return result.round(mc);
+        return dividend.divide(divisor, mathContext);
     }
 
-    /** Cosinus: cos(x) = sin(x + π/2). */
-    public BigDecimal cos(BigDecimal radians) {
-        BigDecimal halfPi = BigDecimal.valueOf(Math.PI / 2);
-        return sin(radians.add(new BigDecimal(halfPi.toString()), mc));
+    /**
+     * Calculates the square root of a BigDecimal using Newton's method.
+     * This avoids the loss of precision inherent in Math.sqrt(double).
+     *
+     * @param value The non-negative value to find the square root of
+     * @return The square root as a BigDecimal
+     */
+    public BigDecimal sqrt(BigDecimal value) {
+        if (value.signum() < 0) {
+            throw new ArithmeticException("Cannot calculate square root of a negative number");
+        }
+        if (value.signum() == 0) {
+            return BigDecimal.ZERO;
+        }
+
+        // Initial guess: value / 2 + 1 (simple heuristic)
+        BigDecimal two = new BigDecimal(2);
+        BigDecimal guess = value.divide(two, mathContext).add(BigDecimal.ONE);
+        BigDecimal newGuess;
+        int maxIterations = 100; // Safety limit
+
+        for (int i = 0; i < maxIterations; i++) {
+            newGuess = value.divide(guess, mathContext).add(guess).divide(two, mathContext);
+            if (newGuess.subtract(guess).abs().compareTo(new BigDecimal("1e-" + mathContext.getPrecision())) <= 0) {
+                break;
+            }
+            guess = newGuess;
+        }
+
+        return guess;
     }
 
-    // ── Vergleiche ───────────────────────────────────────────────
-
-    public boolean isZero(BigDecimal a) {
-        return a.compareTo(BigDecimal.ZERO) == 0;
+    /**
+     * Creates a Fraction from two integers, reducing it to lowest terms.
+     *
+     * @param num Numerator
+     * @param den Denominator
+     * @return A simplified Fraction
+     */
+    public Fraction createFraction(long num, long den) {
+        return new Fraction(num, den);
     }
 
-    public boolean isPositive(BigDecimal a) {
-        return a.signum() > 0;
+    /**
+     * Converts a string representation of a number to a BigDecimal.
+     *
+     * @param value The string value
+     * @return The corresponding BigDecimal
+     */
+    public BigDecimal parse(String value) {
+        return new BigDecimal(value, mathContext);
     }
 
-    public BigDecimal max(BigDecimal a, BigDecimal b) {
-        return a.max(b);
+    /**
+     * Adds two BigDecimal values.
+     */
+    public BigDecimal add(BigDecimal a, BigDecimal b) {
+        return a.add(b, mathContext);
     }
 
-    public BigDecimal min(BigDecimal a, BigDecimal b) {
-        return a.min(b);
+    /**
+     * Multiplies two BigDecimal values.
+     */
+    public BigDecimal multiply(BigDecimal a, BigDecimal b) {
+        return a.multiply(b, mathContext);
     }
 
-    // ── Konvertierung ────────────────────────────────────────────
-
-    public static BigDecimal from(String s) {
-        return new BigDecimal(s);
-    }
-
-    public static BigDecimal from(long n) {
-        return BigDecimal.valueOf(n);
-    }
-
-    public static BigDecimal from(double d) {
-        return BigDecimal.valueOf(d);
+    /**
+     * Subtracts b from a.
+     */
+    public BigDecimal subtract(BigDecimal a, BigDecimal b) {
+        return a.subtract(b, mathContext);
     }
 }
