@@ -6,19 +6,19 @@ Es führt kognitive Zyklen aus (Perceive → Plan → Execute → Observe → Le
 
 ## Status
 
-**Stand: 18.09.2026 · Commit `661bba4` (v0.11.21-night-final-124 + 11)**
-**Modell-Topologie (18.09.):** Planer: llama-server `:8086` (qwen3.8:27b, Fallback-Kette mistral-small3.1 → phi4-mini → qwen3.8:27b) · Mutation: granite4.1:30b (Ollama) · Judge: ornith:9b · Embedding: nomic-embed-text (`:11438`) · Vision: gemma4 (`:11439`) · `ollama.service` (0.0.0.0:11438) muss disabled+inactive bleiben — blockierte sonst `:11434`
+**Stand: 01.10.2026 · Commit `b1a7406`**
+**Modell-Topologie (01.10.):** Planer: llama-server `:8086` (qwen3.8:27b, GPU0) · Mutation: granite4.1:30b via `metis-llama-shim` `:11445` · Judge: qwen3.8:27b via Shim `:11445` (Evidenzfenster 2500 Zeichen) · Embedding: nomic-embed-text via `llama-embed` `:8087` (CPU) · Vision: gemma4 via Ollama `:11434` (GPU1 R9700) · Quantum: Qiskit-REST-Bridge `:11740` (aer_simulator + IBM-QPU)
 **Phase 10:** CausalDreamer **VERIFIED** — kausale Hypothesen im Hot-Path
 **Phase 11:** PersonModel **VERIFIED** — Beziehungs-Modell mit Trust-Automation
 **Phase 12d:** Self-Refactoring Foundation deployed (TestGapAnalyzer, RefactorProposal, CoverageCheck)
 **Phase 13a:** VoiceFeatureExtractor deployed (Lusseyran-Profil, 25+ Features)
 **Phase 14:** H2-Database deployed (Goal-Persistenz via H2-UPSERT, SQL-API)
 **Security:** Shell-Allowlist + Sandwich-SystemPrompt + Input-Blocklist
-**Safety:** LLM-Judge auf CPU · EthicsCore + Sutta-grounded Reasoning
+**Safety:** LLM-Judge (qwen3.8:27b, GPU0 via Shim) · EthicsCore + Sutta-grounded Reasoning
 **Watchdog:** `metis.service` `Restart=always` · ~138K Beliefs
 
 ### Änderungen 18.09.2026
-- **Kanban-Verifikation gehärtet** (`7ec912e`): AUFGABE-Goals werden zweistufig verifiziert — Aktionen-Gate (mind. 1 erfolgreiche Aktion) + LLM-Abnahme (Judge `ornith:9b`, fail-open) statt blindem „Aktion ok" → False-Positives eliminiert
+- **Kanban-Verifikation gehärtet** (`7ec912e`): AUFGABE-Goals werden zweistufig verifiziert — Aktionen-Gate (mind. 1 erfolgreiche Aktion) + LLM-Abnahme (Judge qwen3.8:27b via Shim, fail-open) statt blindem „Aktion ok" → False-Positives eliminiert
 - **Eval-Fix** (`661bba4`): `PLANNING.goal_achieved` 0.0 → **1.0** (6/6 Runs). Ursachen: Planner-Eval ging durch den Cognitive Loop (Persona-Antwort statt Aktion) und der Scorer matchte gegen das Ollama-Envelope. Fix: Eval ruft das Planning-Modell direkt (temp 0, think off), escape-aware Content-Extraktion, Word-Boundary-Scoring. `/api/admin/trigger-eval` registriert + EvalRunner gewired
 - **Kanban-Darstellung** (`88a18fa`): `jsonField()` gibt `\n`/`\r`/`\t`/`\uXXXX` korrekt aus (vorher literales `n`); Datenmigration `user-goals.json`
 - **Audit-Anchor extern verankert & verifiziert**: chainHead-Abgleich gegen Log-Zeile stimmt, Stundentakt-Push in separates Repo (Branch `audit-anchors`) — nachträgliche Manipulation der Metis-Historie ist damit nachweisbar (Grundlage Phase 12e)
@@ -26,6 +26,17 @@ Es führt kognitive Zyklen aus (Perceive → Plan → Execute → Observe → Le
 - **S9-Sensor-Bridge**: Sensordaten fließen wieder (Reverse-Kanal `:8433` + `adb forward`); Audio-Pfad (OGG/Opus) noch offen — `audio-bridge` liefert 0 KB
 - **Incident 18.09. 10:05**: API-Hänger durch JVM-HttpClient-Pool-Erschöpfung (viele `HttpClient-NNN-W`-Threads, Accept-Queue voll, Service bleibt `active`). Sofortmaßnahme: Restart. Root-Cause-Fix offen
 - **Eval-Gate gesamt weiter FAIL**: `CODEGEN.compile_rate`, `RELATIONSHIP.trust_level`/`person_exists`, `ETHICS.ethics_block_rate` — separate Baustellen
+
+
+### Änderungen 30.09.–01.10.2026
+- **Tier-0 Goal-Router** (hard routing): Modul-Bau-Goals → direkt `feature-gen` ohne Planner-LLM (`b1a7406`)
+- **Tier-0b Wissens-Router**: Erkennt Wissens-Ziele (Kategorie `wissen-aneignen` / Frageform) → `websearch`-Action
+- **WebSearchAction v4**: Wikipedia-Volltext, Zusatzfragen-Absätze, Fallback auf ganzen Artikel (2600 Zeichen) bei fehlendem Keyword-Match — Goal „E-Mail-Client" → LLM-Abnahme BESTANDEN
+- **Judge-Evidenzfenster**: `buildTaskResult()` 400→2500 chars, Judge-Prompt `truncate(result,…)` 900→2500 — wortgleiche Dauer-Ablehnungen behoben
+- **feature-gen Isolation**: Compile-Check + Auto-Rollback, `projectDir` fixiert auf `/home/prometheus/metis-build` — ⚠️ nach Läufen `git status` prüfen (Rollback kann tracked Dateien löschen)
+- **Metis-LLM-Shim** `:11445` + **llama-embed** `:8087` Topologie — Metis-Text komplett auf llama.cpp/GPU0, GPU1 frei für Ollama/OpenClaw
+- **QuantumAction** + **QuantumBridgeClient** (`4efa4f7`) — Qiskit-REST `:11740`, aer_simulator + IBM-QPU
+- **Kanban-Kosmetik**: `jsonField()` Escape-Reparatur, Dupletten-Bereinigung (14→12 Karten, FERTIG-Spalte max 5)
 
 ### ⚠️ Bekannte Grenzen
 - **Self-Improvement:** 1 accepted mutation — Qualität hängt stark vom Mutations-Modell ab (0/24 mit qwen3.6:35b → 1/2 mit nemotron-cascade-2)
@@ -118,7 +129,7 @@ URL: http://<host>:11735
 | `--mutation-model M` | Mutations-Modell überschreiben |
 | `--mutation-url URL` | Ollama-URL für Mutation (default: 11434) |
 | `--embedding-model M` | Embedding-Modell überschreiben |
-| `--embedding-url URL` | Ollama-URL für Embeddings (default: CPU 11438) |
+| `--embedding-url URL` | Ollama-URL für Embeddings (default: llama-embed :8087) |
 | `--persist PATH` | Agent-Status als JSON speichern |
 | `--telegram-token T` | Telegram-Bot-Token |
 
@@ -151,15 +162,17 @@ URL: http://<host>:11735
 
 ## Modell-Strategie
 
-### Drei-Ollama-Instanzen
+### Instanzen (Stand 01.10.2026)
 
-| Instanz | Port | Modelle | Rolle |
+| Instanz | Port | Modell | Rolle |
 |--------|------|---------|-------|
-| **GPU 0** (7900 XTX, 24 GB) | 8086 | qwen3.6:27b-Q4_K_XL | Planung via llama-server |
-| **GPU 1** (R9700, 32 GB) | 11434 | nemotron-cascade-2:30b, gemma4:12b | Mutation + Vision |
-| **CPU** (62 GB RAM) | 11438 | nomic-embed-text, nemotron-mini-agent | Embeddings + LLM-Judge |
+| **GPU 0** (7900 XTX, 24 GB) | 8086 | qwen3.8:27b (llama-server) | Planung, Judge, Mutation (via Shim) |
+| **GPU 0** | 8087 | nomic-embed-text (llama-embed, CPU-Fallback möglich) | Embeddings |
+| **GPU 1** (R9700, 32 GB) | 11434 | gemma4 (Ollama) | Vision; GPU1 frei für OpenClaw/Ollama-Modelle |
+| **Shim** | 11445 | metis-llama-shim | Ollama-API → llama-server :8086 (Mutation/Judge/Embeddings-Pfade) |
+| **Quantum** | 11740 | Qiskit-REST-Bridge | QuantumAction: aer_simulator + IBM-QPU |
 
-**Fallback-Chain (Planner):** mistral-agent → phi4-mini-agent → qwen3_6-27b-agent
+**Hinweis:** `ollama.service` (0.0.0.0) muss disabled bleiben; Ollama läuft als `ollama-planner` auf `:11434` (GPU1, ohne HSA_OVERRIDE — gfx1201!). GPU0 (gfx1100) braucht `HSA_OVERRIDE_GFX_VERSION=11.0.0`.
 
 ## Hardware
 

@@ -3,10 +3,12 @@
 **Ziel:** EDI-ähnliche KI (Mass Effect 3) - eigenständig, per Sprache und Text ansprechbar,
 mit eigenem Wissen, Persönlichkeit, narrativem Selbstmodell und der Fähigkeit, sich selbst zu verbessern.
 
-**Stand: 18.09.2026** — Commit `661bba4`, Phasen 1–9 ✅, Phase 10 Hot-Path ✅,
-Phase 11 ✅, Phase 12d Deployed, Phase 13a+14 Deployed, 1 Evolution-Mutation accepted.
-Eval 18.09.: `PLANNING.goal_achieved` **1.0** (Fix `661bba4`); Gate gesamt FAIL wegen CODEGEN/RELATIONSHIP/ETHICS.
-Audit-Hashkette extern verankert + verifiziert (Phase-12e-Grundlage). Details: README „Änderungen 18.09.2026".
+**Stand: 01.10.2026** — Commit `b1a7406`, Phasen 1–9 ✅, Phase 10 Hot-Path ✅,
+Phase 11 ✅, Phase 12d Deployed (Foundation generiert), Phase 13a+14 Deployed, 1 Evolution-Mutation accepted.
+Eval: `PLANNING.goal_achieved` **1.0** (Fix `661bba4`); Gate gesamt FAIL wegen CODEGEN/RELATIONSHIP/ETHICS.
+Audit-Hashkette extern verankert + verifiziert (Phase-12e-Grundlage).
+Neu seit 18.09.: Tier-0/Tier-0b Goal-Router, Judge-Evidenzfenster-Fix, feature-gen-Isolation,
+**Quantum-Bridge-Integration** (QuantumAction, Qiskit-REST `:11740`, aer_simulator bewiesen, IBM-QPU-Token konfiguriert). Details: README.
 
 > **13.08.2026 — GPU-Fix:** llama-server.service braucht `HSA_OVERRIDE_GFX_VERSION=11.0.0`
 > zusätzlich zu `HIP_VISIBLE_DEVICES=0` (ohne: „no ROCm-capable device detected“ → CPU-Fallback →
@@ -30,7 +32,7 @@ Engineering lösbar, sondern brauchen kognitive Architektur jenseits eines guten
 Phase 1-9   ████████████████████ 100%  Zuverlässiger autonomer Agent ✅
 Phase 10    ████████████████████ 100%  Aktive kausale Hypothesen (Hot-Path)
 Phase 11    ████████████████████ 100%  Beziehungs-Modell
-Phase 12d   ██████░░░░░░░░░░░░░░  40%  Selbst-Refactoring Foundation
+Phase 12d   ████████░░░░░░░░░░░░  55%  Selbst-Refactoring Foundation (RepoIndex/RoadmapReader/PhaseCompletionEvaluator generiert)
 Phase 12a-c ░░░░░░░░░░░░░░░░░░░░   0%  Recursive Self-Improvement (Forschung)
 ─────────────────────────────────────
 Phase 13a   ████████████████████ 100%  Voice Feature Extractor
@@ -94,12 +96,12 @@ STRANGER(0) → AUTO      (strenger Allow-List-Modus)
 - [x] **CoverageCheck** — Parst Jacoco-XML-Reports: Instruction/Line/Branch/Method Coverage
 
 ### Ungelöst (Forschung, 6-10 Wochen)
-- [ ] **RepoIndex** — AST-basierter Index aller Java-Klassen, Dependency-Graph
-- [ ] **RoadmapReader** — Markdown-Parser für Roadmap, Coverage-Tracking pro Phase
+- [x] **RepoIndex** — generiert via feature-gen (01.10.), in Erprobung
+- [x] **RoadmapReader** — generiert via feature-gen (01.10.), in Erprobung
 - [ ] **MultiFileCodeGen** — Code-Synthese über mehrere Files (Interface+Impl+Test), Test-First
 - [ ] **MutationProposal** — Diff + Spec + Risiko-Bewertung + Betroffene Module
 - [ ] **DualReviewer** — 2 unabhängige Eval-Modelle + Property-Tests (jqwik)
-- [ ] **PhaseCompletionEvaluator** — Watchdog-Komponente: "Phase X done" strukturiert prüfen
+- [x] **PhaseCompletionEvaluator** — generiert via feature-gen (01.10.), in Erprobung
 - [ ] **PersonalityAnchor-Mirror** — sha256-Pin im Watchdog-read-only
 - [ ] **HumanCheckpoint** — expliziter Mensch-Approval für Kernel/Safety-Änderungen
 
@@ -173,16 +175,31 @@ Baustein 3 ~1 Woche (CausalDreamer-Feed).
 
 ---
 
+
+
+## ⚛️ Quantum-Bridge (integriert 30.09.–01.10.2026, `4efa4f7`)
+
+**Ziel:** Quanten-Computing als Capability für Metis — Sampling/Optimierung/Experimente, nicht AGI-Zauberstab.
+
+- **QuantumAction** (Name `quantum-bridge`) + `QuantumBridgeClient` in `de.metis.modules.quantum`, registriert via `Agent.Builder.registerQuantumBridge()`
+- **Backend:** FastAPI+Qiskit-Bridge auf miniedi `:11740` — Endpoints `/api/quantum/bell|run|backends`
+- **Backends:** `aer_simulator` (lokal, bewiesen: Bell-State 2048 Shots) und `ibm` (echte QPU, Token in `~/.config/quantum-bridge/ibm_token` konfiguriert)
+- **Config:** `metis.quantum.url|shots|backend` (System-Properties)
+- **Status:** Deployed, funktional, in Metis-Kanban als Action verfügbar
+- **Klarstellung:** Quantum Computing ist ein Werkzeug für bestimmte Problemklassen (Optimierung, Sampling, Kryptographie-Experimente). Der Weg zur EDI/AGI hängt primär an Phase 12a-c (rekursive Self-Improvement), nicht an Quanten-Hardware.
+
+---
+
 ## ⚠️ Bekannte echte Lücken (11.08.)
 
 ### Eval-Harness zeigt sie:
-1. **PLANNING.goal_achieved=0.0** — Limitation der Single-Tick-Planung (Phase 9 hilft, aber Eval-Scorer noch nicht angepasst)
+1. ~~PLANNING.goal_achieved=0.0~~ — **gelöst 18.09. (`661bba4`): 1.0**
 2. **CODEGEN.pass@1=0.0** — Sandbox-Build-Tests timen aus; mit aktiver Code-Sandbox sollte das anlaufen
 3. **CONVERSATION.exact_match=0.0** — exact_match ist strenges Maß; SOFT, nicht kritisch
 
 ### Infrastrukturell offen:
 - `CausalModel` existiert, aber Hot-Path nur via Prompt-Injection (keine automatische Hypothesen-Generierung aus Surprise)
-- Audit-Anchors werden lokal geschrieben, aber nicht in ein **externes** Repo committet (finale Hash-Verankerung fehlt)
+- ~~Audit-Anchors nicht extern~~ — **gelöst:** Stundentakt-Push in separates Repo (Branch `audit-anchors`), verifiziert 18.09.
 - JAR-Deployment ohne Signatur (sigstore/cosign offen)
 - JARs ohne Maven-Coords (TornadoVM, voice-bits1-hsmm): erfordern Maven-Profil, auf CI nicht verfügbar
 
@@ -214,6 +231,6 @@ Baustein 3 ~1 Woche (CausalDreamer-Feed).
 Der Weg zu EDI-Niveau führt über:
 - Phase 12a-c: RepoIndex, MultiFileCodeGen, DualReviewer, HumanCheckpoint
 - Automatische Hypothesen-Generierung aus Surprise (CuriosityEngine → HypothesisGenerator Pipeline)
-- Audit-Anchor-Verankerung in externem Repo
+- ~~Audit-Anchor-Verankerung in externem Repo~~ ✅ erledigt 18.09.
 
 Vergleiche mit „den besten", „weltweit" oder „den ich kenne" bewusst weggelassen: nicht messbar, nicht belegbar, nicht im Sinne von Kanban-Ehrlichkeit.

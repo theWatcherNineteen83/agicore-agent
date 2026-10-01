@@ -1,6 +1,6 @@
 # Metis AGI — Feature-Katalog
 
-**Stand: 18.09.2026 (+Phase 10 VERIFIED, 11 VERIFIED, 12d Deployed, 13a Deployed, 14 VERIFIED, 1. Evolution-Mutation · Kanban zweistufig verifiziert · Eval goal_achieved 1.0 · Audit-Anchor extern verankert) · 6/7 Capabilities VERIFIED**
+**Stand: 01.10.2026 (Commit `b1a7406` · +Tier-0/Tier-0b Goal-Router · Judge-Evidenzfenster 2500 · feature-gen Isolation · Quantum-Bridge-Action · Modell-Topologie llama.cpp/Shim)**
 
 ---
 
@@ -532,3 +532,37 @@ STRANGER(0) → AUTO      (strenger Allow-List-Modus)
 | Wiki-Feed | 2450/5163 | `/home/prometheus/metis/wiki-feed-state.json` |
 
 > Diese Werte schwanken über Restarts und Wartungszyklen. Sie sind hier als Snapshot zum genannten Zeitpunkt dokumentiert, nicht als Dauer- oder Best-Case-Werte.
+
+---
+
+## 🧭 Tier-0 / Tier-0b Goal-Router (01.10.2026, `b1a7406`)
+
+- **Tier-0 (hard routing):** Modul-Bau-Goals → direkt `feature-gen` (ohne Planner-LLM). Log: `Tier-0 hard routing: feature-gen fuer Modul-Bau-Goal`.
+- **Tier-0b (Wissens-Router):** Erkennt Wissens-Ziele (Kategorie `wissen-aneignen` oder Frageform) → `websearch`-Action.
+- **WebSearchAction (GoalAware):** Wikipedia-Volltext, Zusatzfragen-Absätze, Fallback auf ganzen Artikel (2600 Zeichen) bei fehlendem Keyword-Match.
+- Bewiesen: Goal „E-Mail-Client" → websearch → LLM-Abnahme BESTANDEN.
+
+## ⚖️ Judge-Evidenzfenster (01.10.2026)
+
+- `buildTaskResult()` 400 → 2500 Zeichen, Judge-Prompt `truncate(result,…)` 900 → 2500.
+- Root Cause wortgleicher Dauer-Ablehnungen: Judge sah nur die Kurzdefinition, nicht die Evidenz.
+- Merksatz: Wortgleiche Judge-Kommentare über mehrere Läufe = Evidenz wird abgeschnitten.
+
+## 🏭 feature-gen Isolation (01.10.2026)
+
+- Compile-Check + Auto-Rollback; `projectDir` auf `/home/prometheus/metis-build`.
+- ⚠️ Rollback kann tracked Dateien löschen → nach Läufen `git status` prüfen.
+- Erfolge: DateConverter, CharCounter, RepoIndex, RoadmapReader, PhaseCompletionEvaluator.
+
+## ⚛️ Quantum-Bridge (30.09.–01.10.2026, `4efa4f7`)
+
+- `QuantumAction` (Name `quantum-bridge`) + `QuantumBridgeClient` in `de.metis.modules.quantum`, registriert via `Agent.Builder.registerQuantumBridge()`.
+- Backend: FastAPI+Qiskit-Bridge auf miniedi `:11740` (`/api/quantum/bell|run|backends`).
+- Backends: `aer_simulator` (lokal, bewiesen: Bell 2048 Shots) und `ibm` (echte QPU, Token konfiguriert).
+- Config: `metis.quantum.url|shots|backend` (System-Properties).
+
+## 🔀 Modell-Topologie-Umbau (30.09.–01.10.2026)
+
+- Metis-Text komplett auf llama.cpp/GPU0 (7900 XTX): `metis-llama-shim` `:11445` leitet Ollama-native API an llama-server `:8086` weiter.
+- GPU1 (R9700) frei für Ollama/OpenClaw; Vision bleibt auf Ollama `:11434`.
+- Embedding: `llama-embed` `:8087` (nomic-embed-text, CPU).

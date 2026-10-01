@@ -1,7 +1,11 @@
 # Metis Runbook — Fehlersuche & Wartung
+> **Hinweis 01.10.2026:** Dies ist eine historische Kopie. Das maßgebliche, aktuelle
+> Betriebs-Runbook (inkl. Zugangsdaten) liegt im Prometheus-Workspace und wird bewusst
+> NICHT in diesem Repo geführt. Repo-Fakten: README.md + RUNBOOK.md (Stand 01.10.2026).
+
 
 > **⚠️ Vor jeder Metis-Arbeit: Diese Datei lesen!**
-> Letztes Update: 17.07.2026 23:00 (Session: GPU-Fix, Evolution-Debugging)
+> Letztes Update: 01.10.2026 23:00 (Session: GPU-Fix, Evolution-Debugging)
 > OpenClaw: Bei `Metis`, `metis`, `miniedi`, `llama-server`, `Evolution` im Prompt → diese Datei vor allen Aktionen laden.
 
 ---

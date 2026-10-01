@@ -1,6 +1,6 @@
 # Metis AGI — Runbook
 
-**Stand: 09.08.2026 | Host: miniedi (192.168.22.204) | User: prometheus**
+**Stand: 01.10.2026 | Host: miniedi (192.168.22.204) | User: prometheus**
 
 ---
 
@@ -21,10 +21,12 @@
 |---|---|---|---|---|
 | `metis.service` | systemd (system) | 11735 | enabled | always, 10s |
 | `metis-watchdog.service` | systemd (user) | 11736 | enabled | always, 10s |
-| `llama-server.service` | systemd (system) | 8086 | enabled | — |
-| `ollama-planner.service` | systemd (system) | 11434 | enabled | — |
-| `ollama-mutation.service` | systemd (system) | 11436 | enabled | — |
-| `ollama-embedding.service` | systemd (system) | 11438 | enabled | — |
+| `llama-server.service` | systemd (system) | 8086 | enabled | — (GPU0, qwen3.8:27b; braucht HIP_VISIBLE_DEVICES=0 + HSA_OVERRIDE_GFX_VERSION=11.0.0) |
+| `llama-embed.service` | systemd (system) | 8087 | enabled | — (nomic-embed-text, CPU) |
+| `metis-llama-shim.service` | systemd (system) | 11445 | enabled | — (Ollama-API → :8086) |
+| `ollama-planner.service` | systemd (system) | 11434 | enabled | — (GPU1 R9700, Vision/OpenClaw; KEIN HSA_OVERRIDE — gfx1201) |
+| `ollama-embedding.service` | systemd (system) | 11438 | enabled | — (nomic-embed-text, CPU, legacy parallel zu llama-embed) |
+| `quantum-bridge.service` | systemd (system) | 11740 | enabled | — (Qiskit-REST, aer_simulator + IBM-QPU) |
 
 ---
 
@@ -151,20 +153,20 @@ pgrep -c -f metis-agent.jar
 ## 🔄 Deployment-Prozess
 
 ```bash
-# 1. Auf Kali bauen
-cd ~/agicore-agent
+# Build direkt auf miniedi (kein Kali-Checkout mehr!)
+cd /home/prometheus/metis-build
 git pull
-mvn clean package -DskipTests
+mvn -B clean package -Dmaven.test.skip=true
 
-# 2. JARs auf miniedi kopieren
-scp agicore-modules/target/metis-agent.jar miniedi:/home/prometheus/metis/
-scp agicore-watchdog/target/agicore-watchdog-0.2.0-evolution.jar miniedi:/home/prometheus/metis/watchdog/agicore-watchdog.jar
+# Deploy mit Backup
+sudo systemctl stop metis
+cp /home/prometheus/metis/metis-agent.jar /home/prometheus/metis/metis-agent.jar.bak-$(date +%Y%m%d-%H%M)
+cp agicore-modules/target/metis-agent.jar /home/prometheus/metis/
+sudo systemctl start metis
 
-# 3. Neustarten
-ssh miniedi "sudo systemctl restart metis.service && systemctl --user restart metis-watchdog"
-
-# 4. Verifizieren (nach ~3 Min Bootstrap)
+# Verifizieren (nach ~3 Min Bootstrap)
 curl -s http://192.168.22.204:11735/api/status | python3 -m json.tool | head -20
+# Nach feature-gen-Läufen: git status prüfen (Rollback kann tracked Dateien löschen)
 ```
 
 ---
