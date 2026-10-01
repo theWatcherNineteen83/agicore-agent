@@ -115,12 +115,19 @@ public class ShellCommandAction implements Action, GoalAwareAction {
         this.currentGoal = goal;
     }
 
+    /** Words that end the machine-command part after "Befehl:" (natural-language tail). */
+    private static final Set<String> PROSE_STOPWORDS = Set.of(
+            "aus", "und", "dann", "bitte", "melde", "fuehre", "den", "die", "das",
+            "als", "evidenz", "auf", "dem", "der", "des", "von", "mit", "ausgabe",
+            "pruefe", "zeige");
+
     /**
      * Extract an explicit command from the goal description.
      * Recognized forms (first match wins):
      * <ul>
-     *   <li>{@code Befehl: <cmd> [args...]} — rest of that line</li>
-     *   <li>a backticked span {@code `<cmd> [args...]`}</li>
+     *   <li>{@code Befehl: <cmd> [args...]} — rest of that line, cut at the first
+     *       prose stop-word (e.g. "uptime aus und melde …" → {@code [uptime]})</li>
+     *   <li>a backticked span {@code `<cmd> [args...]`} — taken literally, no stop-cut</li>
      * </ul>
      * Returns {@code null} if nothing parses or the extracted command
      * fails the allow-list (then the fixed default runs).
@@ -128,11 +135,13 @@ public class ShellCommandAction implements Action, GoalAwareAction {
     static List<String> parseCommandFromGoal(String description) {
         if (description == null || description.isBlank()) return null;
         String payload = null;
+        boolean proseCut = false;
         int marker = description.toLowerCase().indexOf("befehl:");
         if (marker >= 0) {
             String rest = description.substring(marker + "befehl:".length());
             int nl = rest.indexOf('\n');
             payload = (nl >= 0 ? rest.substring(0, nl) : rest).trim();
+            proseCut = true;
         }
         if (payload == null || payload.isEmpty()) {
             int bt = description.indexOf('`');
@@ -142,7 +151,15 @@ public class ShellCommandAction implements Action, GoalAwareAction {
             }
         }
         if (payload == null || payload.isEmpty()) return null;
-        List<String> parts = List.of(payload.split("\\s+"));
+        List<String> raw = List.of(payload.split("\\s+"));
+        List<String> parts = new java.util.ArrayList<>(raw.size());
+        for (String tok : raw) {
+            if (proseCut && PROSE_STOPWORDS.contains(tok.toLowerCase())) break;
+            String clean = tok.replaceAll("[.,;:?]$", "");
+            if (clean.isEmpty()) break;
+            parts.add(clean);
+        }
+        if (parts.isEmpty()) return null;
         if (validateCommand(parts) != null) return null; // never widen the guardrail
         return parts;
     }
