@@ -53,6 +53,19 @@ public class FeatureGenAction implements Action, GoalAwareAction {
                 return ActionResult.fail(name(), "Ollama returned empty code", start);
             }
             Path outFile = Path.of(projectDir, targetPath);
+            // Selfrefactor-Gate (Phase 12b): bestehende Source-Dateien nur mit
+            // .self-refactor-writescope-Eintrag; sonst Staging + menschliche Pruefung.
+            de.metis.modules.selfrefactor.SelfRefactorGate.Decision gate =
+                    de.metis.modules.selfrefactor.SelfRefactorGate.check(
+                            Path.of(projectDir), outFile);
+            if (gate.blocked()) {
+                Path staged = gate.stagedPath();
+                Files.createDirectories(staged.getParent());
+                Files.writeString(staged, fixCode);
+                String gated = "FeatureGen GATED: " + gate.reason();
+                LOG.warning(gated);
+                return ActionResult.fail(name(), gated, start);
+            }
             Files.createDirectories(outFile.getParent());
             Files.writeString(outFile, fixCode);
             boolean compiled = compileCheckIsolated(outFile);

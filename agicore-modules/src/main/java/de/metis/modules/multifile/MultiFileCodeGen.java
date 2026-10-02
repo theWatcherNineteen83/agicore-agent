@@ -144,6 +144,18 @@ public class MultiFileCodeGen {
                 Files.createDirectories(parentDir);
             }
 
+            // Selfrefactor-Gate (Phase 12b)
+            de.metis.modules.selfrefactor.SelfRefactorGate.Decision gate =
+                    de.metis.modules.selfrefactor.SelfRefactorGate.check(targetDir, filePath);
+            if (gate.blocked()) {
+                Path staged = gate.stagedPath();
+                Files.createDirectories(staged.getParent());
+                Files.writeString(staged, fileContent, StandardCharsets.UTF_8);
+                LOG.log(Level.WARNING,
+                        "GATE(12b): existing source not overwritten, staged at {0}", staged);
+                continue; // Original bleibt unveraendert, Datei laeuft nicht in den Compile-Check
+            }
+
             // Write the file
             Files.writeString(filePath, fileContent, StandardCharsets.UTF_8);
             LOG.log(Level.FINE, "Wrote file: {0}", filePath);
