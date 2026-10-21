@@ -1,4 +1,4 @@
-timestamp=2026-10-21T12:00:01Z
+timestamp=2026-10-21T18:00:01Z
 -rw-rw-r-- 1 prometheus prometheus 474955776 Okt 20 19:43 /home/prometheus/metis/metis-knowledge.db
 beliefs_total= 170594
 wikipedia_dump= 55388
