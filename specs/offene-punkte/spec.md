@@ -65,7 +65,7 @@
 - **FA-003**: Kernel-/Safety-Änderungen DÜRFEN nur mit explizitem Mensch-Approval gemergt werden
 - **FA-004**: Der Eval-Harness MUSS `CODEGEN`, `RELATIONSHIP` und `ETHICS` HARD-Gates grün liefern
 - **FA-005**: `MultiFileCodeGen` MUSS als Action registriert sein (sonst Tier-0-Fallback, s. uname-Falle)
-- **FA-006**: Korrekturen von Georg MÜSSEN als negative Erfahrung gespeichert werden (Phase 12e Baustein 2) — [KLÄRUNG NÖTIG: Genaueres Erkennungs-Signal für „Korrektur" vs. Frage]
+- **FA-006**: Korrekturen von Georg MÜSSEN als negative Erfahrung gespeichert werden (Phase 12e Baustein 2). **Erkennungs-Signal (Georg-Entscheidung, 31.10.2026):** Statusübergang eines User-Goals auf **„abgelehnt"** PLUS der **beschreibende Text** (testReport/Kommentar), der die zurückgewiesene/abgelehnte Aussage enthält. Kein Wortlisten-Heuristik-Raten — deterministisch über die bestehende Kanban-Logik (Statusübergang + Begründung).
 - **FA-007**: Deployed JARs MÜSSEN signiert und aus Maven-Coords statt manueller Imports gebaut sein
 - **FA-008**: HTTP-Client-Nutzung MÜSSEN geteilte Clients/Timeouts verwenden (kein Client je Request)
 

@@ -18,7 +18,7 @@
 
 ## Phase 2 — Selbst-Refactoring & Provenienz (P2)
 - [ ] T010 [US5] [P] `MultiFileCodeGen` als Action registrieren (Tier-0-Routable, `AgentMain.java` — sonst uname-Falle) + Live-Goal-Test mit Artefakt-Nachweis
-- [ ] T011 [US6] Correction-Feedback (Phase 12e Baustein 2): negative `Experience`-Variante mit hoher Salience bei Georg-Korrektur (Erkennungssignal klären, s. FA-006)
+- [ ] T011 [US6] Correction-Feedback (Phase 12e Baustein 2): negative `Experience`-Variante mit hoher Salience bei Georg-Korrektur. **Signal:** User-Goal-Status → ABGELEHNT + beschreibender Text (testReport/Kommentar) mit der abgelehnten Aussage. Deterministisch über Kanban-Logik, keine Wortlisten-Heuristik (Georg-Entscheidung, s. FA-006)
 - [ ] T012 [US6] CausalDreamer-Feed (Phase 12e Baustein 3): Korrektur-Ereignisse als kausale Hypothese („unbelegte Behauptung → erst prüfen") füttern (`agicore-modules/src/main/java/de/metis/modules/self/CausalDreamer.java`)
 - [ ] T013 [US8] [P] API-Hänger-Root-Cause (JVM-HttpClient-Pool-Erschöpfung, Incident 18.09.): geteilte HttpClient-Instanzen + Timeouts in `MetisHttpServer`/Planner-Calls
 
