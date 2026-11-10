@@ -8,3 +8,6 @@ dependency-reduced-pom.xml
 *.db
 
 *.bak
+
+*.bak-*
+.self-refactor-staging/

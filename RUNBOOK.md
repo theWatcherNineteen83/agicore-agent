@@ -21,11 +21,7 @@
 |---|---|---|---|---|
 | `metis.service` | systemd (system) | 11735 | enabled | always, 10s |
 | `metis-watchdog.service` | systemd (user) | 11736 | enabled | always, 10s |
-| `llama-server.service` | systemd (system) | 8086 | enabled | — (GPU0, qwen3.8:27b; braucht HIP_VISIBLE_DEVICES=0 + HSA_OVERRIDE_GFX_VERSION=11.0.0) |
-| `llama-embed.service` | systemd (system) | 8087 | enabled | — (nomic-embed-text, CPU) |
-| `metis-llama-shim.service` | systemd (system) | 11445 | enabled | — (Ollama-API → :8086) |
-| `ollama-planner.service` | systemd (system) | 11434 | enabled | — (GPU1 R9700, Vision/OpenClaw; KEIN HSA_OVERRIDE — gfx1201) |
-| `ollama-embedding.service` | systemd (system) | 11438 | enabled | — (nomic-embed-text, CPU, legacy parallel zu llama-embed) |
+| `ollama.service` | systemd (system) | 11434 | enabled | — beide GPUs (gfx1201), HIP_VISIBLE_DEVICES=0,1, OLLAMA_SCHED_SPREAD=1, OLLAMA_CONTEXT_LENGTH=32768, OLLAMA_MAX_LOADED_MODELS=3 |
 | `quantum-bridge.service` | systemd (system) | 11740 | enabled | — (Qiskit-REST, aer_simulator + IBM-QPU) |
 
 ---
@@ -37,7 +33,7 @@
 **Symptome:** `/api/status` timeout, Watchdog meldet Heartbeat-Verlust
 
 **Ursachen (nach Häufigkeit):**
-1. llama-server läuft auf CPU statt GPU (PID nicht in KFD) → Planner 52s Latenz, 6% Success
+1. Ollama hat kein Modell auf der GPU (Journal: keine zwei `inference compute`-Zeilen) → Planner-Latenz hoch, Timeouts
 2. KnowledgeBootstrap blockiert (~2-3 Min beim Start normal)
 3. Prozess gecrasht (systemd restartet in 10s)
 
@@ -49,8 +45,8 @@ ps aux | grep metis-agent
 # GPU-Check (KFD)
 ls /sys/class/kfd/kfd/proc/ | while read p; do echo "PID $p: $(cat /sys/class/kfd/kfd/proc/$p/name 2>/dev/null)"; done
 
-# CPU-Fallback-Fix (häufigster Fehler)
-sudo systemctl restart llama-server.service
+# Ollama-Fix (häufigster Fehler)
+sudo systemctl restart ollama.service
 sleep 5
 sudo systemctl restart metis.service
 

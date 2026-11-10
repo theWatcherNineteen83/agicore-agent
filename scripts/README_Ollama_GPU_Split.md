@@ -1,3 +1,5 @@
+> **HISTORISCH — abgelöst am 10.11.2026.** Dieses Dokument beschreibt die alte GPU-Split-Topologie (7900 XTX, granite-code:3b, Ollama-Instanzen 11436/11438). Aktuell: eine Ollama-Instanz auf beiden GPUs, siehe README.md und RUNBOOK.md.
+
 # Ollama GPU Split - Dedizierte Instanzen für Metis
 
 **Zweck:** GPU-Load-Balancing für Metis durch dedizierte Ollama-Instanzen pro Task

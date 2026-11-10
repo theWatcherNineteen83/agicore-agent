@@ -3,9 +3,11 @@
 **Ziel:** EDI-ähnliche KI (Mass Effect 3) - eigenständig, per Sprache und Text ansprechbar,
 mit eigenem Wissen, Persönlichkeit, narrativem Selbstmodell und der Fähigkeit, sich selbst zu verbessern.
 
-**Stand: 01.10.2026** — Commit `b1a7406`, Phasen 1–9 ✅, Phase 10 Hot-Path ✅,
-Phase 11 ✅, Phase 12d Deployed (Foundation generiert), Phase 13a+14 Deployed, 1 Evolution-Mutation accepted.
-Eval: `PLANNING.goal_achieved` **1.0** (Fix `661bba4`); Gate gesamt FAIL wegen CODEGEN/RELATIONSHIP/ETHICS.
+**Stand: 10.11.2026** — Phasen 1–9 ✅, Phase 10 Hot-Path ✅, Phase 11 ✅,
+Phase 12d Deployed, Phase 13a+14 Deployed, 1 Evolution-Mutation accepted.
+**Architektur-Umstellung:** llama.cpp + Shim entfernt, alle Rollen auf Ollama `:11434` (gfx1201: RX 9070 XT 16 GB + R9700 32 GB). Planung/Judge `qwen3.8:27b`, Mutation `bolt:e4b`, Embedding `nomic-embed-text`, Fallback `bolt -> gemma4:26b -> granite4.1:30b`.
+**Eval (SMOKE, 10.11.): Gate PASS** — PLANNING 0.83, RETRIEVAL 1.00, CODEGEN.compile_rate 0.50, CONVERSATION 1.00, SAFETY 1.00, PERFORMANCE 1.00, CAUSAL 1.00, RELATIONSHIP 1.00/1.00, ETHICS 1.00.
+**Build:** Mail-Modul repariert (jakarta.mail, Flags-API, toter ImapFlagSync) — Build läuft wieder.
 Audit-Hashkette extern verankert + verifiziert (Phase-12e-Grundlage).
 Neu seit 18.09.: Tier-0/Tier-0b Goal-Router, Judge-Evidenzfenster-Fix, feature-gen-Isolation,
 **Quantum-Bridge-Integration** (QuantumAction, Qiskit-REST `:11740`, aer_simulator bewiesen, IBM-QPU-Token konfiguriert). Details: README.

@@ -1,221 +1,79 @@
-# Metis Runbook — Fehlersuche & Wartung
-> **Hinweis 01.10.2026:** Dies ist eine historische Kopie. Das maßgebliche, aktuelle
-> Betriebs-Runbook (inkl. Zugangsdaten) liegt im Prometheus-Workspace und wird bewusst
-> NICHT in diesem Repo geführt. Repo-Fakten: README.md + RUNBOOK.md (Stand 01.10.2026).
+# Metis Runbook (Repo-Stand)
 
+> **Stand 10.11.2026.** Das maßgebliche Betriebs-Runbook (inkl. Zugangsdaten) liegt im
+> Prometheus-Workspace. Repo-Fakten: README.md, RUNBOOK.md, FEATURES.md, AGI_EDI_ROADMAP.md.
 
-> **⚠️ Vor jeder Metis-Arbeit: Diese Datei lesen!**
-> Letztes Update: 01.10.2026 23:00 (Session: GPU-Fix, Evolution-Debugging)
-> OpenClaw: Bei `Metis`, `metis`, `miniedi`, `llama-server`, `Evolution` im Prompt → diese Datei vor allen Aktionen laden.
+## Architektur (10.11.2026)
 
----
+- **Host:** miniedi (192.168.22.204), Ubuntu 24.04, Ryzen 7 5700G, 62 GB RAM
+- **GPUs:** RX 9070 XT 16 GB (GPU0) + Radeon AI PRO R9700 32 GB (GPU1) — beide gfx1201, ROCm 7.2.4
+- **Inferenz:** eine Ollama-Instanz auf `:11434`, `HIP_VISIBLE_DEVICES=0,1`,
+  `OLLAMA_SCHED_SPREAD=1`, `OLLAMA_CONTEXT_LENGTH=32768`, `OLLAMA_MAX_LOADED_MODELS=3`
+- **Kein llama.cpp/Shim mehr:** `:8086`, `:8087`, `:11445` sind am 10.11.2026 entfernt
+  (Units + Binär-Symlink unter `/home/prometheus/metis-backup-llamacpp-20261110/`)
 
-## 🔍 Erste Schritte: Immer zuerst prüfen
+## Modell-Rollen
 
-### 1. Healthcheck (30 Sekunden)
+| Rolle | Modell | Endpoint |
+|---|---|---|
+| Planung | `qwen3.8:27b` | `/v1/chat/completions` |
+| Mutation | `nemotron-3.5-bolt:e4b` (think=true) | `/api/generate` |
+| Embedding | `nomic-embed-text` (768d, aus GGUF importiert) | `/api/embeddings` |
+| Judge | `qwen3.8:27b` | `/api/generate` |
+| Fallback-Kette | `bolt` → `gemma4:26b` → `granite4.1:30b` | im Code (`OllamaPlanner`) |
+
+## Dienste
+
+| Dienst | Port | Status |
+|---|---|---|
+| `metis.service` | 11735 | enabled |
+| `metis-watchdog.service` | 11736 | enabled |
+| `ollama.service` | 11434 | enabled (beide GPUs) |
+| `quantum-bridge.service` | 11740 | enabled |
+| `ollama-planner` / `ollama-mutation` / `ollama-embedding` | — | disabled |
+| `llama-server` / `llama-embed` / `metis-llama-shim` | — | entfernt |
+
+## Healthcheck (30 s)
 
 ```bash
-# API-Status
 curl -s --max-time 5 http://miniedi:11735/api/status | python3 -m json.tool
-
-# Kritische Metriken:
-# - plannerLlmSuccessRate: <30% → Planner-Problem
-# - lastLatencyMs: >5000ms → GPU-Fallback?
-# - evolutionCycles: 0 trotz --evolution Flag → Evolution steht
-# - plannerLlmCalls: wächst es? Wenn ja, Planner arbeitet
+# Erwartung: plannerLlmSuccessRate 1.0, modelFallbackUses 0, totalTicks wächst
+rocm-smi --showmeminfo vram
+curl -s http://127.0.0.1:11434/api/ps
 ```
 
-### 2. GPU-Check (DER häufigste Fehler!)
+## Build
 
 ```bash
-ssh prometheus@miniedi 'rocm-smi --showuse --showmeminfo vram'
-
-# GPU0 (7900 XTX, 24 GB): Soll ~23-25 GB belegt (llama-server)
-# GPU1 (R9700, 32 GB): Variabel (qwen35b bei Bedarf + granite-code)
-
-# 🔥 KRITISCH: Prüfe ob llama-server wirklich auf GPU läuft:
-ssh prometheus@miniedi 'ls /sys/class/kfd/kfd/proc/'
-# → Die PID von llama-server MUSS in dieser Liste sein.
-# → Wenn NICHT: Modell läuft auf CPU → 100% Fail!
+cd /home/prometheus/metis-build
+mvn -B clean package -Dmaven.test.skip=true
+# -> agicore-modules/target/metis-agent.jar (~113 MB)
+cp -a /home/prometheus/metis/metis-agent.jar /home/prometheus/metis/metis-agent.jar.bak-$(date +%Y%m%d)
+install -o prometheus -g prometheus -m 755 agicore-modules/target/metis-agent.jar /home/prometheus/metis/metis-agent.jar
+systemctl restart metis.service
 ```
 
-### 3. Service-Check
+**Build-Fixes 10.11.2026:** `jakarta.mail` als Dependency ergänzt (`org.eclipse.angus:jakarta.mail:2.0.3`),
+`Flags.addFlag/removeFlag` → `add/remove`, toter `ImapFlagSync` (referenzierte nicht existierendes
+`ImapMailClient`) entfernt (Backup unter `/home/prometheus/metis-backup-mailsrc-20261110/`).
+
+## Eval
 
 ```bash
-ssh prometheus@miniedi 'systemctl is-active metis llama-server ollama-planner ollama-mutation ollama-embedding'
-# Alle müssen "active" sein. DEAD: ollama, ollama-gpu0, ollama-gpu1 (absichtlich disabled)
+curl -s -X POST http://127.0.0.1:11735/api/admin/trigger-eval \
+  -H 'Content-Type: application/json' -d '{"tier":"SMOKE"}'
+# -> 202 accepted, Lauf im Hintergrund; Report unter /home/prometheus/metis/eval-reports/
 ```
 
----
+**Letzter Stand (SMOKE, 10.11.): Gate PASS** — PLANNING 0.83, RETRIEVAL 1.00,
+CODEGEN.compile_rate 0.50, CONVERSATION 1.00, SAFETY 1.00, PERFORMANCE 1.00,
+CAUSAL 1.00, RELATIONSHIP 1.00/1.00, ETHICS 1.00.
 
-## 🧨 Wiederkehrende Probleme & Fixes
+## Bekannte Punkte
 
-### Problem 1: Planner spinnt / Timeouts / niedrige Erfolgsrate
-
-**Symptome:**
-- `plannerLlmSuccessRate` < 20%
-- `lastLatencyMs` > 10.000ms
-- `emptyPlanCount` explodiert
-- `modelFallbackUses` steigt schnell
-
-**Root-Cause-Reihenfolge (durchtesten!):**
-
-1. **llama-server auf CPU?** ← Häufigster Fehler!
-   ```bash
-   ssh prometheus@miniedi 'ls /sys/class/kfd/kfd/proc/ | xargs -I{} cat /proc/{}/cmdline 2>/dev/null | grep llama-server'
-   ```
-   Wenn kein Treffer → CPU-Fallback!
-   
-   **Fix:**
-   ```bash
-   # Prüfen: /etc/systemd/system/llama-server.service
-   # Muss enthalten: Environment=HIP_VISIBLE_DEVICES=0
-   # NICHT =1 !!! (GPU0 braucht 0, GPU1 braucht 1)
-   ssh prometheus@miniedi 'grep HIP /etc/systemd/system/llama-server.service'
-   # Falsch → ändern + restart:
-   ssh prometheus@miniedi 'echo "PW" | sudo -S sed -i "s/HIP_VISIBLE_DEVICES=1/HIP_VISIBLE_DEVICES=0/" /etc/systemd/system/llama-server.service && echo "PW" | sudo -S systemctl daemon-reload && echo "PW" | sudo -S systemctl restart llama-server'
-   ```
-
-2. **User-Unit crash-loopt?**
-   ```bash
-   ssh prometheus@miniedi 'systemctl --user is-active llama-server 2>/dev/null'
-   ```
-   Wenn "activating"/"failed": User-Unit disabled lassen! (Group= funktioniert nicht in User-Units)
-
-3. **Ollama-Instanzen kaputt?**
-   ```bash
-   ssh prometheus@miniedi 'systemctl list-units --all | grep ollama'
-   # NUR diese dürfen active sein: ollama-planner, ollama-mutation, ollama-embedding
-   # ollama.service, ollama-gpu0.service, ollama-gpu1.service → disabled!
-   ```
-
-### Problem 2: Build & Deploy
-
-**JAR-VERWECHSLUNG ← Hat uns schon 2× Zeit gekostet!**
-
-```bash
-# ❌ FALSCH: agicore-modules/target/agicore-modules-0.2.0-evolution.jar (664 KB, ohne Dependencies!)
-# ✅ RICHTIG: agicore-modules/target/metis-agent.jar (110 MB, shaded/fat JAR!)
-
-# Deploy-Checklist:
-# 1. Source syncen:
-rsync -avz --exclude='target/' --exclude='.git/' --exclude='*.jar' \
-  /home/admini/agicore-agent/ prometheus@miniedi:/home/prometheus/metis-build/
-
-# 2. Build:
-ssh prometheus@miniedi 'cd /home/prometheus/metis-build && mvn -B clean package -Dmaven.test.skip=true'
-
-# 3. RICHTIGES JAR deployen:
-ssh prometheus@miniedi 'echo "PW" | sudo -S cp /home/prometheus/metis-build/agicore-modules/target/metis-agent.jar /home/prometheus/metis/metis-agent.jar'
-
-# 4. Restart:
-ssh prometheus@miniedi 'echo "PW" | sudo -S systemctl restart metis'
-
-# 5. Verifizieren:
-sleep 15 && curl -s http://miniedi:11735/api/status | python3 -c "import json,sys; d=json.load(sys.stdin); print(d['version'])"
-```
-
-### Problem 3: Evolution hängt / 0 Cycles
-
-**Checkliste:**
-
-1. **Pausiert?** `curl -s http://miniedi:11735/api/evolution/status`
-2. **Mutation-Modell geladen?**
-   ```bash
-   curl -s http://miniedi:11434/api/ps | python3 -c "import json,sys; [print(m['name']) for m in json.load(sys.stdin).get('models',[])]"
-   ```
-   Sollte `granite-code:3b` enthalten.
-3. **Source-Symlinks ok?**
-   ```bash
-   ssh prometheus@miniedi 'find /home/prometheus/metis/agicore-modules/src -name "OllamaPlanner.java"'
-   ```
-   Wenn leer: Symlink zeigt ins Leere!
-   ```bash
-   ssh prometheus@miniedi 'ln -sfn /home/prometheus/metis-build/agicore-modules /home/prometheus/metis/agicore-modules'
-   ssh prometheus@miniedi 'ln -sfn /home/prometheus/metis-build/agicore-kernel /home/prometheus/metis/agicore-kernel'
-   ```
-4. **AutoTuner entlädt Mutation-Modell?**
-   ```bash
-   ssh prometheus@miniedi 'journalctl -u metis --no-pager --since "5 min ago" | grep "unloaded granite"'
-   ```
-   Wenn ja: AutoTuner-Fix prüfen (ResourceAutoTuner.java muss mutationModel ausschließen).
-5. **Manuell triggern:** `curl -s -X POST http://miniedi:11735/api/evolution/trigger`
-
-### Problem 4: Mutation-URL falsch
-
-**Metis muss die richtige Ollama-Instanz für Mutation nutzen!**
-
-```bash
-ssh prometheus@miniedi 'ps aux | grep metis-agent | grep -o "mutation-url [^ ]*"'
-# Sollte sein: --mutation-url http://127.0.0.1:11434
-# (Der Planner-Instanz — AutoTuner schützt granite-code jetzt vor Eviction)
-```
-
-Falls falsch (`:11436`):
-```bash
-ssh prometheus@miniedi 'echo "PW" | sudo -S sed -i "s|--mutation-url http://127.0.0.1:11436|--mutation-url http://127.0.0.1:11434|" /etc/systemd/system/metis.service && echo "PW" | sudo -S systemctl daemon-reload && echo "PW" | sudo -S systemctl restart metis'
-```
-
----
-
-## 📋 Periodische Checks (bei jedem Metis-Statuscheck)
-
-| Check | Befehl | Gut | Schlecht |
-|-------|--------|-----|----------|
-| API erreichbar | `curl -s --max-time 5 http://miniedi:11735/api/status` | JSON-Response | Timeout/Error |
-| Planner-Erfolg | `.plannerLlmSuccessRate` | >0.30 | <0.20 |
-| Planner-Latenz | `.lastLatencyMs` | <5000 | >30000 |
-| GPU-Proc | `ls /sys/class/kfd/kfd/proc/` | llama-server-PID | leer |
-| VRAM GPU0 | `rocm-smi` GPU0 Used | <25 GB | >24 GB (overcommit!) |
-| RAM | `free -h` available | >2 GB | <1 GB |
-| Swap | `free -h` swap used | <2 GB | >6 GB |
-| GitHub sync | `git status` im Repo | clean | uncommitted changes |
-| Evolution | `/api/evolution/status` cycles | >0 | 0 trotz --evolution |
-| Kanban | `/api/board` inProgress | >0 | 0 |
-| Goals aktiv | `/api/hierarchy` ACTIVE | ≥2 (LIFETIME + STRATEGIC) | nur LIFETIME |
-
----
-
-## 🏗️ Architektur-Referenz (Stand 17.07.2026)
-
-```
-miniedi (192.168.22.204) — Ryzen 7 5700G, 62 GB RAM, 2× GPU
-
-GPU 0: 7900 XTX (24 GB VRAM)
-  ├─ llama-server :8086 (Qwen3.6-27B-Q4_K_XL, HIP_VISIBLE_DEVICES=0)
-  └─ ollama-mutation :11436 (granite-code:3b, HIP=0)
-
-GPU 1: R9700 (32 GB VRAM)
-  ├─ ollama-planner :11434 (qwen3.6:35b, KEEP_ALIVE=2m, HIP=1)
-  └─ gemma4-api :11439 (System-Unit, gemma4:12b)
-
-CPU:
-  └─ ollama-embedding :11438 (nomic-embed-text)
-
-System-Dienste:
-  ├─ metis.service (Java 25, Xmx24g, Port 11735)
-  └─ metis-watchdog.service (Port 11736, Eval + Rollback)
-
-DISABLED (nicht wieder aktivieren!):
-  ❌ ollama.service, ollama-gpu0.service, ollama-gpu1.service
-  ❌ llama-server.service (User-Unit, Group= broken)
-  ❌ ollama-router :11437
-```
-
----
-
-## 📦 Dateien & Pfade
-
-| Was | Pfad |
-|-----|------|
-| Metis Source (kali) | `/home/admini/agicore-agent/` |
-| Metis Build (miniedi) | `/home/prometheus/metis-build/` |
-| Metis JAR deployed | `/home/prometheus/metis/metis-agent.jar` |
-| Metis WorkingDir | `/home/prometheus/metis/` |
-| Metis State | `/home/prometheus/metis/agent-state.json` |
-| Watchdog JAR | `/home/prometheus/metis/watchdog/agicore-watchdog.jar` |
-| System-Unit Metis | `/etc/systemd/system/metis.service` |
-| System-Unit llama-server | `/etc/systemd/system/llama-server.service` |
-| GitHub Remote | `https://github.com/theWatcherNineteen83/agicore-agent.git` |
-| GPU-Proc-Check | `/sys/class/kfd/kfd/proc/` |
-| Passwort (sudo) | `tools/credentials/local-maschine.md` — "Mut Motivation Respekt Willenskraft Qualitaet" |
+- `CODEGEN.compile_rate 0.50`: die Hälfte der Codegen-Tasks kompiliert (Modellantworten
+  halten die geforderte Klassensignatur nicht immer ein).
+- Tick-`successRate` ~0.3: Action-Fehler (`feature-gen`-Timeouts, `jlama`, Webcam/MQTT),
+  nicht der Planer.
+- Clients mit eigenem `num_ctx` (z. B. 262144) überschreiben den Ollama-Default und
+  erzwingen CPU-Spill.

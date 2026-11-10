@@ -1,6 +1,6 @@
 # Metis AGI — Feature-Katalog
 
-**Stand: 01.10.2026 (Commit `b1a7406` · +Tier-0/Tier-0b Goal-Router · Judge-Evidenzfenster 2500 · feature-gen Isolation · Quantum-Bridge-Action · Modell-Topologie llama.cpp/Shim)**
+**Stand: 10.11.2026 (Ollama-only, gfx1201-Doppel-GPU, Eval-Gate PASS · +Tier-0/Tier-0b Goal-Router · Judge-Evidenzfenster 2500 · feature-gen Isolation · Quantum-Bridge-Action · Modell-Topologie llama.cpp/Shim)**
 
 ---
 
@@ -158,7 +158,7 @@ STRANGER(0) → AUTO      (strenger Allow-List-Modus)
 | **OpenClaw** | Beantwortet Telegram-Chats direkt (deepseek Cloud), kein GPU-Konflikt |
 | **Metis TelegramBot** | Empfängt Nachrichten → Kanban-Goal + Immediate-ACK, keine LLM-Antwort |
 | **Kanban-Integration** | Eingehende Nachrichten als `Goal.ResourceType.INFERENCE` im Backlog |
-| **GPU-Strategie: RX 7900 XTX (24 GB, GPU 0) + Radeon AI PRO R9700 (32 GB, GPU 1). Planner auf GPU 0, Mutation auf GPU 1. 56 GB VRAM gesamt.
+| **GPU-Strategie (10.11.2026): RX 9070 XT (16 GB, GPU 0) + Radeon AI PRO R9700 (32 GB, GPU 1), beide gfx1201 → eine Ollama-Instanz auf beiden Karten (48 GB Pool). Planner/Mutation/Embedding teilen sich den Pool.
 
 ## 🔬 Ollama-Modell-Analyse (v0.8.0)
 
@@ -170,7 +170,7 @@ STRANGER(0) → AUTO      (strenger Allow-List-Modus)
 | granite4.1:3b-q2_K | 1.4 GB | CPU | Notiz: >60s Latenz, ungeeignet für Chat |
 | gemma4:e4b | 9.6 GB | GPU | Würde lfm2 verdrängen → nicht parallel nutzbar |
 
-**GPU:** RX 7900 XTX (24 GB), nur 1 Modell gleichzeitig in VRAM. Freier VRAM: ~9.6 GB, aber Ollama entlädt Modell 1 beim Laden von Modell 2.
+**GPU:** RX 9070 XT (16 GB) + R9700 (32 GB) = 48 GB. Ollama hält bis zu 3 Modelle resident; Split erfolgt nach freiem VRAM.
 - `/api/hierarchy` → 1 goal (LIFETIME, ACTIVE, prio 100, owner=metis)
 - GoalRevision-Scheduler aktiv, alle 30 Min
 
@@ -478,14 +478,12 @@ STRANGER(0) → AUTO      (strenger Allow-List-Modus)
 
 | Rolle | Modell | Größe | Status |
 |---|---|---|---|
-| Planning | `mistral-small3.1:24b` | 15 GB | 100% Erfolg, 0 Fallbacks (07.06.) |
-| Mutation | `phi4-agent` | ~8 GB | aktiv, compiler-feedback-loop |
-| Embedding | `nomic-embed-text` | 0.3 GB | keep_alive=-1 |
-| LLM-Judge | `phi4-mini:latest` | 2.5 GB | Score 0.92 (fixed: war nemotron-mini) |
-| Vision | `minicpm-v:latest` | 5.5 GB | keep_alive=0 |
-| SelfReflector | `phi4-mini:latest` | 2.5 GB | CPU only |
-| Bootstrap | `granite4.1:3b` | 2.1 GB | — |
-| Fallback-Chain | mistral-small3.1 → phi4-mini → granite4.1:3b | — | 0 Fallbacks im Betrieb |
+| Planning | `qwen3.8:27b` | 16.5 GB | plannerLlmSuccessRate 1.00 (10.11.) |
+| Mutation | `nemotron-3.5-bolt:e4b` | 7.4 GB | think=true |
+| Embedding | `nomic-embed-text` (768d) | 0.6 GB | aus GGUF importiert, keep_alive 24h |
+| LLM-Judge | `qwen3.8:27b` | 16.5 GB | über /api/generate |
+| Vision | `gemma4:26b` | 17.4 GB | multimodal |
+| Fallback-Chain | bolt → gemma4:26b → granite4.1:30b | — | im Code (OllamaPlanner) |
 
 **Gepruned:** qwen3.6:latest, deepseek-r1:32b, nemotron:latest, nemotron-cascade-2:30b
 
@@ -563,6 +561,6 @@ STRANGER(0) → AUTO      (strenger Allow-List-Modus)
 
 ## 🔀 Modell-Topologie-Umbau (30.09.–01.10.2026)
 
-- Metis-Text komplett auf llama.cpp/GPU0 (7900 XTX): `metis-llama-shim` `:11445` leitet Ollama-native API an llama-server `:8086` weiter.
+- **Abgelöst am 10.11.2026:** llama.cpp, `metis-llama-shim` (`:11445`), `llama-server` (`:8086`) und `llama-embed` (`:8087`) sind entfernt. Alle Rollen laufen über Ollama `:11434` (beide GPUs).
 - GPU1 (R9700) frei für Ollama/OpenClaw; Vision bleibt auf Ollama `:11434`.
-- Embedding: `llama-embed` `:8087` (nomic-embed-text, CPU).
+- Embedding: `nomic-embed-text` über Ollama `:11434` (768d, aus GGUF importiert).

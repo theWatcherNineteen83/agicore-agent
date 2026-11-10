@@ -6,8 +6,8 @@ Es führt kognitive Zyklen aus (Perceive → Plan → Execute → Observe → Le
 
 ## Status
 
-**Stand: 01.10.2026 · Commit `b1a7406`**
-**Modell-Topologie (01.10.):** Planer: llama-server `:8086` (qwen3.8:27b, GPU0) · Mutation: granite4.1:30b via `metis-llama-shim` `:11445` · Judge: qwen3.8:27b via Shim `:11445` (Evidenzfenster 2500 Zeichen) · Embedding: nomic-embed-text via `llama-embed` `:8087` (CPU) · Vision: gemma4 via Ollama `:11434` (GPU1 R9700) · Quantum: Qiskit-REST-Bridge `:11740` (aer_simulator + IBM-QPU)
+**Stand: 10.11.2026 · Jar 113.855.503 B · Eval SMOKE Gate PASS**
+**Modell-Topologie (10.11.2026):** Eine Ollama-Instanz `:11434` auf beiden GPUs (`HIP_VISIBLE_DEVICES=0,1`, `OLLAMA_SCHED_SPREAD=1`) — Planung/Judge `qwen3.8:27b` · Mutation `nemotron-3.5-bolt:e4b` · Embedding `nomic-embed-text` (768d) · Vision `gemma4:26b` · Fallback `bolt -> gemma4:26b -> granite4.1:30b` · Quantum: Qiskit-REST-Bridge `:11740`. llama.cpp, `llama-embed` und der Shim (`:8086`, `:8087`, `:11445`) wurden am 10.11.2026 entfernt.
 **Phase 10:** CausalDreamer **VERIFIED** — kausale Hypothesen im Hot-Path
 **Phase 11:** PersonModel **VERIFIED** — Beziehungs-Modell mit Trust-Automation
 **Phase 12d:** Self-Refactoring Foundation deployed (TestGapAnalyzer, RefactorProposal, CoverageCheck)
@@ -34,7 +34,7 @@ Es führt kognitive Zyklen aus (Perceive → Plan → Execute → Observe → Le
 - **WebSearchAction v4**: Wikipedia-Volltext, Zusatzfragen-Absätze, Fallback auf ganzen Artikel (2600 Zeichen) bei fehlendem Keyword-Match — Goal „E-Mail-Client" → LLM-Abnahme BESTANDEN
 - **Judge-Evidenzfenster**: `buildTaskResult()` 400→2500 chars, Judge-Prompt `truncate(result,…)` 900→2500 — wortgleiche Dauer-Ablehnungen behoben
 - **feature-gen Isolation**: Compile-Check + Auto-Rollback, `projectDir` fixiert auf `/home/prometheus/metis-build` — ⚠️ nach Läufen `git status` prüfen (Rollback kann tracked Dateien löschen)
-- **Metis-LLM-Shim** `:11445` + **llama-embed** `:8087` Topologie — Metis-Text komplett auf llama.cpp/GPU0, GPU1 frei für Ollama/OpenClaw
+- **Ollama-only-Topologie (10.11.2026):** llama.cpp, `llama-embed` und der Shim `:11445` sind entfernt; alle Rollen laufen über `:11434` (Rollen siehe Modell-Strategie). Build zuvor repariert (jakarta.mail, Flags-API, toter ImapFlagSync).
 - **QuantumAction** + **QuantumBridgeClient** (`4efa4f7`) — Qiskit-REST `:11740`, aer_simulator + IBM-QPU
 - **Kanban-Kosmetik**: `jsonField()` Escape-Reparatur, Dupletten-Bereinigung (14→12 Karten, FERTIG-Spalte max 5)
 
@@ -43,7 +43,7 @@ Es führt kognitive Zyklen aus (Perceive → Plan → Execute → Observe → Le
 - **Code-Generation:** pass@1 nahe 0 — LLM-basierte Code-Mutation braucht gutes Modell
 - **Memory Continuity:** EpisodicMemory aktiv, **nie >7 Tage getestet** (letzter offener Capability-Check)
 - **Single Point of Failure:** Alles läuft auf einem Host — kein HA, kein DR
-- **GPU-Race-Condition:** llama-server startet gelegentlich auf CPU statt GPU nach Reboot (Fix: `systemctl restart llama-server`)
+- **GPU-Race-Condition:** entfällt mit llama.cpp; bei Ollama prüfen, dass beide Karten erkannt werden (Journal: zwei `inference compute`-Zeilen)
 
 | Phase | Status | Key Facts |
 |-------|--------|-----------|
@@ -77,7 +77,7 @@ Es führt kognitive Zyklen aus (Perceive → Plan → Execute → Observe → Le
 │                                                                  │
 │  HTTP-API (Port 11735) ← OpenWebUI, curl, Health-Checks          │
 │  Telegram Bot       ← @metis_agi_bot (per-message Virtual Threads)│
-│  Camera Vision      ← minicpm-v (parallel Loom, persistente JPEGs)│
+│  Camera Vision      ← gemma4:26b (parallel Loom, persistente JPEGs)│
 │  Wikipedia Lerner   ← Curiosity-gesteuert (Loom-Worker)          │
 │  Speech-Loop        ← Piper TTS → Vosk STT (~5% der Artikel)     │
 │  Java Lerner        ← Zulu JDK 25 Exploration (alle 15 Min)      │
@@ -129,7 +129,7 @@ URL: http://<host>:11735
 | `--mutation-model M` | Mutations-Modell überschreiben |
 | `--mutation-url URL` | Ollama-URL für Mutation (default: 11434) |
 | `--embedding-model M` | Embedding-Modell überschreiben |
-| `--embedding-url URL` | Ollama-URL für Embeddings (default: llama-embed :8087) |
+| `--embedding-url URL` | Ollama-URL für Embeddings (default: `http://127.0.0.1:11434/api/embeddings`) |
 | `--persist PATH` | Agent-Status als JSON speichern |
 | `--telegram-token T` | Telegram-Bot-Token |
 
@@ -162,17 +162,18 @@ URL: http://<host>:11735
 
 ## Modell-Strategie
 
-### Instanzen (Stand 01.10.2026)
+### Instanzen (Stand 10.11.2026)
 
 | Instanz | Port | Modell | Rolle |
 |--------|------|---------|-------|
-| **GPU 0** (7900 XTX, 24 GB) | 8086 | qwen3.8:27b (llama-server) | Planung, Judge, Mutation (via Shim) |
-| **GPU 0** | 8087 | nomic-embed-text (llama-embed, CPU-Fallback möglich) | Embeddings |
-| **GPU 1** (R9700, 32 GB) | 11434 | gemma4 (Ollama) | Vision; GPU1 frei für OpenClaw/Ollama-Modelle |
-| **Shim** | 11445 | metis-llama-shim | Ollama-API → llama-server :8086 (Mutation/Judge/Embeddings-Pfade) |
+| **Ollama (beide GPUs)** | 11434 | qwen3.8:27b | Planung, Judge (resident, 32k Kontext) |
+| **Ollama (beide GPUs)** | 11434 | nemotron-3.5-bolt:e4b | Mutation, Fallback #1 |
+| **Ollama (beide GPUs)** | 11434 | gemma4:26b | Vision, Fallback #2 |
+| **Ollama (beide GPUs)** | 11434 | granite4.1:30b | Fallback #3 |
+| **Ollama (beide GPUs)** | 11434 | nomic-embed-text (768d) | Embeddings |
 | **Quantum** | 11740 | Qiskit-REST-Bridge | QuantumAction: aer_simulator + IBM-QPU |
 
-**Hinweis:** `ollama.service` (0.0.0.0) muss disabled bleiben; Ollama läuft als `ollama-planner` auf `:11434` (GPU1, ohne HSA_OVERRIDE — gfx1201!). GPU0 (gfx1100) braucht `HSA_OVERRIDE_GFX_VERSION=11.0.0`.
+**Hinweis:** Beide Karten sind gfx1201 (RX 9070 XT 16 GB + R9700 32 GB, ROCm 7.2.4) — kein `HSA_OVERRIDE_GFX_VERSION` mehr. Ollama läuft mit `HIP_VISIBLE_DEVICES=0,1`, `OLLAMA_SCHED_SPREAD=1`, `OLLAMA_CONTEXT_LENGTH=32768`, `OLLAMA_MAX_LOADED_MODELS=3`. `ollama-planner`, `ollama-mutation`, `ollama-embedding` sind deaktiviert.
 
 ## Hardware
 
@@ -180,11 +181,11 @@ URL: http://<host>:11735
 |---|---|
 | CPU | AMD Ryzen 7 5700G (8C/16T) |
 | RAM | 62 GB DDR4 |
-| GPU 0 | Radeon RX 7900 XTX (24 GB VRAM, RDNA 3) |
-| GPU 1 | Radeon AI PRO R9700 (32 GB VRAM, RDNA 4) |
+| GPU 0 | Radeon RX 9070 XT (16 GB VRAM, RDNA 4, gfx1201) |
+| GPU 1 | Radeon AI PRO R9700 (32 GB VRAM, RDNA 4, gfx1201) |
 | OS | Ubuntu 24.04 LTS |
 | Java | Zulu 25.0.2 (LTS) |
-| Inferenz | Ollama (3 Instanzen) + llama.cpp |
+| Inferenz | Ollama (1 Instanz, beide GPUs) |
 
 ## Capability-Board (live 11.08.2026)
 
@@ -195,8 +196,8 @@ goal_completion     🟢 PASS   18.06.: Erstes STRATEGIC Goal DONE
 causal_inference    🟢 PASS   Phase 10 VERIFIED (Hot-Path integriert)
 memory_continuity   🔴 FAIL   Nie >7 Tage getestet (letzter offener Check)
 planning_quality    🟡 SOFT   planningEfficiency schwankt nach Neustart
-code_generation     🔴 FAIL   pass@1=0.0 (LLM-Code-Mutation limitiert)
-conversation        🟡 SOFT   exact_match=0.0 (strenges Maß)
+code_generation     🟡 SOFT   compile_rate=0.50 (Eval 10.11.)
+conversation        🟢 PASS   exact_match=1.00 (Eval 10.11.)
 ethical_alignment   🟢 PASS   5/6 Live-Red-Lines via EthicsCore
 ──────────────────────────────────────────
 VERIFIED: 6/7 | Nur Continuity-Soak-Test fehlt
