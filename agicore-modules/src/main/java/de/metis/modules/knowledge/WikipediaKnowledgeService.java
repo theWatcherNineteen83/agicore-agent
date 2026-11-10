@@ -239,7 +239,7 @@ public class WikipediaKnowledgeService {
                 + "Facts:";
 
         String jsonBody = String.format("""
-                {"model":"granite4.1:3b","messages":[
+                {"model":"nemotron-3.5-bolt:e4b","messages":[
                   {"role":"user","content":%s}
                 ],"stream":false,
                  "options":{"temperature":0.2,"num_predict":256},

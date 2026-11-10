@@ -84,14 +84,14 @@ public class ModelRegistry {
 
     // ── Defaults (used when discovery fails) ─────────────────────────────
 
-    private static final String DEFAULT_PLANNING = "lfm2:24b";
+    private static final String DEFAULT_PLANNING = "qwen3.8:27b";
     private static final String DEFAULT_MUTATION = "deepseek-r1:32b";
     private static final String DEFAULT_EMBEDDING = "nomic-embed-text";
 
     /**
      * Create registry connected to an Ollama instance.
      *
-     * @param ollamaBaseUrl e.g. "http://127.0.0.1:11445"
+     * @param ollamaBaseUrl e.g. "http://127.0.0.1:11434"
      */
     public ModelRegistry(String ollamaBaseUrl) {
         this.ollamaUrl = ollamaBaseUrl.endsWith("/") 

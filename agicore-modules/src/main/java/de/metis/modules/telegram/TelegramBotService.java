@@ -460,7 +460,7 @@ public class TelegramBotService {
         String userMsg = prompt.replace("\"", "\\\"").replace("\n", "\\n");
         
         String jsonBody = String.format("""
-                {"model":"lfm2:24b","messages":[
+                {"model":"qwen3.8:27b","messages":[
                   {"role":"system","content":"%s"},
                   {"role":"user","content":"%s"}
                 ],"stream":false,
@@ -469,7 +469,7 @@ public class TelegramBotService {
                 """, systemMsg, userMsg);
 
         HttpRequest req = HttpRequest.newBuilder()
-                .uri(URI.create("http://127.0.0.1:11445/api/chat"))
+                .uri(URI.create("http://127.0.0.1:11434/api/chat"))
                 .timeout(Duration.ofSeconds(180))
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(jsonBody))

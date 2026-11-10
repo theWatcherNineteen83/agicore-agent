@@ -30,8 +30,8 @@ public class CameraVisionAction {
     public static final String NAME = "camera-vision";
     private static final Logger LOG = Logger.getLogger(CameraVisionAction.class.getName());
 
-    private static final String OLLAMA_URL = "http://127.0.0.1:11445";
-    private static final String MODEL = "minicpm-v:latest";
+    private static final String OLLAMA_URL = "http://127.0.0.1:11434";
+    private static final String MODEL = "gemma4:26b";
     private static final String PROMPT = """
             Describe this image in German. One short, factual sentence.
             Mention what you see: objects, people, animals, vehicles, weather conditions.

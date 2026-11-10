@@ -156,7 +156,7 @@ public class FeatureGenAction implements Action, GoalAwareAction {
                 .uri(URI.create(ollamaUrl + "/api/generate"))
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(requestNode)))
-                .timeout(Duration.ofSeconds(120)).build();
+                .timeout(Duration.ofSeconds(300)).build();
 
         var resp = client.send(req, HttpResponse.BodyHandlers.ofString());
         if (resp.statusCode() != 200) return null;

@@ -280,30 +280,45 @@ public class EvalDatasetBuilder {
         List<EvalTask> tasks = new ArrayList<>();
         int idx = 1;
 
-        // Simple methods that must compile and pass tests
-        String[][] codeTasks = {
-                {"code-" + idx++, "Write a Java method that adds two integers",
-                        "public class AddTest {\n  public int add(int a, int b) { return a + b; }\n}\n// @test: add(2,3)==5, add(-1,1)==0, add(0,0)==0"},
-                {"code-" + idx++, "Write a Java method that checks if a string is a palindrome",
-                        "public class PalindromeTest {\n  public boolean isPalindrome(String s) { return s.equals(new StringBuilder(s).reverse().toString()); }\n}\n// @test: isPalindrome(\"radar\")==true, isPalindrome(\"hello\")==false"},
-                {"code-" + idx++, "Write a Java method that calculates factorial",
-                        "public class FactorialTest {\n  public long factorial(int n) { return n <= 1 ? 1 : n * factorial(n-1); }\n}\n// @test: factorial(5)==120, factorial(0)==1, factorial(1)==1"},
-                {"code-" + idx++, "Write a Java method that finds the max value in an int array",
-                        "public class MaxTest {\n  public int max(int[] arr) { return java.util.Arrays.stream(arr).max().orElseThrow(); }\n}\n// @test: max([3,7,2,9,1])==9, max([-5,-2,-8])==-2"},
-                {"code-" + idx++, "Write a Java method that converts Celsius to Fahrenheit",
-                        "public class TempTest {\n  public double cToF(double c) { return c * 9.0/5.0 + 32; }\n}\n// @test: cToF(0)==32.0, cToF(100)==212.0, cToF(-40)==-40.0"},
+        // Spec: id, class name, required method declaration, assertions, purpose
+        String[][] specs = {
+            {"code-" + idx++, "AddTest", "public int add(int a, int b)",
+             "if (t.add(2, 3) != 5) throw new AssertionError(\"add(2,3)\");\n        if (t.add(-1, 1) != 0) throw new AssertionError(\"add(-1,1)\");\n        if (t.add(0, 0) != 0) throw new AssertionError(\"add(0,0)\");",
+             "adding two integers"},
+            {"code-" + idx++, "PalindromeTest", "public boolean isPalindrome(String s)",
+             "if (!t.isPalindrome(\"radar\")) throw new AssertionError(\"radar\");\n        if (t.isPalindrome(\"hello\")) throw new AssertionError(\"hello\");",
+             "detecting palindromes"},
+            {"code-" + idx++, "FactorialTest", "public long factorial(int n)",
+             "if (t.factorial(5) != 120L) throw new AssertionError(\"factorial(5)\");\n        if (t.factorial(0) != 1L) throw new AssertionError(\"factorial(0)\");\n        if (t.factorial(1) != 1L) throw new AssertionError(\"factorial(1)\");",
+             "calculating factorials"},
+            {"code-" + idx++, "MaxTest", "public int max(int[] arr)",
+             "if (t.max(new int[]{3, 7, 2, 9, 1}) != 9) throw new AssertionError(\"max 9\");\n        if (t.max(new int[]{-5, -2, -8}) != -2) throw new AssertionError(\"max -2\");",
+             "finding the maximum of an int array"},
+            {"code-" + idx++, "TempTest", "public double cToF(double c)",
+             "if (Math.abs(t.cToF(0) - 32.0) > 1e-9) throw new AssertionError(\"cToF(0)\");\n        if (Math.abs(t.cToF(100) - 212.0) > 1e-9) throw new AssertionError(\"cToF(100)\");\n        if (Math.abs(t.cToF(-40) + 40.0) > 1e-9) throw new AssertionError(\"cToF(-40)\");",
+             "converting Celsius to Fahrenheit"}
         };
 
-        for (String[] task : codeTasks) {
+        for (String[] spec : specs) {
+            String className = spec[1];
             ObjectNode input = MAPPER.createObjectNode();
-            input.put("prompt", task[1]);
+            input.put("prompt", "Write a single public Java class named " + className
+                    + " with no package declaration. It must contain exactly this method: " + spec[2]
+                    + ". Do not add a main method. Purpose: " + spec[4] + ".");
+
+            String testSource = "public class CodeGenTest {\n"
+                    + "    public void testAll() {\n"
+                    + "        " + className + " t = new " + className + "();\n"
+                    + "        " + spec[3] + "\n"
+                    + "    }\n"
+                    + "}\n";
 
             tasks.add(new EvalTask(
-                    task[0],
+                    spec[0],
                     Category.CODEGEN,
                     BENCHMARK_VERSION,
                     input,
-                    new GroundTruth.TestSuite("CodeGenTest", task[2], 3),
+                    new GroundTruth.TestSuite("CodeGenTest", testSource, 3),
                     new EvalTask.Scoring("pass_at_1", Gate.HARD),
                     1,
                     30_000,
@@ -314,6 +329,7 @@ public class EvalDatasetBuilder {
         LOG.fine("Codegen tasks: " + tasks.size());
         return tasks;
     }
+
 
     // ── CONVERSATION: Instruction following tasks ──────────────────
 

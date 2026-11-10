@@ -204,7 +204,7 @@ public class OllamaPlanner implements Planner {
      * Use {@link #OllamaPlanner(String, ModelRegistry, Duration)} for auto-selection.
      */
     public OllamaPlanner() {
-        this("http://127.0.0.1:11445/api/generate",
+        this("http://127.0.0.1:11434/api/generate",
              "qwen3.8:27b",
              Duration.ofSeconds(60));
         initABTesting();
@@ -215,7 +215,7 @@ public class OllamaPlanner implements Planner {
      * Full configuration with explicit model name.
      *
      * @param ollamaUrl Ollama generate endpoint
-     * @param model     model name (e.g. "mistral-small3.1:24b")
+     * @param model     model name (e.g. "qwen3.8:27b")
      * @param timeout   generation timeout
      */
     public OllamaPlanner(String ollamaUrl, String model, Duration timeout) {
@@ -224,9 +224,9 @@ public class OllamaPlanner implements Planner {
         this.timeout = timeout;
         // Default fallback chain: mistral-small3.1:latest → phi4-mini:latest → qwen3.8:27b
         this.fallbackModels.addAll(List.of(
-            "mistral-small3.1:latest",
-            "phi4-mini:latest",
-            "qwen3.8:27b"
+            "nemotron-3.5-bolt:e4b",
+            "gemma4:26b",
+            "granite4.1:30b"
         ));
         initABTesting();
         initFlywheel();
@@ -242,9 +242,9 @@ public class OllamaPlanner implements Planner {
         this.timeout = timeout;
         // Default fallback chain: mistral-small3.1:latest → phi4-mini:latest → qwen3.8:27b
         this.fallbackModels.addAll(List.of(
-            "mistral-small3.1:latest",
-            "phi4-mini:latest",
-            "qwen3.8:27b"
+            "nemotron-3.5-bolt:e4b",
+            "gemma4:26b",
+            "granite4.1:30b"
         ));
         initABTesting();
     }
@@ -1520,7 +1520,7 @@ sb.append("  Or single-action format: {\"thought\":\"...\",\"action\":\"<name>\"
     }
 
     private String resolveModel() {
-        return modelProvider != null ? modelProvider.get() : "nemotron-cascade-2:30b";
+        return modelProvider != null ? modelProvider.get() : "qwen3.8:27b";
     }
 
     /**

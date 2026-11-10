@@ -34,8 +34,8 @@ public class VideoAnalysisAction implements Action {
     private static final Logger LOG = Logger.getLogger(VideoAnalysisAction.class.getName());
     public static final String NAME = "video-analyze";
 
-    private static final String OLLAMA_URL = "http://127.0.0.1:11445/api/chat";
-    private static final String VISION_MODEL = "minicpm-v:latest";
+    private static final String OLLAMA_URL = "http://127.0.0.1:11434/api/chat";
+    private static final String VISION_MODEL = "gemma4:26b";
     private static final String FFPROBE_BIN = "ffprobe";
     private static final String FFMPEG_BIN = "ffmpeg";
     private static final Duration HTTP_TIMEOUT = Duration.ofSeconds(60);

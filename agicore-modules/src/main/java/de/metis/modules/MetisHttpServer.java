@@ -1374,22 +1374,23 @@ public class MetisHttpServer {
                 return;
             }
             String body = new String(exchange.getRequestBody().readAllBytes());
-            String tier = extractJsonString(body, "tier");
-            if (tier == null || tier.isBlank()) tier = "SMOKE";
-            LOG.info("Triggering " + tier + " eval...");
-            var report = evalRunner.run(tier);
-            if (report != null) {
-                String gate = report.gate().ok() ? "PASS" : "FAIL";
-                int taskCount = report.results().values().stream()
-                    .mapToInt(r -> r.metrics().size()).sum();
-                String json = "{\"ok\":true,\"tier\":\"" + tier + "\",\"gate\":\"" + gate
-                    + "\",\"tasks\":" + taskCount
-                    + ",\"regressions\":" + report.regressions().size() + "}";
-                sendJson(exchange, 200, json);
-                LOG.info("Eval " + tier + " complete: gate=" + gate);
-            } else {
-                sendJson(exchange, 500, "{\"ok\":false,\"error\":\"EvalRunner returned null\"}");
-            }
+            String tier0 = extractJsonString(body, "tier");
+            final String tier = (tier0 == null || tier0.isBlank()) ? "SMOKE" : tier0;
+            LOG.info("Triggering " + tier + " eval (async)...");
+            Thread.ofPlatform().daemon().name("eval-trigger-" + tier).start(() -> {
+                try {
+                    var report = evalRunner.run(tier);
+                    if (report != null) {
+                        String gate = report.gate().ok() ? "PASS" : "FAIL";
+                        LOG.info("Eval " + tier + " complete: gate=" + gate);
+                    } else {
+                        LOG.warning("Eval " + tier + " returned null");
+                    }
+                } catch (Exception ex) {
+                    LOG.warning("Eval " + tier + " failed: " + ex.getMessage());
+                }
+            });
+            sendJson(exchange, 202, "{\"ok\":true,\"accepted\":true,\"tier\":\"" + tier + "\"}");
         } catch (Exception e) {
             sendJson(exchange, 500, "{\"ok\":false,\"error\":\"" + e.getMessage() + "\"}");
         }

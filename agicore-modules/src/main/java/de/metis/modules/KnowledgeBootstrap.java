@@ -17,7 +17,7 @@ import java.util.stream.Collectors;
  * Contradictory or unique answers get lower confidence (single-source).
  * <p>
  * Single model: {@code new KnowledgeBootstrap(url, List.of("phi4:latest"))}
- * Multi-model:  {@code new KnowledgeBootstrap(url, List.of("phi4:latest", "llama3.2:3b", "mistral-small3.1:24b"))}
+ * Multi-model:  {@code new KnowledgeBootstrap(url, List.of("phi4:latest", "llama3.2:3b", "qwen3.8:27b"))}
  */
 public class KnowledgeBootstrap {
 

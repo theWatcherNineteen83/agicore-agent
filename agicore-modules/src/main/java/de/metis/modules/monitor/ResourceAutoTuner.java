@@ -226,7 +226,7 @@ public class ResourceAutoTuner {
         try {
             // Find a useful small model that isn't loaded
             String planningModel = modelRegistry.planningModel();
-            String[] idleCandidates = {"granite4.1:3b", "phi4-mini:latest", "nomic-embed-text"};
+            String[] idleCandidates = {"nemotron-3.5-bolt:e4b", "nemotron-3.5-bolt:e4b", "nomic-embed-text"};
             String loaded = queryLoadedModels();
 
             for (String candidate : idleCandidates) {
