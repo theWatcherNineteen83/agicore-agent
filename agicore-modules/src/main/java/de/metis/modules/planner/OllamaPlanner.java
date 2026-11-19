@@ -514,7 +514,10 @@ public class OllamaPlanner implements Planner {
                     || gtl.startsWith("wo ") || gtl.startsWith("warum ") || gtl.startsWith("welche")
                     || gtl.startsWith("wieso") || gtl.startsWith("erkl") || gtl.contains("?")
                     || gtl.startsWith("beschreib");
-            if (knowledgeGoal && !moduleGoal) {
+            // Fix 19.11.2026: Chat-Antwort-Goals (Kategorie "chat") NICHT an websearch
+            // zwingen — sie sollen aus Beliefs/Wissen beantwortet werden (Tier-1-Planer).
+            boolean chatGoal = gcat.equals("chat") || gtl.startsWith("respond to chat");
+            if (knowledgeGoal && !moduleGoal && !chatGoal) {
                 lastPlanConfidence = 0.90;
                 lastThought = "tier-0 hard routing: knowledge goal -> websearch";
                 validPlanCount++;

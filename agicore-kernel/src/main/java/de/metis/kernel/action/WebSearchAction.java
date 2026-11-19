@@ -34,7 +34,9 @@ public class WebSearchAction implements Action, GoalAwareAction {
         de.metis.kernel.goal.Goal g = currentGoal;
         if (g == null || g.description() == null || g.description().isBlank()) return query;
         String d = g.description()
-                .replaceAll("(?i)^(STRATEGIC|TAKTISCH|OPERATIV|EXPEDITE):?\\s*", "").trim();
+                .replaceAll("(?i)^(STRATEGIC|TAKTISCH|OPERATIV|EXPEDITE):?\\s*", "")
+                .replaceAll("(?i)^respond to chat:\\s*", "")
+                .replaceAll("(?i)^answer based on your stored beliefs and knowledge:\\s*", "").trim();
         String q = "";
         for (String part : d.split("[?.!]+")) {
             String cleaned = part.trim()
