@@ -6,7 +6,7 @@ Es führt kognitive Zyklen aus (Perceive → Plan → Execute → Observe → Le
 
 ## Status
 
-**Stand: 10.11.2026 · Jar 113.855.503 B · Eval SMOKE Gate PASS**
+**Stand: 19.11.2026 · Jar 113.860.729 B · Eval SMOKE Gate PASS (10.11.)**
 **Modell-Topologie (10.11.2026):** Eine Ollama-Instanz `:11434` auf beiden GPUs (`HIP_VISIBLE_DEVICES=0,1`, `OLLAMA_SCHED_SPREAD=1`) — Planung/Judge `qwen3.8:27b` · Mutation `nemotron-3.5-bolt:e4b` · Embedding `nomic-embed-text` (768d) · Vision `gemma4:26b` · Fallback `bolt -> gemma4:26b -> granite4.1:30b` · Quantum: Qiskit-REST-Bridge `:11740`. llama.cpp, `llama-embed` und der Shim (`:8086`, `:8087`, `:11445`) wurden am 10.11.2026 entfernt.
 **Phase 10:** CausalDreamer **VERIFIED** — kausale Hypothesen im Hot-Path
 **Phase 11:** PersonModel **VERIFIED** — Beziehungs-Modell mit Trust-Automation
@@ -14,8 +14,14 @@ Es führt kognitive Zyklen aus (Perceive → Plan → Execute → Observe → Le
 **Phase 13a:** VoiceFeatureExtractor deployed (Lusseyran-Profil, 25+ Features)
 **Phase 14:** H2-Database deployed (Goal-Persistenz via H2-UPSERT, SQL-API)
 **Security:** Shell-Allowlist + Sandwich-SystemPrompt + Input-Blocklist
-**Safety:** LLM-Judge (qwen3.8:27b, GPU0 via Shim) · EthicsCore + Sutta-grounded Reasoning
-**Watchdog:** `metis.service` `Restart=always` · ~138K Beliefs
+**Safety:** LLM-Judge (qwen3.8:27b via Ollama `:11434`) · EthicsCore + Sutta-grounded Reasoning
+**Watchdog:** `metis.service` `Restart=always` · ~174K Beliefs (H2-Recovery 19.11.)
+
+### Änderungen 16.–19.11.2026
+- **16.11. (`f52e95a`):** Judge auf Ollama `:11434`/`qwen3.8:27b` (Shim-Restreferenz entfernt), FeatureGen-Compile mit Classpath, Watchdog-Heartbeat 90 s (Fehlalarm-Fix), verifizierte Webcam-URLs
+- **19.11. (`63a4117`):** GATE-12b-Seeding-Loop gestoppt — Modul-Goals (MathCore/CharCounter/selfrefactor) werden nur gesät, wenn die Zielklasse fehlt; Vision `keep_alive` 10 m + 180 s Timeout (Cold-Load-Timeouts alle 5 min behoben)
+- **19.11. (`fdf8d9f`):** Chat-Goals („Respond to chat: …") nicht mehr hart auf `websearch` geroutet (Tier-0b-Ausnahme) — die Frageform-Heuristik hatte eine 31/31-FAIL-Schleife erzeugt; `effectiveQuery()` strippt zusätzlich das Chat-Template-Präfix
+- **19.11. H2-Recovery abgeschlossen:** die beim Freeze 18.11. korrupte `/data/metis-db/metis.mv.db` wurde per Recover-Dump + Full-Row-Dedupe (DISTINCT/ROW_NUMBER) rebuilt: **110.618 einzigartige Beliefs, 2.893 Goals, 0 Duplikate**; beim Boot zusätzlich 63.746 Beliefs aus dem SQLite-KnowledgeStore importiert → **~174K Beliefs, H2 wieder aktiv**. Backup: `metis.mv.db.bak-corrupt-20261119`
 
 ### Änderungen 18.09.2026
 - **Kanban-Verifikation gehärtet** (`7ec912e`): AUFGABE-Goals werden zweistufig verifiziert — Aktionen-Gate (mind. 1 erfolgreiche Aktion) + LLM-Abnahme (Judge qwen3.8:27b via Shim, fail-open) statt blindem „Aktion ok" → False-Positives eliminiert

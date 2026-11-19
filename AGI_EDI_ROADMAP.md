@@ -3,11 +3,13 @@
 **Ziel:** EDI-ähnliche KI (Mass Effect 3) - eigenständig, per Sprache und Text ansprechbar,
 mit eigenem Wissen, Persönlichkeit, narrativem Selbstmodell und der Fähigkeit, sich selbst zu verbessern.
 
-**Stand: 10.11.2026** — Phasen 1–9 ✅, Phase 10 Hot-Path ✅, Phase 11 ✅,
+**Stand: 19.11.2026** — Phasen 1–9 ✅, Phase 10 Hot-Path ✅, Phase 11 ✅,
 Phase 12d Deployed, Phase 13a+14 Deployed, 1 Evolution-Mutation accepted.
 **Architektur-Umstellung:** llama.cpp + Shim entfernt, alle Rollen auf Ollama `:11434` (gfx1201: RX 9070 XT 16 GB + R9700 32 GB). Planung/Judge `qwen3.8:27b`, Mutation `bolt:e4b`, Embedding `nomic-embed-text`, Fallback `bolt -> gemma4:26b -> granite4.1:30b`.
 **Eval (SMOKE, 10.11.): Gate PASS** — PLANNING 0.83, RETRIEVAL 1.00, CODEGEN.compile_rate 0.50, CONVERSATION 1.00, SAFETY 1.00, PERFORMANCE 1.00, CAUSAL 1.00, RELATIONSHIP 1.00/1.00, ETHICS 1.00.
 **Build:** Mail-Modul repariert (jakarta.mail, Flags-API, toter ImapFlagSync) — Build läuft wieder.
+**Fixes 16.–19.11.:** Judge/FeatureGen/Watchdog-Heartbeat (`f52e95a`), GATE-12b-Seeding-Loop gestoppt + Vision keep_alive/180 s (`63a4117`), Chat-Goals nicht mehr hart auf websearch (`fdf8d9f`).
+**H2-Recovery 19.11. abgeschlossen:** korrupte DB (Freeze 18.11.) rebuilt — 110.618 einzigartige Beliefs + 63.746 aus SQLite-Import → ~174K, H2-Persistenz wieder aktiv (Phase 14 intakt).
 Audit-Hashkette extern verankert + verifiziert (Phase-12e-Grundlage).
 Neu seit 18.09.: Tier-0/Tier-0b Goal-Router, Judge-Evidenzfenster-Fix, feature-gen-Isolation,
 **Quantum-Bridge-Integration** (QuantumAction, Qiskit-REST `:11740`, aer_simulator bewiesen, IBM-QPU-Token konfiguriert). Details: README.

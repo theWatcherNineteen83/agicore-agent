@@ -1,6 +1,6 @@
 # Metis AGI — Feature-Katalog
 
-**Stand: 10.11.2026 (Ollama-only, gfx1201-Doppel-GPU, Eval-Gate PASS · +Tier-0/Tier-0b Goal-Router · Judge-Evidenzfenster 2500 · feature-gen Isolation · Quantum-Bridge-Action · Modell-Topologie llama.cpp/Shim)**
+**Stand: 19.11.2026 (Ollama-only, gfx1201-Doppel-GPU, Eval-Gate PASS · +Tier-0/Tier-0b Goal-Router · Judge-Evidenzfenster 2500 · feature-gen Isolation · Quantum-Bridge-Action · GATE-12b-Seeding-Fix + Chat-Routing-Fix + Vision keep_alive (19.11.) · H2-Recovery abgeschlossen, ~174K Beliefs)**
 
 ---
 

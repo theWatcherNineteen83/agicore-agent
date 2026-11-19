@@ -1,6 +1,9 @@
 # Metis AGI — Runbook
 
-**Stand: 01.10.2026 | Host: miniedi (192.168.22.204) | User: prometheus**
+**Stand: 01.10.2026 (historisch) | Host: miniedi (192.168.22.204) | User: prometheus**
+
+> ⚠️ Aktueller Betriebs-Stand: [docs/METIS_RUNBOOK.md](docs/METIS_RUNBOOK.md) (19.11.2026)
+> bzw. das Prometheus-Workspace-Runbook. Dieses Dokument ist ein historischer Snapshot.
 
 ---
 

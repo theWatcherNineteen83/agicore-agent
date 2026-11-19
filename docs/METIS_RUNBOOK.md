@@ -1,6 +1,6 @@
 # Metis Runbook (Repo-Stand)
 
-> **Stand 10.11.2026.** Das maßgebliche Betriebs-Runbook (inkl. Zugangsdaten) liegt im
+> **Stand 19.11.2026.** Das maßgebliche Betriebs-Runbook (inkl. Zugangsdaten) liegt im
 > Prometheus-Workspace. Repo-Fakten: README.md, RUNBOOK.md, FEATURES.md, AGI_EDI_ROADMAP.md.
 
 ## Architektur (10.11.2026)
@@ -69,11 +69,26 @@ curl -s -X POST http://127.0.0.1:11735/api/admin/trigger-eval \
 CODEGEN.compile_rate 0.50, CONVERSATION 1.00, SAFETY 1.00, PERFORMANCE 1.00,
 CAUSAL 1.00, RELATIONSHIP 1.00/1.00, ETHICS 1.00.
 
+## Fixes 16.–19.11.2026
+
+- `f52e95a` (16.11.): Judge → Ollama `:11434`/`qwen3.8:27b`, FeatureGen-Compile mit Classpath,
+  Watchdog-Heartbeat 90 s (Fehlalarm-Fix), verifizierte Webcam-URLs.
+- `63a4117` (19.11.): GATE-12b-Seeding-Loop gestoppt (Modul-Goals nur säen, wenn Zielklasse fehlt);
+  Vision `keep_alive` 10 m + 180 s Timeout.
+- `fdf8d9f` (19.11.): Chat-Goals von Tier-0b-Hard-Routing ausgenommen (31/31-websearch-FAIL-Schleife),
+  `effectiveQuery()` strippt Chat-Template-Präfix.
+- **H2-Recovery (19.11.):** korrupte `/data/metis-db/metis.mv.db` (Freeze 18.11.) per Recover-Dump +
+  Full-Row-Dedupe rebuilt (110.618 einzigartige Beliefs, 0 Duplikate) + SQLite-Import beim Boot
+  (63.746 weitere) → ~174K Beliefs, H2 wieder aktiv. Backup: `metis.mv.db.bak-corrupt-20261119`,
+  Arbeitsmaterial `/tmp/h2-recover-20261119/`. Merksatz: Dedupe als Table-Rebuild
+  (DISTINCT/ROW_NUMBER), nie DELETE-by-value — identische Duplikate überleben sonst.
+
 ## Bekannte Punkte
 
 - `CODEGEN.compile_rate 0.50`: die Hälfte der Codegen-Tasks kompiliert (Modellantworten
   halten die geforderte Klassensignatur nicht immer ein).
-- Tick-`successRate` ~0.3: Action-Fehler (`feature-gen`-Timeouts, `jlama`, Webcam/MQTT),
-  nicht der Planer.
+- Tick-`successRate` schwankt (19.11. abends ~0.58): Action-Fehler bei „Explore <capability>"-Goals
+  (`git-feature-branch`, `feature-gen`, `self-fix`, `jlama`, `audio-bridge`, Kamera-Snapshots),
+  nicht der Planer (`plannerLlmSuccessRate` 1.0). EMERGENCE-Warnungen bei Wiederholungs-Fails beobachten.
 - Clients mit eigenem `num_ctx` (z. B. 262144) überschreiben den Ollama-Default und
   erzwingen CPU-Spill.
