@@ -34,6 +34,8 @@ public class WebcamPollingTrigger implements EventTrigger {
     private static final String OLLAMA_URL = "http://127.0.0.1:11434/api/chat";
     private static final String VISION_MODEL = "gemma4:26b";  // lightweight vision model
     private static final Duration HTTP_TIMEOUT = Duration.ofSeconds(30);
+    // Fix 19.11.2026: Vision-Call inkl. Cold-Load (gemma4:26b) braucht mehr als 30 s.
+    private static final Duration VISION_TIMEOUT = Duration.ofSeconds(180);
     private static final Duration POLL_INTERVAL = Duration.ofMinutes(5);
 
     // Kein shared HttpClient mehr — jeder Request bekommt einen frischen Client
@@ -228,7 +230,7 @@ public class WebcamPollingTrigger implements EventTrigger {
                         "temperature": 0.2,
                         "num_predict": 100
                       },
-                      "keep_alive": 0
+                      "keep_alive": "10m"
                     }
                     """, VISION_MODEL, escapeJson(prompt), base64Image);
 
@@ -239,7 +241,7 @@ public class WebcamPollingTrigger implements EventTrigger {
 
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(OLLAMA_URL))
-                    .timeout(HTTP_TIMEOUT)
+                    .timeout(VISION_TIMEOUT)
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
                     .build();

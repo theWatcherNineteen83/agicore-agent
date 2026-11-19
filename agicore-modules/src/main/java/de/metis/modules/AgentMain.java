@@ -1255,18 +1255,48 @@ public final class AgentMain {
         agent.addGoal("Reflektiere ethische Grundsaetze (Dhammapada, Metta Sutta) bei Entscheidungen", "ethics", 90, 0.9, 2);
 
         // ── Java-Module: MathCore + CharCounter (Java-21-Tage-Training) ──
-        agent.addGoal("STRATEGIC: Baue MathCore — Rechenkern ohne Rundungsfehler (BigDecimal, Fraction, Newton-Wurzel, package de.metis.modules.math)",
-                "java", 95, 0.9, 3);
-        agent.addGoal("STRATEGIC: Baue CharCounter — Buchstabenzaehler (Unicode-Frequenz, N-Gramme, Sprachdetektion, package de.metis.modules.text)",
-                "java", 95, 0.9, 4);
+        // Fix 19.11.2026: Goal nur saeen, wenn die Zielklasse noch nicht existiert.
+        // Sonst GATE(12b)-Loop: feature-gen darf Existing-Files nicht ueberschreiben -> FAIL -> requeue.
+        if (Files.exists(Path.of("/home/prometheus/metis-build", "agicore-modules/src/main/java/de/metis/modules/math/MathCore.java"))) {
+            LOG.info("Goal seeding skipped (module exists): MathCore");
+        } else {
+            agent.addGoal("STRATEGIC: Baue MathCore — Rechenkern ohne Rundungsfehler (BigDecimal, Fraction, Newton-Wurzel, package de.metis.modules.math)",
+                    "java", 95, 0.9, 3);
+        }
+        // Fix 19.11.2026: Goal nur saeen, wenn die Zielklasse noch nicht existiert.
+        // Sonst GATE(12b)-Loop: feature-gen darf Existing-Files nicht ueberschreiben -> FAIL -> requeue.
+        if (Files.exists(Path.of("/home/prometheus/metis-build", "agicore-modules/src/main/java/de/metis/modules/text/CharCounter.java"))) {
+            LOG.info("Goal seeding skipped (module exists): CharCounter");
+        } else {
+            agent.addGoal("STRATEGIC: Baue CharCounter — Buchstabenzaehler (Unicode-Frequenz, N-Gramme, Sprachdetektion, package de.metis.modules.text)",
+                    "java", 95, 0.9, 4);
+        }
 
         // ── Phase 12d: Selbst-Refactoring Foundation (Roadmap 13.08.2026) ──
-        agent.addGoal("STRATEGIC: Baue RoadmapReader — Markdown-Parser fuer AGI_EDI_ROADMAP.md mit Phasen-/Todo-/Coverage-Tracking pro Phase (Phase 12a Foundation, package de.metis.modules.selfrefactor)",
-                "java", 90, 0.9, 5);
-        agent.addGoal("STRATEGIC: Baue RepoIndex — AST-basierter Index aller Java-Klassen mit Dependency-Graph (Phase 12a Foundation, package de.metis.modules.selfrefactor)",
-                "java", 90, 0.9, 6);
-        agent.addGoal("STRATEGIC: Baue PhaseCompletionEvaluator — prueft strukturiert ob Phase X der Roadmap wirklich DONE ist (Phase 12a, Watchdog-Komponente, package de.metis.modules.selfrefactor)",
-                "java", 85, 0.9, 7);
+        // Fix 19.11.2026: Goal nur saeen, wenn die Zielklasse noch nicht existiert.
+        // Sonst GATE(12b)-Loop: feature-gen darf Existing-Files nicht ueberschreiben -> FAIL -> requeue.
+        if (Files.exists(Path.of("/home/prometheus/metis-build", "agicore-modules/src/main/java/de/metis/modules/selfrefactor/RoadmapReader.java"))) {
+            LOG.info("Goal seeding skipped (module exists): RoadmapReader");
+        } else {
+            agent.addGoal("STRATEGIC: Baue RoadmapReader — Markdown-Parser fuer AGI_EDI_ROADMAP.md mit Phasen-/Todo-/Coverage-Tracking pro Phase (Phase 12a Foundation, package de.metis.modules.selfrefactor)",
+                    "java", 90, 0.9, 5);
+        }
+        // Fix 19.11.2026: Goal nur saeen, wenn die Zielklasse noch nicht existiert.
+        // Sonst GATE(12b)-Loop: feature-gen darf Existing-Files nicht ueberschreiben -> FAIL -> requeue.
+        if (Files.exists(Path.of("/home/prometheus/metis-build", "agicore-modules/src/main/java/de/metis/modules/selfrefactor/RepoIndex.java"))) {
+            LOG.info("Goal seeding skipped (module exists): RepoIndex");
+        } else {
+            agent.addGoal("STRATEGIC: Baue RepoIndex — AST-basierter Index aller Java-Klassen mit Dependency-Graph (Phase 12a Foundation, package de.metis.modules.selfrefactor)",
+                    "java", 90, 0.9, 6);
+        }
+        // Fix 19.11.2026: Goal nur saeen, wenn die Zielklasse noch nicht existiert.
+        // Sonst GATE(12b)-Loop: feature-gen darf Existing-Files nicht ueberschreiben -> FAIL -> requeue.
+        if (Files.exists(Path.of("/home/prometheus/metis-build", "agicore-modules/src/main/java/de/metis/modules/selfrefactor/PhaseCompletionEvaluator.java"))) {
+            LOG.info("Goal seeding skipped (module exists): PhaseCompletionEvaluator");
+        } else {
+            agent.addGoal("STRATEGIC: Baue PhaseCompletionEvaluator — prueft strukturiert ob Phase X der Roadmap wirklich DONE ist (Phase 12a, Watchdog-Komponente, package de.metis.modules.selfrefactor)",
+                    "java", 85, 0.9, 7);
+        }
 
         // ── Hardware Discovery + Self-Awareness ──────────────────
         HardwareDiscovery.HardwareProfile hw = HardwareDiscovery.discover();
