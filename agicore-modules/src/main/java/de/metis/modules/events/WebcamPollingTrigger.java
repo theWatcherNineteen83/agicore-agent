@@ -50,42 +50,28 @@ public class WebcamPollingTrigger implements EventTrigger {
      * @param webcamUrls list of webcam image URLs to monitor
      */
     public WebcamPollingTrigger() {
-        // ── Coburg Live-Webcams ──────────────────────────────────
-
-        // Coburg Marktplatz — bergfex
+        // Stand 16.11.2026: nur verifizierte Bild-Endpunkte (HTTP 200, image/*, >40 KB).
+        // Die alten Eintraege (feratel/coburgmarketing/coburg.de) lieferten HTML bzw. 404.
         webcams.add(new WebcamConfig(
                 "Coburg-Marktplatz",
-                "https://images.bergfex.at/webcams/?id=14275&2&format=44",
-                "Historischer Marktplatz Coburg mit Rathaus, Stadthaus und Markttreiben"
-        ));
-
-        // Coburg Marktplatz — feratel (Stadt Coburg, Blick auf Stadthaus)
+                "https://images.webcamgalore.com/29914-current-webcam-Coburg.jpg",
+                "Marktplatz Coburg mit Rathaus und Stadthaus (webcamgalore-Snapshot)"));
         webcams.add(new WebcamConfig(
-                "Coburg-Stadthaus",
-                "https://www.feratel.com/webcams/?id=02d4e2aa-2c1c-4f0b-a7d1-0a5e3b8f9c1d&design=live&cam=1",
-                "Blick vom Stadthaus auf den Coburger Marktplatz"
-        ));
-
-        // Coburg — Veste von der Morizkirche (Coburg Marketing)
+                "Sonneberg-Markt",
+                "https://sonneberg.de/webcam/webcam/current.jpg",
+                "Sonneberg Innenstadt (Stadt Sonneberg, Live-Snapshot)"));
         webcams.add(new WebcamConfig(
-                "Coburg-Veste-Panorama",
-                "https://www.coburgmarketing.de/informieren/webcam",
-                "Panoramablick von der Morizkirche über Coburg mit Veste"
-        ));
-
-        // Flugplatz Coburg Brandensteinsebene (EDQC)
+                "Sonneberg-Panorama",
+                "https://sonneberg.de/webcam/webcamson/webcam.jpg",
+                "Sonneberg Panorama (Stadt Sonneberg, Live-Snapshot)"));
         webcams.add(new WebcamConfig(
-                "Coburg-Flugplatz",
-                "https://www.coburg.de/coburg-erleben/webcams/webcams/webcam-flugplatz-steinruecken.php",
-                "Flugplatz Coburg Brandensteinsebene — Landebahn und Flugbetrieb"
-        ));
-
-        // Albertsplatz Coburg
+                "Kronach-Altstadt",
+                "https://www.meteopool.org/helper/getWebcamCGIImage.php?t=jpg&u=http%3A%2F%2Fkronach-einkaufen.ddns.net%2Fcgi-bin%2Fview%2Fimage",
+                "Kronach Altstadt und Festung Rosenberg (meteopool-Proxy)"));
         webcams.add(new WebcamConfig(
-                "Coburg-Albertsplatz",
-                "https://www.coburg.de/coburg-erleben/webcams/webcams/webcam-blick-auf-albertsplatz.php",
-                "Albertsplatz Coburg — Geschäfte und Fußgängerzone"
-        ));
+                "Lichtenfels-Stadt",
+                "https://www.skiresort-service.com/typo3temp/_processed_/_cams_/livestream_37_316.jpg",
+                "Lichtenfels Stadtansicht (skiresort-Snapshot)"));
     }
 
     @Override

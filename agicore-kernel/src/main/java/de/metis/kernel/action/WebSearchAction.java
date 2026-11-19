@@ -68,6 +68,18 @@ public class WebSearchAction implements Action, GoalAwareAction {
             "welche", "welchen", "welcher", "welches", "besteht", "bestehen",
             "beschreib", "erkläre", "erklaere", "funktion", "kurz");
 
+    /** Volltextsuche als Fallback, wenn opensearch keinen exakten Titel findet. */
+    private static String wikiSearchHit(String q) throws Exception {
+        String url = "https://de.wikipedia.org/w/api.php?action=query&list=search&format=json&srlimit=1&srsearch="
+                + URLEncoder.encode(q, StandardCharsets.UTF_8);
+        var req = HttpRequest.newBuilder(URI.create(url)).timeout(Duration.ofSeconds(10)).GET()
+                .header("User-Agent", "Metis AGI/0.11 (Java; websearch-action)").build();
+        var resp = HTTP.send(req, HttpResponse.BodyHandlers.ofString());
+        if (resp.statusCode() != 200) return null;
+        Matcher m = Pattern.compile("\"title\"\s*:\s*\"([^\"]+)\"").matcher(resp.body());
+        return m.find() ? m.group(1).replace("\\u00a0", " ") : null;
+    }
+
     /** opensearch: bester Titel für eine Query (ohne Regex, reines Scannen). */
     private static String wikiSearchTitle(String q) throws Exception {
         String url = "https://de.wikipedia.org/w/api.php?action=opensearch&search="
@@ -210,7 +222,9 @@ public class WebSearchAction implements Action, GoalAwareAction {
                             .GET()
                             .header("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
                             .build();
-                    String html = HTTP.send(req, HttpResponse.BodyHandlers.ofString()).body();
+                    var ddgResp = HTTP.send(req, HttpResponse.BodyHandlers.ofString());
+                    // DDG antwortet von Rechenzentrums-IPs mit HTTP 202/Challenge -> nicht parsen
+                    String html = ddgResp.statusCode() == 200 ? ddgResp.body() : "";
 
                     // Extract links
                     Matcher linkMatcher = LINK_PATTERN.matcher(html);
@@ -248,7 +262,9 @@ public class WebSearchAction implements Action, GoalAwareAction {
             List<String> kws = extraKeywords();
             if (results.isEmpty() || !kws.isEmpty()) {
                 try {
-                    String title = wikiSearchTitle(query);
+                    String t = wikiSearchTitle(query);
+                    if (t == null || t.isBlank()) t = wikiSearchHit(query);
+                    final String title = t;
                     if (title != null && !title.isBlank()) {
                         String full = wikiFullExtract(title);
                         if (full != null && full.length() > 80) {

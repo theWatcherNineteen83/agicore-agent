@@ -100,8 +100,8 @@ a{color:#58a6ff}
 <div class="footer">Metis AGI &middot; Externes User-Goal-Board &middot; Statusfluss: Offen &rarr; In Arbeit &rarr; Zu Testen &rarr; Erledigt</div>
 
 <script>
-const COLUMNS = ['OFFEN','IN_ARBEIT','ZU_TESTEN','FERTIG'];
-const COL_LABEL = {'OFFEN':'&#x1f7e2; Offen','IN_ARBEIT':'&#x1f7e1; In Arbeit','ZU_TESTEN':'&#x1f535; Zu Testen','FERTIG':'&#x2705; Erledigt'};
+const COLUMNS = ['OFFEN','IN_ARBEIT','ZU_TESTEN','FERTIG','BLOCKED'];
+const COL_LABEL = {'OFFEN':'&#x1f7e2; Offen','IN_ARBEIT':'&#x1f7e1; In Arbeit','ZU_TESTEN':'&#x1f535; Zu Testen','FERTIG':'&#x2705; Erledigt','BLOCKED':'&#x26d4; Blockiert'};
 
 async function j(url, opts) {
   const r = await fetch(url, opts);

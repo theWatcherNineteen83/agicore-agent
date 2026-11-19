@@ -55,7 +55,7 @@ public record WatchdogConfig(
         if (metisHealthUrl == null || metisHealthUrl.isBlank())
             throw new IllegalArgumentException("metisHealthUrl required");
         if (heartbeatIntervalSec < 1) heartbeatIntervalSec = 5;
-        if (maxMissedHeartbeats < 1) maxMissedHeartbeats = 6; // 30s at 5s interval
+        if (maxMissedHeartbeats < 1) maxMissedHeartbeats = 18; // 90s at 5s interval (war 6/30s: Fehlalarme bei langen GC-/Modellphasen)
     }
 
     /** Default config for the miniedi deployment. */
@@ -63,7 +63,7 @@ public record WatchdogConfig(
         return new WatchdogConfig(
                 "http://192.168.22.204:11735/api/status",
                 5,      // heartbeat every 5s
-                6,      // halt after 30s no heartbeat
+                18,     // halt after 90s no heartbeat (Fehlalarm-Fix 16.11.)
                 20,     // rollback after 20 consecutive failures
                 0.3,    // rollback at 30% error rate
                 "265324594", // Georg's Telegram

@@ -59,13 +59,15 @@ public class UserGoalBridge {
     private static final Duration BACKOFF_BASE = Duration.ofMinutes(15);
     /** Max. Cooldown. */
     private static final Duration BACKOFF_MAX = Duration.ofHours(24);
+    /** Nach so vielen Fehlversuchen wird das Goal blockiert statt weiter zu retryen. */
+    private static final int MAX_ATTEMPTS = 8;
 
     /** Judge-Endpoint für die AUFGABE-Abnahme (GPU1-Ollama, wie LlmJudge). */
     private static final String JUDGE_URL = System.getProperty(
             "metis.judge.url", "http://127.0.0.1:11434/api/generate");
     /** Judge-Modell — muss \"think\":false im Request bekommen (Thinking-Modell). */
     private static final String JUDGE_MODEL = System.getProperty(
-            "metis.judge.model", "ornith:9b");
+            "metis.judge.model", "qwen3.8:27b");
     /** HTTP-Timeout für Judge-Calls. */
     private static final Duration JUDGE_TIMEOUT = Duration.ofSeconds(180);
 
@@ -226,9 +228,13 @@ public class UserGoalBridge {
         startBeliefs.remove(ug.id);
         if (bestanden) {
             board.markZuTesten(ug, report, learnedSummary, result, testProtocol);
+        } else if (ug.attempts >= MAX_ATTEMPTS) {
+            // Zuviele Fehlversuche -> blockieren statt endlos im Backoff zu kreisen.
+            board.markBlocked(ug, report + " - MAX_ATTEMPTS (" + MAX_ATTEMPTS
+                    + ") erreicht, automatische Retries gestoppt.");
         } else {
-            // Nicht bestanden → zurück auf OFFEN mit Backoff, damit Georg es
-            // präzisieren kann und Metis nicht in einer Schleife hängt.
+            // Nicht bestanden -> zurueck auf OFFEN mit Backoff, damit Georg es
+            // praezisieren kann und Metis nicht in einer Schleife haengt.
             long backoff = Math.min(BACKOFF_BASE.toMillis() * Math.max(1, ug.attempts),
                     BACKOFF_MAX.toMillis());
             board.setRetryAfter(ug, System.currentTimeMillis() + backoff);

@@ -175,8 +175,11 @@ public class FeatureGenAction implements Action, GoalAwareAction {
         try {
             Path outDir = Files.createTempDirectory("metis-feature-check");
             String javac = System.getProperty("java.home") + "/bin/javac";
-            ProcessBuilder pb = new ProcessBuilder(javac, "-d", outDir.toString(),
-                    outFile.toString());
+            String classpath = System.getProperty("metis.featuregen.classpath",
+                    System.getProperty("java.class.path", ""));
+            ProcessBuilder pb = classpath.isBlank()
+                    ? new ProcessBuilder(javac, "-d", outDir.toString(), outFile.toString())
+                    : new ProcessBuilder(javac, "-cp", classpath, "-d", outDir.toString(), outFile.toString());
             pb.redirectErrorStream(true);
             Process p = pb.start();
             String out = new String(p.getInputStream().readAllBytes());

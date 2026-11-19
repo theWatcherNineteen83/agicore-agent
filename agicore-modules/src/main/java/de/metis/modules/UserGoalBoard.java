@@ -50,7 +50,9 @@ public class UserGoalBoard {
         /** Metis fertig + maschineller Vorabtest bestanden — wartet auf Review. */
         ZU_TESTEN,
         /** Von Georg nach Review freigegeben. */
-        FERTIG
+        FERTIG,
+        /** Nach MAX_ATTEMPTS Fehlschlaegen automatisch blockiert (manuelle Pruefung noetig). */
+        BLOCKED
     }
 
     /** Ein Kommentar an einer Goal-Karte (Review-Hinweise, Fehler, Notizen). */
@@ -240,6 +242,19 @@ public class UserGoalBoard {
         g.addComment("metis", reason);
         save();
         LOG.info("UserGoalBoard: OFFEN ← " + truncate(g.description) + " (" + reason + ")");
+        return true;
+    }
+
+    /** IN_ARBEIT -> BLOCKED: zu viele Fehlversuche, keine automatischen Retries mehr. */
+    public boolean markBlocked(UserGoal g, String reason) {
+        if (g.status != Status.IN_ARBEIT) return false;
+        g.status = Status.BLOCKED;
+        g.metisGoalId = null;
+        g.retryAfterEpochMs = 0;
+        g.updatedAt = Instant.now().toString();
+        g.addComment("metis", reason);
+        save();
+        LOG.info("UserGoalBoard: BLOCKED <- " + truncate(g.description) + " (" + reason + ")");
         return true;
     }
 

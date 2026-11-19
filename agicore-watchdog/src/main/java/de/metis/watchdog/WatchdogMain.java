@@ -149,7 +149,7 @@ public class WatchdogMain {
         try {
             HttpRequest req = HttpRequest.newBuilder()
                     .uri(URI.create(config.metisHealthUrl()))
-                    .timeout(Duration.ofSeconds(3))
+                    .timeout(Duration.ofSeconds(8))
                     .GET()
                     .build();
 
